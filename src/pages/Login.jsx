@@ -31,7 +31,7 @@ export default function Login() {
       if (data.auth_url) {
         // Redirect user to Google OAuth
         window.location.href = data.auth_url;
-        // Show token input as fallback since backend doesn't auto-redirec
+        // Show token input as fallback since backend doesn't auto-redirect
         setTimeout(() => setShowTokenInput(true), 1000);
       } else if (data.error) {
         alert("Login failed: " + data.error);
