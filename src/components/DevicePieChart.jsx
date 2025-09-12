@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { IoMdArrowDropleft, IoMdArrowDropright } from "react-icons/io";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
 const colors = ["#1A4752", "#2B889C", "#A0C6CE", "#58C3DB"];
 
@@ -17,85 +18,94 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-function DevicePieChart() {
-  const [chartDataList, setChartDataList] = useState([]);
+function DevicePieChart({ activeCampaign, period }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSlice, setActiveSlice] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/3220426249?period=LAST_7_DAYS",
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
-
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-
-        const devices = await res.json();
-        if (!Array.isArray(devices) || devices.length === 0) {
-          setChartDataList([]);
-          return;
-        }
-
-        const clicks = devices.map((d, i) => ({
-          name: d.device_info?.label || `Device ${i + 1}`,
-          value: d.clicks,
-          color: colors[i % colors.length],
-        }));
-
-        const impressions = devices.map((d, i) => ({
-          name: d.device_info?.label || `Device ${i + 1}`,
-          value: d.impressions,
-          color: colors[i % colors.length],
-        }));
-
-        const cost = devices.map((d, i) => ({
-          name: d.device_info?.label || `Device ${i + 1}`,
-          value: Number(d.cost?.toFixed(2) || 0),
-          color: colors[i % colors.length],
-        }));
-
-        setChartDataList([
-          { name: "Clicks", data: clicks },
-          { name: "Impressions", data: impressions },
-          { name: "Cost", data: cost },
-        ]);
-      } catch (err) {
-        console.error("Failed to fetch device performance:", err);
-        setChartDataList([]);
-      } finally {
-        setLoading(false);
-      }
+  const convertPeriodForAPI = (period) => {
+    const periodMap = {
+      'LAST_7_DAYS': 'LAST_7_DAYS',
+      'LAST_30_DAYS': 'LAST_30_DAYS',
+      'LAST_3_MONTHS': 'LAST_90_DAYS',
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
+    return periodMap[period] || period;
+  };
 
-    fetchData();
-  }, []);
+  const deviceApiCall = async (customerId, period) => {
+    const token = localStorage.getItem("token");
+    const convertedPeriod = convertPeriodForAPI(period);
+
+    const res = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${convertedPeriod}`,
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+    const devices = await res.json();
+
+    if (!Array.isArray(devices) || devices.length === 0) return [];
+
+    const clicks = devices.map((d, i) => ({
+      name: d.device_info?.label || `Device ${i + 1}`,
+      value: d.clicks,
+      color: colors[i % colors.length],
+    }));
+
+    const impressions = devices.map((d, i) => ({
+      name: d.device_info?.label || `Device ${i + 1}`,
+      value: d.impressions,
+      color: colors[i % colors.length],
+    }));
+
+    const cost = devices.map((d, i) => ({
+      name: d.device_info?.label || `Device ${i + 1}`,
+      value: Number(d.cost?.toFixed(2) || 0),
+      color: colors[i % colors.length],
+    }));
+
+    return [
+      { name: "Clicks", data: clicks },
+      { name: "Impressions", data: impressions },
+      { name: "Cost", data: cost },
+    ];
+  };
+
+  const { data: chartDataList, loading, error } = useApiWithCache(
+    activeCampaign?.id,
+    period,
+    'device-performance',
+    deviceApiCall
+  );
 
   const handlePrev = () =>
     setCurrentIndex((prev) =>
-      prev === 0 ? chartDataList.length - 1 : prev - 1
+      prev === 0 ? (chartDataList?.length || 1) - 1 : prev - 1
     );
   const handleNext = () =>
     setCurrentIndex((prev) =>
-      prev === chartDataList.length - 1 ? 0 : prev + 1
+      prev === (chartDataList?.length || 1) - 1 ? 0 : prev + 1
     );
 
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
       <h3 className="font-semibold mb-4 text-gray-900">Device Performance</h3>
+      <hr className="mb-4" />
 
-      {loading ? (
+      
+      {(loading && !chartDataList) ? (
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           Loading device performance...
         </div>
-      ) : chartDataList.length === 0 ? (
+      ) : error ? (
+        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+          Error loading device data: {error.message}
+        </div>
+      ) : !chartDataList?.length ? (
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           No device performance data available.
         </div>
@@ -110,13 +120,16 @@ function DevicePieChart() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={chartDataList[currentIndex].data}
+                    data={chartDataList[currentIndex]?.data || []}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
                     cy="50%"
                     innerRadius={40}
-                    outerRadius={80}
+                    outerRadius={({ name }) =>
+                      activeSlice === name ? 90 : 80 
+                    }
+                    labelLine={false}
                     label={({ cx, cy }) => (
                       <text
                         x={cx}
@@ -125,18 +138,20 @@ function DevicePieChart() {
                         dominantBaseline="middle"
                         className="font-semibold text-gray-700"
                       >
-                        {chartDataList[currentIndex].name}
+                        {chartDataList[currentIndex]?.name || ""}
                       </text>
                     )}
                     onClick={(entry) =>
                       setActiveSlice(activeSlice === entry.name ? null : entry.name)
                     }
                   >
-                    {chartDataList[currentIndex].data.map((entry, index) => (
+                    {(chartDataList[currentIndex]?.data || []).map((entry, index) => (
                       <Cell
-                        key={index}
+                        key={`cell-${index}`}
                         fill={entry.color}
-                        opacity={!activeSlice || activeSlice === entry.name ? 1 : 0.3}
+                        opacity={
+                          !activeSlice || activeSlice === entry.name ? 1 : 0.3
+                        }
                       />
                     ))}
                   </Pie>
@@ -145,16 +160,18 @@ function DevicePieChart() {
               </ResponsiveContainer>
             </div>
 
-            <button onClick={handleNext} className="p-2">
+            <button onClick={handleNext} className="p-2 rounded">
               <IoMdArrowDropright size={50} color="#1A4752" />
             </button>
           </div>
 
+          {/* Clickable Legend */}
           <div className="flex flex-wrap justify-center mt-2 text-xs">
-            {chartDataList[currentIndex].data.map((item, index) => (
+            {(chartDataList[currentIndex]?.data || []).map((item, index) => (
               <div
                 key={index}
                 className="flex items-center mr-3 mb-1 select-none"
+                style={{ cursor: "pointer" }}
                 onClick={() =>
                   setActiveSlice(activeSlice === item.name ? null : item.name)
                 }
@@ -163,14 +180,17 @@ function DevicePieChart() {
                   className="w-3 h-3 mr-1"
                   style={{
                     backgroundColor: item.color,
-                    opacity: !activeSlice || activeSlice === item.name ? 1 : 0.3,
+                    opacity:
+                      !activeSlice || activeSlice === item.name ? 1 : 0.3,
                   }}
-                />
+                ></div>
                 <span
                   style={{
                     color: !activeSlice || activeSlice === item.name ? "#000" : "#888",
                     textDecoration:
-                      !activeSlice || activeSlice === item.name ? "none" : "line-through",
+                      !activeSlice || activeSlice === item.name
+                        ? "none"
+                        : "line-through",
                   }}
                 >
                   {item.name}

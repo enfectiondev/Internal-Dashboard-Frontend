@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
 // Custom Tooltip
 const CustomBarTooltip = ({ active, payload, label }) => {
@@ -29,75 +30,58 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function CampaignPerformanceDetails() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+function CampaignPerformanceDetails({ activeCampaign, period }) {
   const [showCtr, setShowCtr] = useState(true);
   const [showCost, setShowCost] = useState(true);
   const [showConversions, setShowConversions] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const token =
-          typeof window !== "undefined" && window.localStorage
-            ? localStorage.getItem("token")
-            : null;
-
-        const headers = { "Content-Type": "application/json" };
-        if (token) headers.Authorization = `Bearer ${token}`;
-
-        const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/3220426249?period=LAST_7_DAYS",
-          { headers }
-        );
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-
-        const json = await res.json();
-        console.log("Campaign Details API Response:", json);
-
-        let campaigns = [];
-        if (json.data && Array.isArray(json.data)) {
-          campaigns = json.data;
-        } else if (json.campaigns && Array.isArray(json.campaigns)) {
-          campaigns = json.campaigns;
-        } else if (Array.isArray(json)) {
-          campaigns = json;
-        } else if (json.data && !Array.isArray(json.data)) {
-          campaigns = [json.data];
-        }
-
-        const transformed = campaigns.map((c, index) => ({
-          name: c.name || c.campaign_name || `Campaign ${index + 1}`,
-          ctr: Number(c.ctr || c.click_through_rate || c.clickThroughRate || 0),
-          cost: Number(c.cost || c.spend || c.amount_spent || 0),
-          conversions: Number(
-            c.conversions || c.conversion_count || c.conversionCount || 0
-          ),
-        }));
-
-        setData(transformed);
-      } catch (err) {
-        console.error("Failed to fetch campaign details:", err);
-        setError(err.message);
-        setData([]);
-      } finally {
-        setLoading(false);
-      }
+  const convertPeriodForAPI = (period) => {
+    const periodMap = {
+      'LAST_7_DAYS': 'LAST_7_DAYS',
+      'LAST_30_DAYS': 'LAST_30_DAYS',
+      'LAST_3_MONTHS': 'LAST_90_DAYS',
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
+    return periodMap[period] || period;
+  };
 
-    fetchData();
-  }, []);
+  const campaignDetailsApiCall = async (customerId, period) => {
+    const token = localStorage.getItem("token");
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const convertedPeriod = convertPeriodForAPI(period);
+    const res = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`,
+      { headers }
+    );
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const json = await res.json();
+
+    let campaigns = [];
+    if (json.data && Array.isArray(json.data)) campaigns = json.data;
+    else if (json.campaigns && Array.isArray(json.campaigns)) campaigns = json.campaigns;
+    else if (Array.isArray(json)) campaigns = json;
+    else if (json.data && !Array.isArray(json.data)) campaigns = [json.data];
+
+    return campaigns.map((c, index) => ({
+      name: c.name || c.campaign_name || `Campaign ${index + 1}`,
+      ctr: Number(c.ctr || c.click_through_rate || c.clickThroughRate || 0),
+      cost: Number(c.cost || c.spend || c.amount_spent || 0),
+      conversions: Number(c.conversions || c.conversion_count || c.conversionCount || 0),
+    }));
+  };
+
+  const { data, loading, error } = useApiWithCache(
+    activeCampaign?.id,
+    period,
+    'campaign-details', // Different endpoint name
+    campaignDetailsApiCall
+  );
 
   // Filter out campaigns with no usable data (based on toggles)
-  const filteredData = data.filter((c) => {
+  const filteredData = (data || []).filter((c) => {
     const ctr = showCtr ? c.ctr : 0;
     const cost = showCost ? c.cost : 0;
     const conversions = showConversions ? c.conversions : 0;
@@ -105,9 +89,9 @@ function CampaignPerformanceDetails() {
   });
 
   // Check if metrics have any non-zero values at all
-  const hasCtrData = data.some((c) => c.ctr > 0);
-  const hasCostData = data.some((c) => c.cost > 0);
-  const hasConversionsData = data.some((c) => c.conversions > 0);
+  const hasCtrData = (data || []).some((c) => c.ctr > 0);
+  const hasCostData = (data || []).some((c) => c.cost > 0);
+  const hasConversionsData = (data || []).some((c) => c.conversions > 0);
 
   const labelBaseStyle = {
     cursor: "pointer",
@@ -188,13 +172,13 @@ function CampaignPerformanceDetails() {
 
       <hr className="mb-4" />
 
-      {loading ? (
+      {(loading && !data) ? (
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           Loading campaign details...
         </div>
       ) : error ? (
         <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-red-500 font-medium mb-2">Error: {error}</p>
+          <p className="text-red-500 font-medium mb-2">Error: {error.message}</p>
           <p className="text-sm text-gray-500">Check console for more details</p>
         </div>
       ) : filteredData.length === 0 ||
@@ -203,7 +187,7 @@ function CampaignPerformanceDetails() {
           No campaign details available.
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={400}>
           <BarChart data={filteredData} margin={{ left: 50, right: 50 }}>
             <XAxis
               dataKey="name"
@@ -241,10 +225,10 @@ function CampaignPerformanceDetails() {
               tick={{ fontSize: 11, fill: "#000", fontWeight: "bold" }}
             />
             <Tooltip content={<CustomBarTooltip />} />
-            {showCtr && hasCtrData && <Bar dataKey="ctr" fill="#1A4752" />}
-            {showCost && hasCostData && <Bar dataKey="cost" fill="#58C3DB" />}
+            {showCtr && hasCtrData && <Bar dataKey="ctr" fill="#1A4752" name="CTR" />}
+            {showCost && hasCostData && <Bar dataKey="cost" fill="#58C3DB" name="Cost" />}
             {showConversions && hasConversionsData && (
-              <Bar dataKey="conversions" fill="#9AB4BA" />
+              <Bar dataKey="conversions" fill="#9AB4BA" name="Conversions" />
             )}
           </BarChart>
         </ResponsiveContainer>

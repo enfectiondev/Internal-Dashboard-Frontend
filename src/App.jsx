@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
+import { CacheProvider } from "./context/CacheContext";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -113,7 +114,15 @@ export default function App() {
         />
         <Route
           path="/dashboard"
-          element={user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
+          element={
+            user ? (
+              <CacheProvider>
+                <Layout user={user} onLogout={handleLogout} />
+              </CacheProvider>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
         />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>

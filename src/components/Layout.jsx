@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import GoogleAds from "../pages/GoogleAds";
 import GoogleAnalytics from "../pages/GoogleAnalytics";
+import { useCache } from "../context/CacheContext";
 
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
 
@@ -9,11 +10,10 @@ export default function Layout({ user, onLogout }) {
   const [activeCampaignIdx, setActiveCampaignIdx] = useState(0);
   const [period, setPeriod] = useState("LAST_7_DAYS");
   const [campaigns, setCampaigns] = useState([]);
-  const [campaignStats, setCampaignStats] = useState(null);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
-  const [loadingStats, setLoadingStats] = useState(false);
 
   const token = localStorage.getItem("token");
+  const { clearCache } = useCache();
 
   // Fetch campaigns for the user
   useEffect(() => {
@@ -46,54 +46,31 @@ export default function Layout({ user, onLogout }) {
     fetchCampaigns();
   }, [token]);
 
-  // Fetch key stats whenever active campaign or period changes
-  useEffect(() => {
-    const fetchCampaignStats = async () => {
-      if (!campaigns.length) {
-        setCampaignStats(null);
-        return;
-      }
-
-      const customerId = campaigns[activeCampaignIdx]?.id;
-      if (!customerId) return;
-
-      setLoadingStats(true);
-
-      try {
-        const res = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${period}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!res.ok) {
-          console.error("Failed to fetch key stats:", res.status);
-          setCampaignStats(null);
-          return;
-        }
-
-        const data = await res.json();
-        setCampaignStats(data);
-      } catch (err) {
-        console.error("Error fetching key stats:", err);
-        setCampaignStats(null);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-
-    fetchCampaignStats();
-  }, [activeCampaignIdx, period, campaigns, token]);
+  const handleLogout = () => {
+    clearCache(); // Clear cache before logout
+    onLogout();
+  };
 
   const renderContent = () => {
     if (loadingCampaigns) return <div className="text-white p-4">Loading campaigns...</div>;
     if (!campaigns.length)
       return <div className="text-white p-4">No accounts related to your Google account</div>;
-    if (loadingStats) return <div className="text-white p-4">Loading stats...</div>;
 
     switch (activeTab) {
       case "Google Ads Campaigns":
-        return <GoogleAds activeCampaign={campaigns[activeCampaignIdx]} stats={campaignStats} />;
+        return (
+          <GoogleAds 
+            activeCampaign={campaigns[activeCampaignIdx]} 
+            period={period}
+          />
+        );
       case "Google Analytics":
-        return <GoogleAnalytics activeCampaign={campaigns[activeCampaignIdx]} stats={campaignStats} />;
+        return (
+          <GoogleAnalytics 
+            activeCampaign={campaigns[activeCampaignIdx]} 
+            period={period}
+          />
+        );
       default:
         return <div className="text-white p-4">Content for {activeTab}</div>;
     }
@@ -157,7 +134,7 @@ export default function Layout({ user, onLogout }) {
               Download Full Report
             </button>
             <button
-              onClick={onLogout}
+              onClick={handleLogout}
               className="w-full bg-gray-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-gray-700"
             >
               Logout
