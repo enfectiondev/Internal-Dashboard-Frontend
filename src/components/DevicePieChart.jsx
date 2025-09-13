@@ -82,6 +82,32 @@ function DevicePieChart({ activeCampaign, period }) {
     deviceApiCall
   );
 
+  // Calculate dynamic radius based on text length
+  const getCurrentText = () => {
+    return chartDataList?.[currentIndex]?.name || "";
+  };
+
+  const calculateRadius = () => {
+    const text = getCurrentText();
+    const baseInnerRadius = 30;
+    const baseOuterRadius = 80;
+    
+    // Estimate text width (rough calculation: 7px per character)
+    const estimatedTextWidth = text.length * 7;
+    const minRequiredRadius = estimatedTextWidth / 2;
+    
+    // Ensure inner radius is large enough for text with some padding
+    const dynamicInnerRadius = Math.max(baseInnerRadius, minRequiredRadius + 10);
+    const dynamicOuterRadius = Math.max(baseOuterRadius, dynamicInnerRadius + 40);
+    
+    return {
+      innerRadius: Math.min(dynamicInnerRadius, 60), // Cap at 60 to keep chart visible
+      outerRadius: Math.min(dynamicOuterRadius, 100)  // Cap at 100 to fit container
+    };
+  };
+
+  const { innerRadius, outerRadius } = calculateRadius();
+
   const handlePrev = () =>
     setCurrentIndex((prev) =>
       prev === 0 ? (chartDataList?.length || 1) - 1 : prev - 1
@@ -91,12 +117,55 @@ function DevicePieChart({ activeCampaign, period }) {
       prev === (chartDataList?.length || 1) - 1 ? 0 : prev + 1
     );
 
+  // Custom label component that handles text wrapping
+  const renderCenterLabel = ({ cx, cy }) => {
+    const text = getCurrentText();
+    const maxCharsPerLine = 12;
+    
+    // Split text into multiple lines if too long
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    words.forEach(word => {
+      if ((currentLine + word).length <= maxCharsPerLine) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    });
+    if (currentLine) lines.push(currentLine);
+    
+    // If still too long, truncate
+    const finalLines = lines.map(line => 
+      line.length > maxCharsPerLine ? line.substring(0, maxCharsPerLine - 3) + '...' : line
+    );
+    
+    return (
+      <g>
+        {finalLines.map((line, index) => (
+          <text
+            key={index}
+            x={cx}
+            y={cy + (index - (finalLines.length - 1) / 2) * 14}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="font-semibold text-gray-700"
+            fontSize={12}
+          >
+            {line}
+          </text>
+        ))}
+      </g>
+    );
+  };
+
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
       <h3 className="font-semibold mb-4 text-gray-900">Device Performance</h3>
       <hr className="mb-4" />
 
-      
       {(loading && !chartDataList) ? (
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           Loading device performance...
@@ -111,59 +180,100 @@ function DevicePieChart({ activeCampaign, period }) {
         </div>
       ) : (
         <>
-          <div className="flex justify-between items-center">
-            <button onClick={handlePrev} className="p-2">
-              <IoMdArrowDropleft size={50} color="#1A4752" />
-            </button>
-
-            <div className="w-64 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartDataList[currentIndex]?.data || []}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={({ name }) =>
-                      activeSlice === name ? 90 : 80 
-                    }
-                    labelLine={false}
-                    label={({ cx, cy }) => (
-                      <text
-                        x={cx}
-                        y={cy}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="font-semibold text-gray-700"
-                      >
-                        {chartDataList[currentIndex]?.name || ""}
-                      </text>
-                    )}
-                    onClick={(entry) =>
-                      setActiveSlice(activeSlice === entry.name ? null : entry.name)
-                    }
-                  >
-                    {(chartDataList[currentIndex]?.data || []).map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        opacity={
-                          !activeSlice || activeSlice === entry.name ? 1 : 0.3
-                        }
+          {(() => {
+            const totalSections = chartDataList?.length || 0;
+            const maxIndex = totalSections - 1;
+            
+            return (
+              <>
+                {/* Page Indicators - Above pie chart */}
+                {totalSections > 1 && (
+                  <div className="flex justify-center mb-4 space-x-2">
+                    {Array.from({ length: totalSections }, (_, index) => (
+                      <div
+                        key={index}
+                        className={`w-3 h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                          index === currentIndex 
+                            ? 'bg-[#1A4752] scale-125' 
+                            : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                        onClick={() => setCurrentIndex(index)}
+                        title={chartDataList[index]?.name || `Chart ${index + 1}`}
                       />
                     ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+                  </div>
+                )}
 
-            <button onClick={handleNext} className="p-2 rounded">
-              <IoMdArrowDropright size={50} color="#1A4752" />
-            </button>
-          </div>
+                <div className="flex justify-between items-center">
+                  {/* Left Arrow - Only show if there are multiple sections and not at first item */}
+                  <div className="w-12 flex justify-center">
+                    {totalSections > 1 && currentIndex > 0 ? (
+                      <button 
+                        onClick={handlePrev} 
+                        className="p-2 transition-all duration-300 opacity-100 hover:scale-110"
+                        title="Previous chart"
+                      >
+                        <IoMdArrowDropleft size={50} color="#1A4752" />
+                      </button>
+                    ) : (
+                      <div className="w-12"></div> // Empty space to maintain centering
+                    )}
+                  </div>
+
+                  <div className="w-80 h-64 transition-all duration-500 ease-in-out">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartDataList[currentIndex]?.data || []}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={innerRadius}
+                          outerRadius={({ name }) =>
+                            activeSlice === name ? outerRadius + 8 : outerRadius 
+                          }
+                          labelLine={false}
+                          label={renderCenterLabel}
+                          onClick={(entry) =>
+                            setActiveSlice(activeSlice === entry.name ? null : entry.name)
+                          }
+                          animationBegin={0}
+                          animationDuration={400}
+                        >
+                          {(chartDataList[currentIndex]?.data || []).map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.color}
+                              opacity={
+                                !activeSlice || activeSlice === entry.name ? 1 : 0.3
+                              }
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Right Arrow - Only show if there are multiple sections and not at last item */}
+                  <div className="w-12 flex justify-center">
+                    {totalSections > 1 && currentIndex < maxIndex ? (
+                      <button 
+                        onClick={handleNext} 
+                        className="p-2 transition-all duration-300 opacity-100 hover:scale-110"
+                        title="Next chart"
+                      >
+                        <IoMdArrowDropright size={50} color="#1A4752" />
+                      </button>
+                    ) : (
+                      <div className="w-12"></div> // Empty space to maintain centering
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Clickable Legend */}
           <div className="flex flex-wrap justify-center mt-2 text-xs">
