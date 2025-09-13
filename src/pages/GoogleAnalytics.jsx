@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import MetricCard from "../components/MetricCard";
 import DevicePieChart from "../components/DevicePieChart";
 import KeywordTable from "../components/KeywordTable";
@@ -11,43 +11,43 @@ import ROIAnalytics from "../components/ROIAnalytics";
 import GeographicalDetailsCard from "../components/GeographicalDetailsCard";
 import AudienceInsightsCard from "../components/AudienceInsightsCard";
 import DevicePerformancePie from "../components/DeviceperformancePie";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
-export default function GoogleAnalytics() {
-  const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default function GoogleAnalytics({ activeProperty, period }) {
+  // Fetch metrics using the universal API hook
+  const { data: metrics, loading: metricsLoading, error: metricsError } = useApiWithCache(
+    activeProperty?.id,
+    period,
+    'metrics',
+    async (propertyId, analyticsPeriod) => {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`,
+        {
+          headers: token
+            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+            : { "Content-Type": "application/json" },
+        }
+      );
+      if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
+      return await res.json();
+    },
+    {
+      isAnalytics: true,
+      convertPeriod: true
+    }
+  );
 
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/metrics/417333460?period=90d",
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
-        if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
-        const data = await res.json();
-        setMetrics(data);
-      } catch (err) {
-        console.error("Failed to fetch metrics:", err);
-        setMetrics(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMetrics();
-  }, []);
-
-  if (loading) {
-    return <p className="text-center text-gray-500 mt-20">Loading metrics...</p>;
+  if (!activeProperty) {
+    return <div className="text-white p-4">Please select a property to view analytics</div>;
   }
 
-  if (!metrics) {
-    return <p className="text-center text-red-500 mt-20">Failed to load metrics.</p>;
+  if (metricsLoading) {
+    return <p className="text-center text-gray-500 mt-20">Loading analytics data...</p>;
+  }
+
+  if (metricsError || !metrics) {
+    return <p className="text-center text-red-500 mt-20">Failed to load analytics data.</p>;
   }
 
   return (
@@ -56,23 +56,23 @@ export default function GoogleAnalytics() {
       <div className="grid grid-cols-4 gap-4">
         <MetricCard
           title="Total Users"
-          value={metrics.totalUsers.toLocaleString()}
-          subtitle={`Total Users Change: ${metrics.totalUsersChange}`}
+          value={metrics.totalUsers?.toLocaleString() || "0"}
+          subtitle={`Total Users Change: ${metrics.totalUsersChange || "N/A"}`}
         />
         <MetricCard
           title="Sessions"
-          value={metrics.sessions.toLocaleString()}
-          subtitle={`Sessions Per User: ${metrics.sessionsPerUser}`}
+          value={metrics.sessions?.toLocaleString() || "0"}
+          subtitle={`Sessions Per User: ${metrics.sessionsPerUser || "N/A"}`}
         />
         <MetricCard
           title="Engaged Sessions"
-          value={metrics.engagedSessions.toLocaleString()}
-          subtitle={`Engaged Percentage: ${metrics["engagedSessions Percentage"]}`}
+          value={metrics.engagedSessions?.toLocaleString() || "0"}
+          subtitle={`Engaged Percentage: ${metrics.engagedSessionsPercentage || "N/A"}`}
         />
         <MetricCard
           title="Engagement Rate"
-          value={`${metrics.engagementRate.toFixed(2)}%`}
-          subtitle={`Engagement Rate Status: ${metrics["engagement RateStatus"]}`}
+          value={`${metrics.engagementRate?.toFixed(2) || "0"}%`}
+          subtitle={`Engagement Rate Status: ${metrics.engagementRateStatus || "N/A"}`}
         />
       </div>
 
@@ -80,56 +80,59 @@ export default function GoogleAnalytics() {
       <div className="grid grid-cols-4 gap-4 mt-6">
         <MetricCard
           title="Pages Per Session"
-          value={metrics.pagesPerSession}
-          subtitle={`Content Depth Status: ${metrics.contentDepthStatus}`}
+          value={metrics.pagesPerSession || "0"}
+          subtitle={`Content Depth Status: ${metrics.contentDepthStatus || "N/A"}`}
         />
         <MetricCard
           title="Avg. Session Duration (s)"
-          value={metrics.averageSessionDuration.toFixed(2)}
-          subtitle={`Session Duration Quality: ${metrics["sessionDuration Quality"]}`}
+          value={metrics.averageSessionDuration?.toFixed(2) || "0"}
+          subtitle={`Session Duration Quality: ${metrics.sessionDurationQuality || "N/A"}`}
         />
         <MetricCard
           title="Bounce Rate"
-          value={`${metrics.bounceRate.toFixed(2)}%`}
-          subtitle={`Bounce Rate Status: ${metrics["bounce RateStatus"]}`}
+          value={`${metrics.bounceRate?.toFixed(2) || "0"}%`}
+          subtitle={`Bounce Rate Status: ${metrics.bounceRateStatus || "N/A"}`}
         />
         <MetricCard
           title="Views Per Session"
-          value={metrics.viewsPerSession}
-          subtitle={`Session Quality Score: ${metrics.sessionQualityScore}`}
+          value={metrics.viewsPerSession || "0"}
+          subtitle={`Session Quality Score: ${metrics.sessionQualityScore || "N/A"}`}
         />
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-[65%_33.5%] gap-6 mt-6">
-        <TrafficPerformanceBarChart />
-        <TrafficBreakdownPie />
+        <TrafficPerformanceBarChart activeProperty={activeProperty} period={period} />
+        <TrafficBreakdownPie activeProperty={activeProperty} period={period} />
       </div>
 
       {/* Analytics Over Time */}
       <div className="mt-6">
-        <AnalyticsOvertime />
+        <AnalyticsOvertime activeProperty={activeProperty} period={period} />
       </div>
 
-      {/* Charts Row 2 */}
+      {/* Charts Row 2 - Pass property data to DevicePerformancePie */}
       <div className="grid grid-cols-[33.5%_65%] gap-6 mt-6">
-        <DevicePerformancePie />
-        <UserEngagement />
+        <DevicePerformancePie activeProperty={activeProperty} 
+          period={period} 
+          isAnalytics={true}
+        />
+        <UserEngagement activeProperty={activeProperty} period={period} />
       </div>
 
       {/* Funnel & ROAS */}
       <div className="grid grid-cols-1 gap-6 mt-6">
-        <ROIAnalytics />
+        <ROIAnalytics activeProperty={activeProperty} period={period} />
       </div>
 
       {/* Generated Insights */}
       <div className="grid grid-cols-1 gap-6 mt-6">
-        <SummaryPanel />
+        <SummaryPanel activeProperty={activeProperty} period={period} />
       </div>
 
       <div className="grid grid-cols-2 gap-6 mt-6">
-        <GeographicalDetailsCard />
-        <AudienceInsightsCard />
+        <GeographicalDetailsCard activeProperty={activeProperty} period={period} />
+        <AudienceInsightsCard activeProperty={activeProperty} period={period} />
       </div>
     </div>
   );

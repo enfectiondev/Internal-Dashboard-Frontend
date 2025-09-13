@@ -4,11 +4,37 @@ import { useCache } from '../context/CacheContext';
 // Global promise cache to prevent duplicate API calls
 const activePromises = new Map();
 
-export const useApiWithCache = (customerId, period, endpoint, apiCall) => {
+// Convert dashboard period to analytics API period format
+const convertPeriodToAnalytics = (period) => {
+  const periodMap = {
+    'LAST_7_DAYS': '7d',
+    'LAST_30_DAYS': '30d', 
+    'LAST_3_MONTHS': '90d',
+    'LAST_1_YEAR': '365d'
+  };
+  return periodMap[period] || '7d';
+};
+
+export const useApiWithCache = (id, period, endpoint, apiCall, options = {}) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { getFromCache, setCache, getCacheStats } = useCache();
+  
+  // Extract options
+  const { 
+    isAnalytics = false, 
+    convertPeriod = false 
+  } = options;
+  
+  // Use appropriate cache methods based on type
+  const { 
+    getFromCacheAds, 
+    setCacheAds, 
+    getFromCacheAnalytics, 
+    setCacheAnalytics, 
+    getCacheStats 
+  } = useCache();
+  
   const isMountedRef = useRef(true);
 
   // Memoize the API call to prevent infinite re-renders
@@ -21,26 +47,33 @@ export const useApiWithCache = (customerId, period, endpoint, apiCall) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!customerId || !period) {
+      if (!id || !period) {
         if (isMountedRef.current) {
-          console.log(`[${endpoint}] No customerId or period provided`);
+          console.log(`[${endpoint}] No ${isAnalytics ? 'propertyId' : 'customerId'} or period provided`);
           setLoading(false);
           setData(null);
         }
         return;
       }
 
-      console.log(`[${endpoint}] Starting fetch for customerId: ${customerId}, period: ${period}`);
+      // Convert period if needed (for analytics)
+      const finalPeriod = convertPeriod ? convertPeriodToAnalytics(period) : period;
+      const entityType = isAnalytics ? 'propertyId' : 'customerId';
+      
+      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${period} -> ${finalPeriod}`);
       
       // Log current cache stats
       const cacheStats = getCacheStats();
       console.log(`[${endpoint}] Current cache stats:`, cacheStats);
 
-      // Check cache first
-      const cachedData = getFromCache(customerId, period, endpoint);
+      // Check cache first using appropriate method
+      const cachedData = isAnalytics 
+        ? getFromCacheAnalytics(id, finalPeriod, endpoint)
+        : getFromCacheAds(id, finalPeriod, endpoint);
+        
       if (cachedData) {
         if (isMountedRef.current) {
-          console.log(`[${endpoint}] Cache hit for ${customerId} - ${period}`, cachedData);
+          console.log(`[${endpoint}] Cache hit for ${id} - ${finalPeriod}`, cachedData);
           setData(cachedData);
           setLoading(false);
           setError(null);
@@ -48,14 +81,14 @@ export const useApiWithCache = (customerId, period, endpoint, apiCall) => {
         return;
       }
 
-      console.log(`[${endpoint}] Cache miss for ${customerId} - ${period}, making API call`);
+      console.log(`[${endpoint}] Cache miss for ${id} - ${finalPeriod}, making API call`);
 
       // Create unique key for this API call
-      const promiseKey = `${customerId}_${period}_${endpoint}`;
+      const promiseKey = `${isAnalytics ? 'analytics' : 'ads'}_${id}_${finalPeriod}_${endpoint}`;
       
       // Check if this exact call is already in progress
       if (activePromises.has(promiseKey)) {
-        console.log(`[${endpoint}] Using existing promise for ${customerId} - ${period}`);
+        console.log(`[${endpoint}] Using existing promise for ${id} - ${finalPeriod}`);
         try {
           const result = await activePromises.get(promiseKey);
           if (isMountedRef.current) {
@@ -76,21 +109,25 @@ export const useApiWithCache = (customerId, period, endpoint, apiCall) => {
       // Create new API call promise
       const apiPromise = (async () => {
         try {
-          console.log(`[${endpoint}] Making API call for ${customerId} - ${period}`);
-          const result = await memoizedApiCall(customerId, period);
+          console.log(`[${endpoint}] Making API call for ${id} - ${finalPeriod}`);
+          const result = await memoizedApiCall(id, finalPeriod);
           
-          console.log(`[${endpoint}] API response for ${customerId}:`, result);
+          console.log(`[${endpoint}] API response for ${id}:`, result);
           
-          // Cache the result (setCache will decide whether to actually cache it)
-          setCache(customerId, period, endpoint, result);
+          // Cache the result using appropriate method
+          if (isAnalytics) {
+            setCacheAnalytics(id, finalPeriod, endpoint, result);
+          } else {
+            setCacheAds(id, finalPeriod, endpoint, result);
+          }
           
           return result;
         } catch (apiError) {
-          console.error(`[${endpoint}] API error for ${customerId}:`, apiError);
+          console.error(`[${endpoint}] API error for ${id}:`, apiError);
           throw apiError;
         } finally {
           activePromises.delete(promiseKey);
-          console.log(`[${endpoint}] Removed promise from active promises for ${customerId}`);
+          console.log(`[${endpoint}] Removed promise from active promises for ${id}`);
         }
       })();
 
@@ -107,12 +144,12 @@ export const useApiWithCache = (customerId, period, endpoint, apiCall) => {
         const result = await apiPromise;
         
         if (isMountedRef.current) {
-          console.log(`[${endpoint}] Setting data for ${customerId}:`, result);
+          console.log(`[${endpoint}] Setting data for ${id}:`, result);
           setData(result);
           setError(null);
         }
       } catch (err) {
-        console.error(`[${endpoint}] Final error handling for ${customerId}:`, err);
+        console.error(`[${endpoint}] Final error handling for ${id}:`, err);
         if (isMountedRef.current) {
           setError(err);
           setData(null);
@@ -125,12 +162,12 @@ export const useApiWithCache = (customerId, period, endpoint, apiCall) => {
     };
 
     fetchData();
-  }, [customerId, period, endpoint, memoizedApiCall, getFromCache, setCache, getCacheStats]);
+  }, [id, period, endpoint, memoizedApiCall, isAnalytics, convertPeriod, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
 
   // Log current state for debugging
   useEffect(() => {
-    console.log(`[${endpoint}] State update - customerId: ${customerId}, loading: ${loading}, data:`, data, 'error:', error);
-  }, [data, loading, error, customerId, endpoint]);
+    console.log(`[${endpoint}] State update - ${isAnalytics ? 'propertyId' : 'customerId'}: ${id}, loading: ${loading}, data:`, data, 'error:', error);
+  }, [data, loading, error, id, endpoint, isAnalytics]);
 
   return { data, loading, error };
 };

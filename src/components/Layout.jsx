@@ -8,14 +8,17 @@ const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
 export default function Layout({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("Google Ads Campaigns");
   const [activeCampaignIdx, setActiveCampaignIdx] = useState(0);
+  const [activePropertyIdx, setActivePropertyIdx] = useState(0);
   const [period, setPeriod] = useState("LAST_7_DAYS");
   const [campaigns, setCampaigns] = useState([]);
+  const [properties, setProperties] = useState([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  const [loadingProperties, setLoadingProperties] = useState(true);
 
   const token = localStorage.getItem("token");
   const { clearCache } = useCache();
 
-  // Fetch campaigns for the user
+  // Fetch campaigns for Google Ads
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
@@ -32,8 +35,6 @@ export default function Layout({ user, onLogout }) {
 
         const data = await res.json();
         console.log("API campaigns data:", data);
-
-        // Since API returns an array, we can use it directly for Google Ads tab
         setCampaigns(data);
       } catch (err) {
         console.error("Error fetching campaigns:", err);
@@ -46,15 +47,82 @@ export default function Layout({ user, onLogout }) {
     fetchCampaigns();
   }, [token]);
 
+  // Fetch properties for Google Analytics
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const res = await fetch(
+          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/properties",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) {
+          console.error("Failed to fetch properties:", res.status);
+          setProperties([]);
+          setLoadingProperties(false);
+          return;
+        }
+
+        const data = await res.json();
+        console.log("API properties data:", data);
+        // Convert to match expected structure
+        const formattedProperties = data.map(prop => ({
+          id: prop.propertyId,
+          name: prop.displayName,
+          websiteUrl: prop.websiteUrl
+        }));
+        setProperties(formattedProperties);
+      } catch (err) {
+        console.error("Error fetching properties:", err);
+        setProperties([]);
+      } finally {
+        setLoadingProperties(false);
+      }
+    };
+
+    fetchProperties();
+  }, [token]);
+
   const handleLogout = () => {
     clearCache(); // Clear cache before logout
     onLogout();
   };
 
+  // Get current data based on active tab
+  const getCurrentData = () => {
+    if (activeTab === "Google Ads Campaigns") {
+      return {
+        items: campaigns,
+        loading: loadingCampaigns,
+        activeIndex: activeCampaignIdx,
+        setActiveIndex: setActiveCampaignIdx,
+        type: 'campaigns'
+      };
+    } else if (activeTab === "Google Analytics") {
+      return {
+        items: properties,
+        loading: loadingProperties,
+        activeIndex: activePropertyIdx,
+        setActiveIndex: setActivePropertyIdx,
+        type: 'properties'
+      };
+    }
+    return { items: [], loading: false, activeIndex: 0, setActiveIndex: () => {}, type: 'unknown' };
+  };
+
   const renderContent = () => {
-    if (loadingCampaigns) return <div className="text-white p-4">Loading campaigns...</div>;
-    if (!campaigns.length)
-      return <div className="text-white p-4">No accounts related to your Google account</div>;
+    const currentData = getCurrentData();
+    
+    if (currentData.loading) {
+      return <div className="text-white p-4">Loading {activeTab.toLowerCase()}...</div>;
+    }
+    
+    if (!currentData.items.length) {
+      return (
+        <div className="text-white p-4">
+          No {currentData.type} related to your Google account
+        </div>
+      );
+    }
 
     switch (activeTab) {
       case "Google Ads Campaigns":
@@ -67,7 +135,7 @@ export default function Layout({ user, onLogout }) {
       case "Google Analytics":
         return (
           <GoogleAnalytics 
-            activeCampaign={campaigns[activeCampaignIdx]} 
+            activeProperty={properties[activePropertyIdx]} 
             period={period}
           />
         );
@@ -75,6 +143,8 @@ export default function Layout({ user, onLogout }) {
         return <div className="text-white p-4">Content for {activeTab}</div>;
     }
   };
+
+  const currentData = getCurrentData();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0B4E5D] via-[#05242A] to-[#1E1E1E] text-white">
@@ -99,29 +169,33 @@ export default function Layout({ user, onLogout }) {
         {/* Sidebar */}
         <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
           <div className="space-y-4 flex-1">
-            {loadingCampaigns ? (
-              <div className="text-white p-4">Loading campaigns...</div>
-            ) : campaigns.length > 0 ? (
-              campaigns.map((campaign, idx) => {
-                const isActive = idx === activeCampaignIdx;
+            {currentData.loading ? (
+              <div className="text-white p-4">
+                Loading {currentData.type}...
+              </div>
+            ) : currentData.items.length > 0 ? (
+              currentData.items.map((item, idx) => {
+                const isActive = idx === currentData.activeIndex;
                 return (
                   <div
-                    key={campaign.id}
-                    onClick={() => setActiveCampaignIdx(idx)}
+                    key={item.id}
+                    onClick={() => currentData.setActiveIndex(idx)}
                     className={`p-3 md:p-4 text-sm md:text-base cursor-pointer transition-colors rounded-lg ${
                       isActive
                         ? "bg-[#508995] text-black font-bold"
                         : "bg-white text-black hover:bg-[#508995] hover:text-white"
                     }`}
                   >
-                    <div className="font-bold text-lg md:text-xl">{campaign.name}</div>
-                    <div className="text-xs md:text-sm opacity-75 mt-1">{campaign.id}</div>
+                    <div className="font-bold text-lg md:text-xl">{item.name}</div>
+                    <div className="text-xs md:text-sm opacity-75 mt-1">
+                      {activeTab === "Google Analytics" ? `Property: ${item.id}` : item.id}
+                    </div>
                   </div>
                 );
               })
             ) : (
               <div className="text-white/70 p-4 text-sm md:text-base">
-                No accounts related to your Google account
+                No {currentData.type} related to your Google account
               </div>
             )}
           </div>
@@ -129,7 +203,7 @@ export default function Layout({ user, onLogout }) {
           <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8 mr-4">
             <button
               className="w-full bg-teal-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-teal-700"
-              disabled={campaigns.length === 0}
+              disabled={currentData.items.length === 0}
             >
               Download Full Report
             </button>
@@ -155,7 +229,12 @@ export default function Layout({ user, onLogout }) {
                     key={tab}
                     onClick={() => {
                       setActiveTab(tab);
-                      setActiveCampaignIdx(0);
+                      // Reset active index when switching tabs
+                      if (tab === "Google Ads Campaigns") {
+                        setActiveCampaignIdx(0);
+                      } else if (tab === "Google Analytics") {
+                        setActivePropertyIdx(0);
+                      }
                     }}
                     className={`px-4 md:px-8 py-2 md:py-4 text-sm md:text-base text-center cursor-pointer transition-colors rounded-lg ${
                       isActive

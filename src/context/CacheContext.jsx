@@ -13,12 +13,14 @@ export const useCache = () => {
 export const CacheProvider = ({ children }) => {
   const [cache, setCacheState] = useState({});
 
-  const getCacheKey = (customerId, period, endpoint) => {
-    return `${customerId}_${period}_${endpoint}`;
+  // Generic cache key generator that works for both customerIds and propertyIds
+  const getCacheKey = (id, period, endpoint, type = 'ads') => {
+    return `${type}_${id}_${period}_${endpoint}`;
   };
 
-  const getFromCache = (customerId, period, endpoint) => {
-    const key = getCacheKey(customerId, period, endpoint);
+  // Generic get from cache
+  const getFromCache = (id, period, endpoint, type = 'ads') => {
+    const key = getCacheKey(id, period, endpoint, type);
     const data = cache[key] || null;
     
     // Debug logging
@@ -29,8 +31,9 @@ export const CacheProvider = ({ children }) => {
     return data;
   };
 
-  const setCache = (customerId, period, endpoint, data) => {
-    const key = getCacheKey(customerId, period, endpoint);
+  // Generic set cache
+  const setCache = (id, period, endpoint, data, type = 'ads') => {
+    const key = getCacheKey(id, period, endpoint, type);
     
     // Only cache if we have meaningful data
     const shouldCache = data && (
@@ -52,6 +55,24 @@ export const CacheProvider = ({ children }) => {
     }
   };
 
+  // Backward compatibility methods for Ads (customerIds)
+  const getFromCacheAds = (customerId, period, endpoint) => {
+    return getFromCache(customerId, period, endpoint, 'ads');
+  };
+
+  const setCacheAds = (customerId, period, endpoint, data) => {
+    return setCache(customerId, period, endpoint, data, 'ads');
+  };
+
+  // New methods for Analytics (propertyIds)
+  const getFromCacheAnalytics = (propertyId, period, endpoint) => {
+    return getFromCache(propertyId, period, endpoint, 'analytics');
+  };
+
+  const setCacheAnalytics = (propertyId, period, endpoint, data) => {
+    return setCache(propertyId, period, endpoint, data, 'analytics');
+  };
+
   const clearCache = () => {
     console.log('[CACHE CLEAR] Clearing all cache');
     setCacheState({});
@@ -62,7 +83,21 @@ export const CacheProvider = ({ children }) => {
     setCacheState(prev => {
       const newCache = { ...prev };
       Object.keys(newCache).forEach(key => {
-        if (key.startsWith(`${customerId}_`)) {
+        if (key.startsWith(`ads_${customerId}_`)) {
+          console.log(`[CACHE CLEAR] Removing key: ${key}`);
+          delete newCache[key];
+        }
+      });
+      return newCache;
+    });
+  };
+
+  const clearCacheForProperty = (propertyId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for property: ${propertyId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`analytics_${propertyId}_`)) {
           console.log(`[CACHE CLEAR] Removing key: ${key}`);
           delete newCache[key];
         }
@@ -73,29 +108,50 @@ export const CacheProvider = ({ children }) => {
 
   const getCacheStats = () => {
     const keys = Object.keys(cache);
-    const stats = {};
+    const adsStats = {};
+    const analyticsStats = {};
     
     keys.forEach(key => {
-      const [customerId] = key.split('_');
-      if (!stats[customerId]) {
-        stats[customerId] = 0;
+      const [type, id] = key.split('_');
+      if (type === 'ads') {
+        if (!adsStats[id]) adsStats[id] = 0;
+        adsStats[id]++;
+      } else if (type === 'analytics') {
+        if (!analyticsStats[id]) analyticsStats[id] = 0;
+        analyticsStats[id]++;
       }
-      stats[customerId]++;
     });
     
     return {
       totalKeys: keys.length,
-      customerStats: stats,
+      adsStats,
+      analyticsStats,
       allKeys: keys
     };
   };
 
   return (
     <CacheContext.Provider value={{
+      // Generic methods
       getFromCache,
       setCache,
+      
+      // Backward compatibility for Ads
+      getFromCache: getFromCacheAds, // Default to ads for backward compatibility
+      setCache: setCacheAds, // Default to ads for backward compatibility
+      
+      // Specific methods for Ads
+      getFromCacheAds,
+      setCacheAds,
+      
+      // Specific methods for Analytics
+      getFromCacheAnalytics,
+      setCacheAnalytics,
+      
+      // Clear methods
       clearCache,
       clearCacheForCustomer,
+      clearCacheForProperty,
       getCacheStats
     }}>
       {children}

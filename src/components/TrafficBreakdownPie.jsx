@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
 // Custom Tooltip
 const CustomTooltip = ({ active, payload }) => {
@@ -8,80 +9,73 @@ const CustomTooltip = ({ active, payload }) => {
     return (
       <div className="bg-white p-2 rounded shadow text-sm text-gray-800 border border-gray-200">
         <p className="font-semibold">{channel}</p>
-        <p>Sessions: {sessions}</p>
-        <p>Users: {users}</p>
-        <p>Percentage: {percentage.toFixed(2)}%</p>
+        <p>Sessions: {sessions?.toLocaleString() || 0}</p>
+        <p>Users: {users?.toLocaleString() || 0}</p>
+        <p>Percentage: {percentage?.toFixed(2) || 0}%</p>
       </div>
     );
   }
   return null;
 };
 
-function TrafficBreakdownPie({ accountId = "417333460", period = "90d" }) {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+function TrafficBreakdownPie({ activeProperty, period }) {
   const [activeSlice, setActiveSlice] = useState(null);
 
-  // ✅ Memoized colors
+  // Memoized colors
   const colors = useMemo(
     () => ["#68d5f3", "#0b3140", "#58C3DB", "#9AB4BA", "#B8C9CE"],
     []
   );
 
-  useEffect(() => {
-    const fetchTrafficData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // ✅ Get token from localStorage
-        const token =
-          typeof window !== "undefined" && window.localStorage
-            ? localStorage.getItem("token")
-            : null;
-
-        const headers = {
-          "Content-Type": "application/json",
-        };
-
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
+  // Use the universal hook to fetch traffic sources data
+  const { data: rawData, loading, error } = useApiWithCache(
+    activeProperty?.id,
+    period,
+    'traffic-sources',
+    async (propertyId, analyticsPeriod) => {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/traffic-sources/${propertyId}?period=${analyticsPeriod}`,
+        {
+          headers: token
+            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+            : { "Content-Type": "application/json" },
         }
+      );
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
+    },
+    {
+      isAnalytics: true,
+      convertPeriod: true
+    }
+  );
 
-        const response = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/traffic-sources/${accountId}?period=${period}`,
-          { headers }
-        );
+  // Process and format the data
+  const data = useMemo(() => {
+    if (!rawData || !Array.isArray(rawData)) return [];
+    
+    return rawData.map((item, index) => ({
+      channel: item.channel || item.channelGrouping || 'Unknown',
+      sessions: item.sessions || 0,
+      users: item.users || 0,
+      percentage: item.percentage || 0,
+      value: item.percentage || 0,
+      color: colors[index % colors.length],
+    }));
+  }, [rawData, colors]);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const json = await response.json();
-        console.log("Traffic API Response:", json);
-
-        // Map API response into chart data
-        const formattedData = json.map((item, index) => ({
-          channel: item.channel,
-          sessions: item.sessions,
-          users: item.users,
-          percentage: item.percentage,
-          value: item.percentage,
-          color: colors[index % colors.length],
-        }));
-
-        setData(formattedData);
-      } catch (err) {
-        console.error("Failed to fetch traffic data:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTrafficData();
-  }, [accountId, period, colors]);
+  if (!activeProperty) {
+    return (
+      <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
+        <h3 className="font-semibold mb-2 text-gray-900">Traffic Breakdown</h3>
+        <hr className="mb-4" />
+        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+          Please select a property to view traffic breakdown.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
@@ -94,7 +88,7 @@ function TrafficBreakdownPie({ accountId = "417333460", period = "90d" }) {
         </div>
       ) : error ? (
         <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-red-500 font-medium mb-2">Error: {error}</p>
+          <p className="text-red-500 font-medium mb-2">Error: {error.message || 'Failed to load data'}</p>
           <p className="text-sm text-gray-500">Check console for details</p>
         </div>
       ) : data.length === 0 ? (
@@ -129,6 +123,30 @@ function TrafficBreakdownPie({ accountId = "417333460", period = "90d" }) {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
+                
+                {/* Center Text - Majority Label */}
+                <text
+                  x="50%"
+                  y="45%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-blue-400 text-xs font-medium"
+                >
+                  Majority
+                </text>
+                
+                {/* Center Text - Majority Channel Name */}
+                <text
+                  x="50%"
+                  y="55%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-black text-sm font-bold"
+                >
+                  {data.length > 0 ? data.reduce((max, item) => 
+                    item.percentage > max.percentage ? item : max
+                  ).channel : ''}
+                </text>
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -157,7 +175,7 @@ function TrafficBreakdownPie({ accountId = "417333460", period = "90d" }) {
                       !activeSlice || activeSlice === item.channel ? "none" : "line-through",
                   }}
                 >
-                  {item.channel} ({item.percentage.toFixed(1)}%)
+                  {item.channel} ({item.percentage?.toFixed(1) || 0}%)
                 </span>
               </div>
             ))}

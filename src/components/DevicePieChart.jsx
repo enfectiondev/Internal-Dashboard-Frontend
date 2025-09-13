@@ -192,7 +192,7 @@ function DevicePieChart({ activeCampaign, period }) {
                     {Array.from({ length: totalSections }, (_, index) => (
                       <div
                         key={index}
-                        className={`w-3 h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                        className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
                           index === currentIndex 
                             ? 'bg-[#1A4752] scale-125' 
                             : 'bg-gray-300 hover:bg-gray-400'
