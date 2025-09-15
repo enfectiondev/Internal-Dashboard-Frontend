@@ -99,7 +99,7 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
   };
 
   return (
-    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
+    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300 h-full">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-black">
           Campaign Performance Details

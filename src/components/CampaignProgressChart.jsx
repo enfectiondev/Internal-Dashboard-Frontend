@@ -150,7 +150,7 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
   }
 
   return (
-    <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200 h-full">
       <div className="mb-4 sm:mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-1">
           Campaign Distribution

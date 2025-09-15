@@ -97,7 +97,7 @@ function CampaignMetrics({ activeCampaign, period }) {
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-300">
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-300 h-full">
       <div className="mb-2">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold mb-4 text-gray-900">

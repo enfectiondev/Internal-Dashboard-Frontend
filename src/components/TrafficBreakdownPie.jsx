@@ -77,113 +77,115 @@ function TrafficBreakdownPie({ activeProperty, period }) {
     );
   }
 
-  return (
-    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
-      <h3 className="font-semibold mb-2 text-gray-900">Traffic Breakdown</h3>
-      <hr className="mb-4" />
+return (
+  <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300 h-full flex flex-col">
+    <h3 className="font-semibold mb-2 text-gray-900">Traffic Breakdown</h3>
+    <hr className="mb-4" />
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
-          Loading traffic data...
-        </div>
-      ) : error ? (
-        <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-red-500 font-medium mb-2">Error: {error.message || 'Failed to load data'}</p>
-          <p className="text-sm text-gray-500">Check console for details</p>
-        </div>
-      ) : data.length === 0 ? (
-        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
-          No traffic data available.
-        </div>
-      ) : (
-        <>
-          {/* Pie Chart */}
-          <div className="flex justify-center">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={data}
-                  dataKey="value"
-                  nameKey="channel"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
-                  onClick={(entry) =>
-                    setActiveSlice(activeSlice === entry.channel ? null : entry.channel)
-                  }
-                >
-                  {data.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.color}
-                      opacity={!activeSlice || activeSlice === entry.channel ? 1 : 0.3}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                
-                {/* Center Text - Majority Label */}
-                <text
-                  x="50%"
-                  y="45%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-blue-400 text-xs font-medium"
-                >
-                  Majority
-                </text>
-                
-                {/* Center Text - Majority Channel Name */}
-                <text
-                  x="50%"
-                  y="55%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-black text-sm font-bold"
-                >
-                  {data.length > 0 ? data.reduce((max, item) => 
-                    item.percentage > max.percentage ? item : max
-                  ).channel : ''}
-                </text>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Legend */}
-          <div className="mt-4 text-xs flex flex-wrap justify-center">
-            {data.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center mr-3 mb-1 cursor-pointer select-none"
-                onClick={() =>
-                  setActiveSlice(activeSlice === item.channel ? null : item.channel)
+    {loading ? (
+      <div className="flex justify-center items-center flex-1 text-gray-500 font-medium">
+        Loading traffic data...
+      </div>
+    ) : error ? (
+      <div className="flex flex-col justify-center items-center flex-1">
+        <p className="text-red-500 font-medium mb-2">
+          Error: {error.message || "Failed to load data"}
+        </p>
+        <p className="text-sm text-gray-500">Check console for details</p>
+      </div>
+    ) : data.length === 0 ? (
+      <div className="flex justify-center items-center flex-1 text-gray-500 font-medium">
+        No traffic data available.
+      </div>
+    ) : (
+      <>
+        {/* Pie Chart */}
+        <div className="flex-1 flex justify-center items-center">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="channel"
+                cx="50%"
+                cy="50%"
+                innerRadius="40%"
+                outerRadius="70%"
+                paddingAngle={2}
+                onClick={(entry) =>
+                  setActiveSlice(activeSlice === entry.channel ? null : entry.channel)
                 }
               >
-                <div
-                  className="w-3 h-3 mr-1"
-                  style={{
-                    backgroundColor: item.color,
-                    opacity: !activeSlice || activeSlice === item.channel ? 1 : 0.3,
-                  }}
-                ></div>
-                <span
-                  style={{
-                    color: !activeSlice || activeSlice === item.channel ? "#000" : "#888",
-                    textDecoration:
-                      !activeSlice || activeSlice === item.channel ? "none" : "line-through",
-                  }}
-                >
-                  {item.channel} ({item.percentage?.toFixed(1) || 0}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
+                {data.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.color}
+                    opacity={!activeSlice || activeSlice === entry.channel ? 1 : 0.3}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+              {/* Center Text */}
+              <text
+                x="50%"
+                y="45%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-blue-400 text-xs font-medium"
+              >
+                Majority
+              </text>
+              <text
+                x="50%"
+                y="55%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-black text-sm font-bold"
+              >
+                {data.length > 0
+                  ? data.reduce((max, item) =>
+                      item.percentage > max.percentage ? item : max
+                    ).channel
+                  : ""}
+              </text>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Legend */}
+        <div className="mt-4 text-xs flex flex-wrap justify-center">
+          {data.map((item, index) => (
+            <div
+              key={index}
+              className="flex items-center mr-3 mb-1 cursor-pointer select-none"
+              onClick={() =>
+                setActiveSlice(activeSlice === item.channel ? null : item.channel)
+              }
+            >
+              <div
+                className="w-3 h-3 mr-1"
+                style={{
+                  backgroundColor: item.color,
+                  opacity: !activeSlice || activeSlice === item.channel ? 1 : 0.3,
+                }}
+              ></div>
+              <span
+                style={{
+                  color: !activeSlice || activeSlice === item.channel ? "#000" : "#888",
+                  textDecoration:
+                    !activeSlice || activeSlice === item.channel ? "none" : "line-through",
+                }}
+              >
+                {item.channel} ({item.percentage?.toFixed(1) || 0}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+);
+
 }
 
 export default TrafficBreakdownPie;

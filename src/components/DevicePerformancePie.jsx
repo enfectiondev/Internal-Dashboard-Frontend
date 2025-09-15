@@ -120,7 +120,7 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
   const entityType = isAnalytics ? 'property' : 'customer';
 
   return (
-    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
+    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300 h-full">
       <h3 className="font-semibold mb-4 text-gray-900">Device Performance</h3>
 
       {!currentEntity ? (

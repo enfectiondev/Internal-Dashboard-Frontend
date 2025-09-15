@@ -119,7 +119,7 @@ function SummaryPanel() {
   };
 
   return (
-    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm min-h-[500px]">
+    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm min-h-[500px] flex items-center justify-center">
       {!showSummary ? (
         <div className="flex justify-center items-center h-full ">
           <div

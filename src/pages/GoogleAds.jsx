@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import MetricCard from "../components/MetricCard";
 import CampaignMetrics from "../components/CampaignMetrics";
 import DevicePieChart from "../components/DevicePieChart";
@@ -10,14 +10,13 @@ import CampaignPerformanceDetails from "../components/CampaignPerformanceDetails
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
 export default function GoogleAds({ activeCampaign, period }) {
-
-  // Add the period conversion function
+  // Convert frontend period → API period
   const convertPeriodForAPI = (period) => {
     const periodMap = {
-      'LAST_7_DAYS': 'LAST_7_DAYS',
-      'LAST_30_DAYS': 'LAST_30_DAYS',
-      'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      LAST_7_DAYS: "LAST_7_DAYS",
+      LAST_30_DAYS: "LAST_30_DAYS",
+      LAST_3_MONTHS: "LAST_90_DAYS",
+      LAST_1_YEAR: "LAST_365_DAYS",
     };
     return periodMap[period] || period;
   };
@@ -25,7 +24,7 @@ export default function GoogleAds({ activeCampaign, period }) {
   const keyStatsApiCall = async (customerId, period) => {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
-    
+
     const res = await fetch(
       `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`,
       {
@@ -53,52 +52,195 @@ export default function GoogleAds({ activeCampaign, period }) {
   const { data: metrics, loading } = useApiWithCache(
     activeCampaign?.id,
     period,
-    'key-stats',
+    "key-stats",
     keyStatsApiCall
   );
 
-  if (loading) return <p>Loading campaign metrics...</p>;
+  if (!activeCampaign) {
+    return (
+      <div className="text-white p-4">
+        Please select a campaign to view Google Ads analytics
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 animate-pulse space-y-4 lg:space-y-6">
+        {/* Metrics Loading Skeleton - 12-column grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="h-24 rounded-xl bg-gray-200 dark:bg-gray-700"
+            ></div>
+          ))}
+        </div>
+
+        {/* Charts Loading Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          <div className="lg:col-span-2 rounded-xl bg-gray-200 dark:bg-gray-700 h-72"></div>
+          <div className="lg:col-span-1 rounded-xl bg-gray-200 dark:bg-gray-700 h-72"></div>
+        </div>
+
+        <div className="rounded-xl bg-gray-200 dark:bg-gray-700 h-80"></div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          <div className="lg:col-span-1 rounded-xl bg-gray-200 dark:bg-gray-700 h-72"></div>
+          <div className="lg:col-span-2 rounded-xl bg-gray-200 dark:bg-gray-700 h-72"></div>
+        </div>
+
+        <div className="space-y-4 lg:space-y-6">
+          <div className="h-96 rounded-xl bg-gray-200 dark:bg-gray-700"></div>
+          <div className="h-64 rounded-xl bg-gray-200 dark:bg-gray-700"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {/* Metrics Row 1 */}
-      <div className="grid grid-cols-4 gap-4">
-        <MetricCard title="Total Impressions" subtitle="Reach and Visibility" value={metrics?.impressions} />
-        <MetricCard title="Total Cost" subtitle="Budget utilization" value={metrics?.cost} />
-        <MetricCard title="Total Clicks" subtitle="User engagement" value={metrics?.clicks} />
-        <MetricCard title="Conversion Rate" subtitle="Campaign effectiveness" value={metrics?.conversionRate} />
-      </div>
+    <div className="space-y-4 lg:space-y-6">
+      {/* Campaign Key Metrics Section - 12-column grid system */}
+      <section className="space-y-4">
+        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Campaign Key Metrics
+        </h2> */}
+        
+        {/* Primary Metrics Row - 4 columns on xl, 2 on sm, 1 on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="col-span-1">
+            <MetricCard 
+              title="Total Impressions" 
+              subtitle="Reach and Visibility" 
+              value={metrics?.impressions} 
+            />
+          </div>
+          <div className="col-span-1">
+            <MetricCard 
+              title="Total Cost" 
+              subtitle="Budget utilization" 
+              value={metrics?.cost} 
+            />
+          </div>
+          <div className="col-span-1">
+            <MetricCard 
+              title="Total Clicks" 
+              subtitle="User engagement" 
+              value={metrics?.clicks} 
+            />
+          </div>
+          <div className="col-span-1">
+            <MetricCard 
+              title="Conversion Rate" 
+              subtitle="Campaign effectiveness" 
+              value={metrics?.conversionRate} 
+            />
+          </div>
+        </div>
 
-      {/* Metrics Row 2 */}
-      <div className="grid grid-cols-4 gap-4 mt-6">
-        <MetricCard title="Total Conversions" subtitle="Goal achievements" value={metrics?.conversions} />
-        <MetricCard title="Avg. Cost Per Click" subtitle="Bidding efficiency" value={metrics?.cpc} />
-        <MetricCard title="Cost Per Conv." subtitle="ROI efficiency" value={metrics?.costPerConv} />
-        <MetricCard title="Click-Through Rate" subtitle="Ad relevance" value={metrics?.ctr} />
-      </div>
+        {/* Secondary Metrics Row - 4 columns on xl, 2 on sm, 1 on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="col-span-1">
+            <MetricCard 
+              title="Total Conversions" 
+              subtitle="Goal achievements" 
+              value={metrics?.conversions} 
+            />
+          </div>
+          <div className="col-span-1">
+            <MetricCard 
+              title="Avg. Cost Per Click" 
+              subtitle="Bidding efficiency" 
+              value={metrics?.cpc} 
+            />
+          </div>
+          <div className="col-span-1">
+            <MetricCard 
+              title="Cost Per Conv." 
+              subtitle="ROI efficiency" 
+              value={metrics?.costPerConv} 
+            />
+          </div>
+          <div className="col-span-1">
+            <MetricCard 
+              title="Click-Through Rate" 
+              subtitle="Ad relevance" 
+              value={metrics?.ctr} 
+            />
+          </div>
+        </div>
+      </section>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-[65%_33.5%] gap-6 mt-6">
-        <CampaignMetrics activeCampaign={activeCampaign} period={period} />
-        <DevicePieChart activeCampaign={activeCampaign} period={period} />
-      </div>
+      {/* Campaign Performance Overview Section - 3-column grid */}
+      <section className="space-y-4">
+        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Campaign Performance Overview
+        </h2> */}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          <div className="lg:col-span-2 min-h-[300px]">
+            <CampaignMetrics activeCampaign={activeCampaign} period={period} />
+          </div>
+          <div className="lg:col-span-1 min-h-[300px]">
+            <DevicePieChart activeCampaign={activeCampaign} period={period} />
+          </div>
+        </div>
+      </section>
 
-      {/* Performance Over Time */}
-      <div className="mt-6">
-        <LineChartComp activeCampaign={activeCampaign} period={period} />
-      </div>
+      {/* Performance Over Time Section - Full width */}
+      <section className="space-y-4">
+        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Performance Over Time
+        </h2> */}
+        
+        <div className="grid grid-cols-1">
+          <div className="col-span-1 min-h-[350px]">
+            <LineChartComp activeCampaign={activeCampaign} period={period} />
+          </div>
+        </div>
+      </section>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-[33.5%_65%] gap-6 mt-6">
-        <CampaignProgressChart activeCampaign={activeCampaign} period={period} />
-        <CampaignPerformanceDetails activeCampaign={activeCampaign} period={period} />
-      </div>
+      {/* Campaign Progress & Performance Details Section - 3-column grid */}
+      <section className="space-y-4">
+        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Campaign Progress & Performance Details
+        </h2> */}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          <div className="lg:col-span-1 min-h-[300px]">
+            <CampaignProgressChart activeCampaign={activeCampaign} period={period} />
+          </div>
+          <div className="lg:col-span-2 min-h-[300px]">
+            <CampaignPerformanceDetails activeCampaign={activeCampaign} period={period} />
+          </div>
+        </div>
+      </section>
 
-      {/* Keywords & Summary */}
-      <div className="grid grid-cols-1 gap-6 mt-6">
-        <KeywordTable activeCampaign={activeCampaign} period={period} />
-        <SummaryPanel campaign={activeCampaign} />
-      </div>
-    </>
+      {/* Keywords Analysis Section - Full width */}
+      <section className="space-y-4">
+        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Keywords Analysis
+        </h2> */}
+        
+        <div className="grid grid-cols-1">
+          <div className="col-span-1">
+            <KeywordTable activeCampaign={activeCampaign} period={period} />
+          </div>
+        </div>
+      </section>
+
+      {/* AI Campaign Insights Section - Full width */}
+      <section className="space-y-4">
+        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          AI Campaign Insights
+        </h2> */}
+        
+        <div className="grid grid-cols-1">
+          <div className="col-span-1">
+            <SummaryPanel campaign={activeCampaign} />
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

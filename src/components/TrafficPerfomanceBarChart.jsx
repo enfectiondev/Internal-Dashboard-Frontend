@@ -77,7 +77,7 @@ const TrafficPerformanceBarChart = ({ activeProperty, period }) => {
 
   if (!activeProperty) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           Please select a property to view traffic performance.
         </div>
@@ -87,7 +87,7 @@ const TrafficPerformanceBarChart = ({ activeProperty, period }) => {
 
   if (loading) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           Loading traffic performance...
         </div>
@@ -97,7 +97,7 @@ const TrafficPerformanceBarChart = ({ activeProperty, period }) => {
 
   if (error || !chartData.length) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
         <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
           No traffic performance data available.
         </div>
@@ -106,7 +106,7 @@ const TrafficPerformanceBarChart = ({ activeProperty, period }) => {
   }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border">
+    <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-black">Traffic Channel Performances</h3>
 
