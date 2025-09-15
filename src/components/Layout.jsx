@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import GoogleAds from "../pages/GoogleAds";
 import GoogleAnalytics from "../pages/GoogleAnalytics";
+import IntentInsights from "../pages/IntentInsights"; // Add this import
 import { useCache } from "../context/CacheContext";
 
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
@@ -105,6 +106,15 @@ export default function Layout({ user, onLogout }) {
         setActiveIndex: setActivePropertyIdx,
         type: 'properties'
       };
+    } else if (activeTab === "Intent Insights") {
+      // Intent Insights doesn't need campaigns or properties selection
+      return {
+        items: [],
+        loading: false,
+        activeIndex: 0,
+        setActiveIndex: () => {},
+        type: 'insights'
+      };
     }
     return { items: [], loading: false, activeIndex: 0, setActiveIndex: () => {}, type: 'unknown' };
   };
@@ -112,11 +122,15 @@ export default function Layout({ user, onLogout }) {
   const renderContent = () => {
     const currentData = getCurrentData();
     
+    if (activeTab === "Intent Insights") {
+      return <IntentInsights period={period} />;
+    }
+    
     if (currentData.loading) {
       return <div className="text-white p-4">Loading {activeTab.toLowerCase()}...</div>;
     }
     
-    if (!currentData.items.length) {
+    if (!currentData.items.length && activeTab !== "Intent Insights") {
       return (
         <div className="text-white p-4">
           No {currentData.type} related to your Google account
@@ -166,10 +180,16 @@ export default function Layout({ user, onLogout }) {
       </header>
 
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)]">
-        {/* Sidebar */}
-        <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
+        {/* Sidebar - Hide for Intent Insights */}
+        {activeTab !== "Intent Insights" && (
+          <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
           <div className="space-y-4 flex-1">
-            {currentData.loading ? (
+            {/* Only show items for Google Ads and Analytics tabs */}
+            {activeTab === "Intent Insights" ? (
+              <div className="text-white/70 p-4 text-sm md:text-base">
+                Intent Insights - Keyword Research Tools
+              </div>
+            ) : currentData.loading ? (
               <div className="text-white p-4">
                 Loading {currentData.type}...
               </div>
@@ -203,7 +223,7 @@ export default function Layout({ user, onLogout }) {
           <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8 mr-4">
             <button
               className="w-full bg-teal-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-teal-700"
-              disabled={currentData.items.length === 0}
+              disabled={activeTab !== "Intent Insights" && currentData.items.length === 0}
             >
               Download Full Report
             </button>
@@ -215,13 +235,14 @@ export default function Layout({ user, onLogout }) {
             </button>
           </div>
         </aside>
+        )}
 
-        {/* Main Section */}
-        <div className="flex-1 bg-[#0F4653] p-4 md:p-6">
+        {/* Main Section - Full width for Intent Insights */}
+        <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
           {/* Tabs & Period Selector */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6">
             {/* Tabs */}
-            <div className="flex flex-wrap md:flex-nowrap space-x-0 md:space-x-4 mb-2 md:mb-0">
+            <div className="flex flex-wrap md:flex-nowrap space-x-0 md:space-x-4 mb-2 md:mb-0 w-full md:w-auto">
               {tabs.map((tab) => {
                 const isActive = tab === activeTab;
                 return (
@@ -236,7 +257,7 @@ export default function Layout({ user, onLogout }) {
                         setActivePropertyIdx(0);
                       }
                     }}
-                    className={`px-4 md:px-8 py-2 md:py-4 text-sm md:text-base text-center cursor-pointer transition-colors rounded-lg ${
+                    className={`flex-1 md:flex-none md:min-w-[200px] px-4 md:px-8 py-2 md:py-4 text-sm md:text-base text-center cursor-pointer transition-colors rounded-lg ${
                       isActive
                         ? "bg-[#508995] text-black font-bold"
                         : "bg-[#0F4653] text-white font-bold hover:bg-white hover:text-black"
@@ -248,20 +269,22 @@ export default function Layout({ user, onLogout }) {
               })}
             </div>
 
-            {/* Period Selector */}
-            <div className="flex items-center space-x-2 bg-[#6A6A6A] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white">
-              <span className="text-sm md:text-base">Period:</span>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="bg-[#6A6A6A] text-white p-1 md:p-2 rounded text-sm md:text-base"
-              >
-                <option value="LAST_7_DAYS">7 Days</option>
-                <option value="LAST_30_DAYS">30 Days</option>
-                <option value="LAST_3_MONTHS">3 Months</option>
-                <option value="LAST_1_YEAR">1 Year</option>
-              </select>
-            </div>
+            {/* Period Selector - Hide for Intent Insights */}
+            {activeTab !== "Intent Insights" && (
+              <div className="flex items-center space-x-2 bg-[#6A6A6A] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white">
+                <span className="text-sm md:text-base">Period:</span>
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="bg-[#6A6A6A] text-white p-1 md:p-2 rounded text-sm md:text-base"
+                >
+                  <option value="LAST_7_DAYS">7 Days</option>
+                  <option value="LAST_30_DAYS">30 Days</option>
+                  <option value="LAST_3_MONTHS">3 Months</option>
+                  <option value="LAST_1_YEAR">1 Year</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Page Content */}
