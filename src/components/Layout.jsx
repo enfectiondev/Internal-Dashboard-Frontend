@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import GoogleAds from "../pages/GoogleAds";
 import GoogleAnalytics from "../pages/GoogleAnalytics";
-import IntentInsights from "../pages/IntentInsights"; // Add this import
+import IntentInsights from "../pages/IntentInsights";
+import DateRangePicker from "../components/DateRangePicker";
 import { useCache } from "../context/CacheContext";
 
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
@@ -15,9 +16,42 @@ export default function Layout({ user, onLogout }) {
   const [properties, setProperties] = useState([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingProperties, setLoadingProperties] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  
+  // Add persistent selected account state for Intent Insights
+  const [selectedIntentAccount, setSelectedIntentAccount] = useState(null);
+  
+  // Date range state for Intent Insights
+  const [dateRange, setDateRange] = useState({
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+    endDate: new Date()
+  });
 
   const token = localStorage.getItem("token");
   const { clearCache } = useCache();
+
+  // Period options
+  const periodOptions = [
+    { value: "LAST_7_DAYS", label: "7 Days" },
+    { value: "LAST_30_DAYS", label: "30 Days" },
+    { value: "LAST_3_MONTHS", label: "3 Months" },
+    { value: "LAST_1_YEAR", label: "1 Year" }
+  ];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Fetch campaigns for Google Ads
   useEffect(() => {
@@ -85,7 +119,34 @@ export default function Layout({ user, onLogout }) {
 
   const handleLogout = () => {
     clearCache(); // Clear cache before logout
+    setSelectedIntentAccount(null); // Clear selected account on logout
     onLogout();
+  };
+
+  const handleDateRangeChange = (startDate, endDate) => {
+    setDateRange({ startDate, endDate });
+    console.log("Date range changed:", startDate, endDate);
+  };
+
+  const handlePeriodSelect = (periodValue) => {
+    setPeriod(periodValue);
+    setIsDropdownOpen(false);
+  };
+
+  // Handle account selection for Intent Insights
+  const handleIntentAccountSelect = (account) => {
+    setSelectedIntentAccount(account);
+    console.log("Intent account selected:", account);
+  };
+
+  // Handle account change (reset selected account)
+  const handleIntentAccountChange = () => {
+    setSelectedIntentAccount(null);
+  };
+
+  const getCurrentPeriodLabel = () => {
+    const option = periodOptions.find(opt => opt.value === period);
+    return option ? option.label : "7 Days";
   };
 
   // Get current data based on active tab
@@ -123,7 +184,16 @@ export default function Layout({ user, onLogout }) {
     const currentData = getCurrentData();
     
     if (activeTab === "Intent Insights") {
-      return <IntentInsights period={period} />;
+      return (
+        <IntentInsights 
+          period={period} 
+          dateRange={dateRange} 
+          token={token}
+          selectedAccount={selectedIntentAccount}
+          onAccountSelect={handleIntentAccountSelect}
+          onAccountChange={handleIntentAccountChange}
+        />
+      );
     }
     
     if (currentData.loading) {
@@ -239,7 +309,7 @@ export default function Layout({ user, onLogout }) {
 
         {/* Main Section - Full width for Intent Insights */}
         <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
-          {/* Tabs & Period Selector */}
+          {/* Tabs & Period/Date Range Selector */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6">
             {/* Tabs */}
             <div className="flex flex-wrap md:flex-nowrap space-x-0 md:space-x-4 mb-2 md:mb-0 w-full md:w-auto">
@@ -250,12 +320,13 @@ export default function Layout({ user, onLogout }) {
                     key={tab}
                     onClick={() => {
                       setActiveTab(tab);
-                      // Reset active index when switching tabs
+                      // Reset active index when switching tabs (but keep Intent account selection)
                       if (tab === "Google Ads Campaigns") {
                         setActiveCampaignIdx(0);
                       } else if (tab === "Google Analytics") {
                         setActivePropertyIdx(0);
                       }
+                      // Don't reset selectedIntentAccount when switching to Intent Insights
                     }}
                     className={`flex-1 md:flex-none md:min-w-[200px] px-4 md:px-8 py-2 md:py-4 text-sm md:text-base text-center cursor-pointer transition-colors rounded-lg ${
                       isActive
@@ -269,20 +340,53 @@ export default function Layout({ user, onLogout }) {
               })}
             </div>
 
-            {/* Period Selector - Hide for Intent Insights */}
-            {activeTab !== "Intent Insights" && (
+            {/* Period Selector for Ads/Analytics, Date Range Picker for Intent Insights */}
+            {activeTab === "Intent Insights" ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm md:text-base text-white">Period:</span>
+                <DateRangePicker
+                  startDate={dateRange.startDate}
+                  endDate={dateRange.endDate}
+                  onDateRangeChange={handleDateRangeChange}
+                />
+              </div>
+            ) : (
               <div className="flex items-center space-x-2 bg-[#6A6A6A] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white">
                 <span className="text-sm md:text-base">Period:</span>
-                <select
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                  className="bg-[#6A6A6A] text-white p-1 md:p-2 rounded text-sm md:text-base"
-                >
-                  <option value="LAST_7_DAYS">7 Days</option>
-                  <option value="LAST_30_DAYS">30 Days</option>
-                  <option value="LAST_3_MONTHS">3 Months</option>
-                  <option value="LAST_1_YEAR">1 Year</option>
-                </select>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center space-x-2 bg-[#6A6A6A] text-white p-1 md:p-2 rounded text-sm md:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 min-w-[80px]"
+                  >
+                    <span>{getCurrentPeriodLabel()}</span>
+                    <svg 
+                      className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {isDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[120px] z-50">
+                      {periodOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handlePeriodSelect(option.value)}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                            period === option.value 
+                              ? 'bg-[#508995] text-white hover:bg-[#508995]' 
+                              : 'text-gray-800'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

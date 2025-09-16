@@ -2,50 +2,16 @@ import React, { useState, useMemo } from "react";
 import { Download } from "lucide-react";
 
 export default function SuggestedKeywordsTable({ keywords = [] }) {
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [downloading, setDownloading] = useState(false);
 
-  const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-  };
-
+  // Always sort keywords by avgMonthlySearches (max → min)
   const sortedKeywords = useMemo(() => {
-    if (!sortConfig.key) return keywords;
-
     return [...keywords].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-
-      if (sortConfig.key === "avgMonthlySearches") {
-        const aNum = parseFloat(aValue.replace(/[^0-9.]/g, ""));
-        const bNum = parseFloat(bValue.replace(/[^0-9.]/g, ""));
-        return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
-      }
-
-      if (sortConfig.key === "lowBid" || sortConfig.key === "highBid") {
-        const aNum = parseFloat(aValue.replace(/,/g, "").trim());
-        const bNum = parseFloat(bValue.replace(/,/g, "").trim());
-        return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
-      }
-
-      if (sortConfig.key === "competitionIndex") {
-        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
-      }
-
-      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
+      const aNum = parseFloat(a.avgMonthlySearches.replace(/[^0-9.]/g, "")) || 0;
+      const bNum = parseFloat(b.avgMonthlySearches.replace(/[^0-9.]/g, "")) || 0;
+      return bNum - aNum; // descending
     });
-  }, [keywords, sortConfig]);
-
-  const getSortIcon = (columnKey) => {
-    if (sortConfig.key !== columnKey) return "↕️";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
-  };
+  }, [keywords]);
 
   const getCompetitionColor = (competition) => {
     switch (competition?.toLowerCase()) {
@@ -78,7 +44,7 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
         "High Bid",
       ];
 
-      const csvData = keywords.map((k) => [
+      const csvData = sortedKeywords.map((k) => [
         `"${k.keyword}"`,
         k.avgMonthlySearches,
         k.competition,
@@ -150,41 +116,23 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
           <table className="w-full min-w-[800px] table-fixed">
             <thead className="bg-gray-100">
               <tr>
-                <th
-                  onClick={() => handleSort("keyword")}
-                  className="px-6 py-3 text-left text-[18px] font-bold text-black cursor-pointer"
-                >
-                  Keyword {getSortIcon("keyword")}
+                <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
+                  Keyword
                 </th>
-                <th
-                  onClick={() => handleSort("avgMonthlySearches")}
-                  className="px-6 py-3 text-left text-[18px] font-bold text-black cursor-pointer"
-                >
-                  Avg. Monthly Searches {getSortIcon("avgMonthlySearches")}
+                <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
+                  Avg. Monthly Searches
                 </th>
-                <th
-                  onClick={() => handleSort("competition")}
-                  className="px-6 py-3 text-left text-[18px] font-bold text-black cursor-pointer"
-                >
-                  Competition {getSortIcon("competition")}
+                <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
+                  Competition
                 </th>
-                <th
-                  onClick={() => handleSort("competitionIndex")}
-                  className="px-6 py-3 text-left text-[18px] font-bold text-black cursor-pointer"
-                >
-                  Competition Index {getSortIcon("competitionIndex")}
+                <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
+                  Competition Index
                 </th>
-                <th
-                  onClick={() => handleSort("lowBid")}
-                  className="px-6 py-3 text-left text-[18px] font-bold text-black cursor-pointer"
-                >
-                  Low Bid {getSortIcon("lowBid")}
+                <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
+                  Low Bid
                 </th>
-                <th
-                  onClick={() => handleSort("highBid")}
-                  className="px-6 py-3 text-left text-[18px] font-bold text-black cursor-pointer"
-                >
-                  High Bid {getSortIcon("highBid")}
+                <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
+                  High Bid
                 </th>
               </tr>
             </thead>
@@ -224,7 +172,7 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
         {/* Footer */}
         <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
           <div className="text-sm text-gray-500">
-            Showing {keywords.length} suggested keywords
+            Showing {sortedKeywords.length} suggested keywords
           </div>
         </div>
       </div>

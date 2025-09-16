@@ -1,18 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { IoMdArrowDropleft, IoMdArrowDropright } from "react-icons/io";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
 const colors = ["#1A4752", "#2B889C", "#A0C6CE", "#58C3DB"];
 
-
 function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalytics = false }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSlice, setActiveSlice] = useState(null);
+  const [size, setSize] = useState(200); // dynamic chart size
+  const containerRef = useRef(null);
+
+  // ResizeObserver to keep pie circular
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const { width, height } = entry.contentRect;
+        setSize(Math.min(width, height));
+      }
+    });
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    return () => observer.disconnect();
+  }, []);
 
   // Determine which ID to use and API call function
   const currentId = isAnalytics ? activeProperty?.id : activeCampaign?.id;
-  const apiCallFunction = isAnalytics 
+  const apiCallFunction = isAnalytics
     ? async (propertyId, analyticsPeriod) => {
         const token = localStorage.getItem("token");
         const res = await fetch(
@@ -44,11 +59,11 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
   const { data: rawData, loading, error } = useApiWithCache(
     currentId,
     period,
-    isAnalytics ? 'audience-insights' : 'device-performance',
+    isAnalytics ? "audience-insights" : "device-performance",
     apiCallFunction,
     {
       isAnalytics,
-      convertPeriod: isAnalytics // Only convert period for analytics
+      convertPeriod: isAnalytics, // Only convert period for analytics
     }
   );
 
@@ -81,17 +96,14 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
     }
   }, [rawData, isAnalytics]);
 
-
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const { name, value } = payload[0].payload;
-      
-      // Get the current chart data from the parent component's state
       const currentChart = chartDataList[currentIndex];
       if (currentChart && currentChart.data) {
         const total = currentChart.data.reduce((sum, item) => sum + item.value, 0);
         const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-        
+
         return (
           <div className="bg-white p-2 rounded shadow text-sm text-gray-800 border border-gray-200">
             <p className="font-semibold">{name}</p>
@@ -105,19 +117,14 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
+    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
   };
-
   const handleNext = () => {
-    if (currentIndex < chartDataList.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
+    if (currentIndex < chartDataList.length - 1) setCurrentIndex(currentIndex + 1);
   };
 
   const currentEntity = isAnalytics ? activeProperty : activeCampaign;
-  const entityType = isAnalytics ? 'property' : 'customer';
+  const entityType = isAnalytics ? "property" : "customer";
 
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300 h-full">
@@ -137,7 +144,7 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
         </div>
       ) : (
         <>
-          {/* Dot Navigation - Above the pie chart */}
+          {/* Dot Navigation */}
           {chartDataList.length > 1 && (
             <div className="flex justify-center mb-4">
               {chartDataList.map((_, index) => (
@@ -145,7 +152,7 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
                   key={index}
                   onClick={() => setCurrentIndex(index)}
                   className={`w-2 h-2 mx-1 rounded-full transition-colors ${
-                    index === currentIndex ? 'bg-[#1A4752]' : 'bg-gray-300'
+                    index === currentIndex ? "bg-[#1A4752]" : "bg-gray-300"
                   }`}
                 />
               ))}
@@ -153,19 +160,16 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
           )}
 
           <div className="flex justify-between items-center">
-            {/* Left Arrow - Disabled for first item */}
-            <button 
-              onClick={handlePrev} 
-              className="p-2"
-              disabled={currentIndex === 0}
-            >
-              <IoMdArrowDropleft 
-                size={50} 
-                color={currentIndex === 0 ? "#ccc" : "#1A4752"} 
+            {/* Left Arrow */}
+            <button onClick={handlePrev} className="p-2" disabled={currentIndex === 0}>
+              <IoMdArrowDropleft
+                size={40}
+                color={currentIndex === 0 ? "#ccc" : "#1A4752"}
               />
             </button>
 
-            <div className="w-64 h-64">
+            {/* Chart container */}
+            <div ref={containerRef} className="flex-1 max-w-sm aspect-square">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -174,11 +178,8 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={
-                      chartDataList[currentIndex].name.length > 10 ? 55 : 
-                      chartDataList[currentIndex].name.length > 5 ? 50 : 45
-                    }
-                    outerRadius={95}
+                    innerRadius="75%"
+                    outerRadius="90%"
                     stroke="none"
                     onClick={(entry) =>
                       setActiveSlice(activeSlice === entry.name ? null : entry.name)
@@ -194,8 +195,6 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
-                  
-                  {/* Center Text */}
                   <text
                     x="50%"
                     y="50%"
@@ -203,8 +202,11 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
                     dominantBaseline="middle"
                     className="font-semibold text-gray-700"
                     fontSize={
-                      chartDataList[currentIndex].name.length > 10 ? 12 :
-                      chartDataList[currentIndex].name.length > 5 ? 13 : 14
+                      chartDataList[currentIndex].name.length > 10
+                        ? 12
+                        : chartDataList[currentIndex].name.length > 5
+                        ? 13
+                        : 14
                     }
                   >
                     {chartDataList[currentIndex].name}
@@ -213,19 +215,20 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
               </ResponsiveContainer>
             </div>
 
-            {/* Right Arrow - Disabled for last item */}
-            <button 
-              onClick={handleNext} 
+            {/* Right Arrow */}
+            <button
+              onClick={handleNext}
               className="p-2"
               disabled={currentIndex === chartDataList.length - 1}
             >
-              <IoMdArrowDropright 
-                size={50} 
-                color={currentIndex === chartDataList.length - 1 ? "#ccc" : "#1A4752"} 
+              <IoMdArrowDropright
+                size={40}
+                color={currentIndex === chartDataList.length - 1 ? "#ccc" : "#1A4752"}
               />
             </button>
           </div>
 
+          {/* Legend */}
           <div className="flex flex-wrap justify-center mt-2 text-xs">
             {chartDataList[currentIndex].data.map((item, index) => (
               <div
