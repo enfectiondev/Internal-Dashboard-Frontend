@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { Download } from "lucide-react";
+import { Download, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function SuggestedKeywordsTable({ keywords = [] }) {
   const [downloading, setDownloading] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_ROWS = 2;
 
   // Always sort keywords by avgMonthlySearches (max → min)
   const sortedKeywords = useMemo(() => {
@@ -12,6 +14,11 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
       return bNum - aNum; // descending
     });
   }, [keywords]);
+
+  // Get displayed keywords based on showAll state
+  const displayedKeywords = useMemo(() => {
+    return showAll ? sortedKeywords : sortedKeywords.slice(0, INITIAL_ROWS);
+  }, [sortedKeywords, showAll]);
 
   const getCompetitionColor = (competition) => {
     switch (competition?.toLowerCase()) {
@@ -36,6 +43,7 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
       setDownloading(true);
 
       const headers = [
+        "No.",
         "Keyword",
         "Avg. Monthly Searches",
         "Competition",
@@ -44,7 +52,8 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
         "High Bid",
       ];
 
-      const csvData = sortedKeywords.map((k) => [
+      const csvData = sortedKeywords.map((k, index) => [
+        index + 1,
         `"${k.keyword}"`,
         k.avgMonthlySearches,
         k.competition,
@@ -74,6 +83,10 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const toggleShowAll = () => {
+    setShowAll(!showAll);
   };
 
   if (!keywords.length) {
@@ -112,10 +125,14 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] table-fixed">
-            <thead className="bg-gray-100">
+        <div className={`${showAll ? 'max-h-96 overflow-y-auto border border-gray-200 rounded-lg' : ''}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] table-fixed">
+            <thead className="bg-gray-100 sticky top-0 z-10">
               <tr>
+                <th className="px-4 py-3 text-left text-[18px] font-bold text-black w-16">
+                  No.
+                </th>
                 <th className="px-6 py-3 text-left text-[18px] font-bold text-black">
                   Keyword
                 </th>
@@ -137,8 +154,11 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {sortedKeywords.map((keyword, index) => (
+              {displayedKeywords.map((keyword, index) => (
                 <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 text-md text-gray-600 font-medium text-center">
+                    {index + 1}
+                  </td>
                   <td className="px-6 py-4 text-md text-black font-medium">
                     {keyword.keyword}
                   </td>
@@ -166,13 +186,36 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+                      </table>
+          </div>
         </div>
+
+        {/* View More/Less Button */}
+        {sortedKeywords.length > INITIAL_ROWS && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-white">
+            <button
+              onClick={toggleShowAll}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp size={16} />
+                  Show Less
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={16} />
+                  View More ({sortedKeywords.length - INITIAL_ROWS} more)
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
           <div className="text-sm text-gray-500">
-            Showing {sortedKeywords.length} suggested keywords
+            Showing {displayedKeywords.length} of {sortedKeywords.length} suggested keywords
           </div>
         </div>
       </div>
