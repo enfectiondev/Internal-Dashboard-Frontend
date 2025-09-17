@@ -15,10 +15,13 @@ export default function IntentInsights({
   onAccountChange 
 }) {
   const [selectedCountry, setSelectedCountry] = useState("World Wide earth");
-  const [seedKeywords, setSeedKeywords] = useState(["Viana", "Cosmatics", "Talc"]);
+  const [seedKeywords, setSeedKeywords] = useState([]);
   const [timeFrame, setTimeFrame] = useState("Monthly");
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiResponse, setApiResponse] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Dummy data for keyword cards
+  // Dummy data for keyword cards (fallback)
   const keywordData = [
     {
       keyword: "VIANA",
@@ -52,7 +55,7 @@ export default function IntentInsights({
     }
   ];
 
-  // Dummy data for suggested keywords table
+  // Dummy data for suggested keywords table (fallback)
   const suggestedKeywords = [
     {
       keyword: "Viana lipstick",
@@ -98,9 +101,155 @@ export default function IntentInsights({
     setSeedKeywords(seedKeywords.filter(k => k !== keyword));
   };
 
-  const handleSubmit = () => {
-    console.log("Submitting with keywords:", seedKeywords, "Country:", selectedCountry, "Account:", selectedAccount);
-    // Add API call logic here
+  // Convert period to date range
+  const getDateRangeFromPeriod = () => {
+    console.log("getDateRangeFromPeriod called with:", { dateRange, period });
+    
+    // First check if we have custom dateRange from Layout (this takes priority)
+    if (dateRange?.startDate && dateRange?.endDate) {
+        console.log("Using custom dateRange:", dateRange);
+        return {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+        };
+    }
+
+    console.log("Using period-based calculation for:", period);
+    // If no custom dateRange, calculate from period
+    const endDate = new Date();
+    let startDate = new Date();
+
+    switch (period) {
+        case "LAST_7_DAYS":
+        startDate.setDate(endDate.getDate() - 7);
+        break;
+        case "LAST_30_DAYS":
+        startDate.setDate(endDate.getDate() - 30);
+        break;
+        case "LAST_3_MONTHS":
+        startDate.setMonth(endDate.getMonth() - 3);
+        break;
+        case "LAST_1_YEAR":
+        startDate.setFullYear(endDate.getFullYear() - 1);
+        break;
+        default:
+        startDate.setDate(endDate.getDate() - 30); // Default to 30 days
+    }
+
+    return { startDate, endDate };
+    };
+
+    // Format numbers with K/M suffixes
+    const formatNumber = (num) => {
+        if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(1)} M`;
+        } else if (num >= 1000) {
+        return `${(num / 1000).toFixed(1)} K`;
+        }
+        return num.toString();
+    };
+
+    // Transform API data for KeywordCards
+    const getKeywordCardsData = () => {
+        if (!apiResponse?.historical_metrics_raw?.results) {
+        return []; // Empty until API response
+        }
+        
+        return apiResponse.historical_metrics_raw.results.map(result => ({
+        keyword: result.keyword_text.toUpperCase(),
+        searches: formatNumber(result.keyword_metrics.avg_monthly_searches),
+        competition: result.keyword_metrics.competition || "Unknown",
+        isHighlighted: false
+        }));
+    };
+
+
+    const getSuggestedKeywordsData = () => {
+        if (!apiResponse?.keyword_ideas_raw?.results) {
+            return []; // Empty until API response
+        }
+        
+        // Create a set of seed keywords (case-insensitive) for filtering
+        const seedKeywordsSet = new Set(
+            seedKeywords.map(keyword => keyword.toLowerCase().trim())
+        );
+        
+        return apiResponse.keyword_ideas_raw.results
+            .filter(result => {
+            // Exclude keywords that match any of the seed keywords (case-insensitive)
+            const keywordText = result.keyword_text.toLowerCase().trim();
+            return !seedKeywordsSet.has(keywordText);
+            })
+            .map(result => ({
+            keyword: result.keyword_text,
+            // Store both formatted and raw values
+            avgMonthlySearches: formatNumber(result.metrics.avg_monthly_searches),
+            avgMonthlySearchesRaw: result.metrics.avg_monthly_searches, // Raw value for sorting
+            competition: result.metrics.competition || "Unknown",
+            competitionIndex: result.metrics.competition_index || 0,
+            lowBid: `$ ${result.metrics.low_top_of_page_bid_dollars.toFixed(2)}`,
+            lowBidRaw: result.metrics.low_top_of_page_bid_dollars, // Raw value for sorting
+            highBid: `$ ${result.metrics.high_top_of_page_bid_dollars.toFixed(2)}`,
+            highBidRaw: result.metrics.high_top_of_page_bid_dollars // Raw value for sorting
+            }));
+        };
+
+  
+  const handleSubmit = async () => {
+    if (!selectedAccount || seedKeywords.length === 0) {
+      setError("Please select an account and add at least one keyword");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const accountId = selectedAccount.id || selectedAccount.customerId;
+      const { startDate, endDate } = getDateRangeFromPeriod();
+      
+      const requestBody = {
+        seed_keywords: seedKeywords,
+        country: selectedCountry === "World Wide earth" ? "World Wide" : selectedCountry,
+        timeframe: "custom",
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        include_zero_volume: true
+      };
+
+      console.log("Submitting with data:", {
+        accountId,
+        requestBody,
+        headers: { 'Authorization': `Bearer ${token}` },
+        period: period
+      });
+
+      const response = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/intent/keyword-insights/${accountId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setApiResponse(data);
+      console.log("API Response received:", data);
+      
+    } catch (error) {
+      console.error("Error fetching keyword insights:", error);
+      setError(`Failed to fetch keyword insights: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Show account selector if no account is selected
@@ -115,7 +264,7 @@ export default function IntentInsights({
     );
   }
 
-  // Show keyword research tools after account selection - using exact existing layout
+  // Show keyword research tools after account selection - back to original 3-column layout
   return (
     <div className="space-y-6">
       {/* Account Info Header */}
@@ -138,7 +287,15 @@ export default function IntentInsights({
         </div>
       </div>
 
-      {/* Header Controls */}
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="text-red-800 font-medium">Error</div>
+          <div className="text-red-600 text-sm mt-1">{error}</div>
+        </div>
+      )}
+
+      {/* Header Controls - Back to original 3-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Seed Keywords Input - Takes 2 columns on large screens */}
         <div className="lg:col-span-2 h-full">
@@ -162,39 +319,72 @@ export default function IntentInsights({
           </div>
           <button
             onClick={handleSubmit}
-            className="w-full text-white font-bold py-3 px-6 rounded-lg transition-colors mt-4"
-            style={{ backgroundColor: '#508995' }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#0E4854'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#508995'}
+            disabled={isLoading || seedKeywords.length === 0}
+            className="w-full text-white font-bold py-3 px-6 rounded-lg transition-colors mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: isLoading ? '#9CA3AF' : '#508995' }}
+            onMouseEnter={(e) => {
+              if (!isLoading && seedKeywords.length > 0) {
+                e.target.style.backgroundColor = '#0E4854';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isLoading && seedKeywords.length > 0) {
+                e.target.style.backgroundColor = '#508995';
+              }
+            }}
           >
-            Submit
+            {isLoading ? 'Loading...' : 'Submit'}
           </button>
         </div>
       </div>
 
-      {/* Keyword Cards Section */}
-      <div className="space-y-4">
-        <KeywordCards 
-          keywords={keywordData}
-          timeFrame={timeFrame}
-        />
-      </div>
+      {/* Results Section - Only show if we have API response */}
+      {apiResponse ? (
+        <>
+          {/* Keyword Cards Section */}
+          <div className="space-y-4">
+            <KeywordCards 
+              keywords={getKeywordCardsData()}
+              timeFrame={timeFrame}
+            />
+          </div>
 
-      {/* Suggested Keywords Table */}
-      <div className="space-y-4">
-        <SuggestedKeywordsTable 
-          keywords={suggestedKeywords}
-        />
-      </div>
+          {/* Suggested Keywords Table */}
+          <div className="space-y-4">
+            <SuggestedKeywordsTable 
+              keywords={getSuggestedKeywordsData()}
+            />
+          </div>
 
-      {/* Searches Over Time Chart */}
-      <div className="space-y-4">
-        <SearchesOverTimeChart 
-          selectedAccount={selectedAccount}
-          selectedCountry={selectedCountry}
-          seedKeywords={seedKeywords}
-        />
-      </div>
+          {/* Searches Over Time Chart */}
+          <div className="space-y-4">
+            <SearchesOverTimeChart 
+              selectedAccount={selectedAccount}
+              selectedCountry={selectedCountry}
+              seedKeywords={seedKeywords}
+              apiData={apiResponse}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
+          <div className="text-center text-gray-500">
+            <div className="mb-4">
+              <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Ready for Keyword Research
+              </h3>
+              <p className="text-gray-600">
+                Add your seed keywords above and click Submit to get keyword insights, search volume data, and trend analysis.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

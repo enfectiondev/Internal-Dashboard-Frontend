@@ -232,10 +232,10 @@ export default function DateRangePicker({ startDate, endDate, onDateRangeChange 
                 onClick={handleApply}
                 disabled={!tempStartDate || !tempEndDate}
                 className="px-4 py-2 text-sm text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#508995' }}
+                
                 onMouseEnter={(e) => {
                   if (!e.target.disabled) {
-                    e.target.style.backgroundColor = '#0E4854';
+                    e.target.style.backgroundColor = '#2c5e68ff';
                   }
                 }}
                 onMouseLeave={(e) => {

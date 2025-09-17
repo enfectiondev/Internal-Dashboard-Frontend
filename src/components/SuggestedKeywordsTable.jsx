@@ -4,14 +4,15 @@ import { Download, ChevronDown, ChevronUp } from "lucide-react";
 export default function SuggestedKeywordsTable({ keywords = [] }) {
   const [downloading, setDownloading] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const INITIAL_ROWS = 2;
+  const INITIAL_ROWS = 5;
 
-  // Always sort keywords by avgMonthlySearches (max → min)
+  // Always sort keywords by avgMonthlySearchesRaw (max → min) - using raw numeric values
   const sortedKeywords = useMemo(() => {
     return [...keywords].sort((a, b) => {
-      const aNum = parseFloat(a.avgMonthlySearches.replace(/[^0-9.]/g, "")) || 0;
-      const bNum = parseFloat(b.avgMonthlySearches.replace(/[^0-9.]/g, "")) || 0;
-      return bNum - aNum; // descending
+      // Prioritize raw numeric values for accurate sorting
+      const aNum = a.avgMonthlySearchesRaw ?? 0;
+      const bNum = b.avgMonthlySearchesRaw ?? 0;
+      return bNum - aNum; // descending order
     });
   }, [keywords]);
 
@@ -31,6 +32,24 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
       default:
         return "text-gray-600 bg-gray-50";
     }
+  };
+
+  // Helper function to get raw numeric value for CSV export
+  const getRawValue = (formattedValue, rawValue) => {
+    // If raw value is available, use it (this is the preferred approach)
+    if (rawValue !== undefined && rawValue !== null) {
+      return rawValue;
+    }
+    
+    // Fallback: try to parse the formatted string
+    if (typeof formattedValue === 'string') {
+      const numericPart = formattedValue.replace(/[^0-9.]/g, '');
+      const multiplier = formattedValue.toLowerCase().includes('k') ? 1000 : 
+                        formattedValue.toLowerCase().includes('m') ? 1000000 : 1;
+      return Math.round(parseFloat(numericPart || 0) * multiplier);
+    }
+    
+    return formattedValue || 0;
   };
 
   const downloadCSV = () => {
@@ -55,11 +74,13 @@ export default function SuggestedKeywordsTable({ keywords = [] }) {
       const csvData = sortedKeywords.map((k, index) => [
         index + 1,
         `"${k.keyword}"`,
-        k.avgMonthlySearches,
+        // Use raw value for monthly searches in CSV
+        getRawValue(k.avgMonthlySearches, k.avgMonthlySearchesRaw),
         k.competition,
         k.competitionIndex,
-        k.lowBid,
-        k.highBid,
+        // Convert bid values to raw numbers for CSV
+        getRawValue(k.lowBid, k.lowBidRaw),
+        getRawValue(k.highBid, k.highBidRaw),
       ]);
 
       const csvContent = [headers.join(","), ...csvData.map((row) => row.join(","))].join("\n");
