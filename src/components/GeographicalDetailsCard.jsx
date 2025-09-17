@@ -1,175 +1,355 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from "react";
+import { useApiWithCache } from "../hooks/useApiWithCache";
+import {
+  MapContainer,
+  TileLayer,
+  CircleMarker,
+  Tooltip
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
-export default function GeographicalDetailsCard() {
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  
-  // Sample geographical data with regions and cities
-  const countryData = [
-    { 
-      name: "Sri Lanka", 
-      users: 5423, 
-      percentage: 35.2,
-      regions: [
-        { name: "Western Province", users: 2450, cities: ["Colombo", "Gampaha", "Kalutara"] },
-        { name: "Southern Province", users: 1200, cities: ["Galle", "Matara", "Hambantota"] },
-        { name: "Central Province", users: 950, cities: ["Kandy", "Nuwara Eliya", "Matale"] },
-        { name: "North Western Province", users: 823, cities: ["Kurunegala", "Puttalam"] }
-      ]
+export default function GeographicalDetailsCard({ activeProperty, period }) {
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
+
+  // Fetch city data
+  const { data: cityData, loading, error } = useApiWithCache(
+    activeProperty?.id,
+    period,
+    "audience-insights-city",
+    async (propertyId, analyticsPeriod) => {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=city&period=${analyticsPeriod}`,
+        {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+              }
+            : { "Content-Type": "application/json" }
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+      return await res.json();
     },
-    { 
-      name: "India", 
-      users: 7210, 
-      percentage: 46.8,
-      regions: [
-        { name: "Maharashtra", users: 2100, cities: ["Mumbai", "Pune", "Nagpur"] },
-        { name: "Karnataka", users: 1800, cities: ["Bangalore", "Mysore", "Hubli"] },
-        { name: "Tamil Nadu", users: 1650, cities: ["Chennai", "Coimbatore", "Madurai"] },
-        { name: "Delhi", users: 1660, cities: ["New Delhi", "Gurgaon", "Noida"] }
-      ]
-    },
-    { 
-      name: "USA", 
-      users: 1890, 
-      percentage: 12.3,
-      regions: [
-        { name: "California", users: 650, cities: ["Los Angeles", "San Francisco", "San Diego"] },
-        { name: "New York", users: 480, cities: ["New York City", "Buffalo", "Rochester"] },
-        { name: "Texas", users: 420, cities: ["Houston", "Dallas", "Austin"] },
-        { name: "Florida", users: 340, cities: ["Miami", "Orlando", "Tampa"] }
-      ]
-    },
-    { 
-      name: "UK", 
-      users: 890, 
-      percentage: 5.7,
-      regions: [
-        { name: "England", users: 650, cities: ["London", "Manchester", "Birmingham"] },
-        { name: "Scotland", users: 140, cities: ["Edinburgh", "Glasgow", "Aberdeen"] },
-        { name: "Wales", users: 70, cities: ["Cardiff", "Swansea", "Newport"] },
-        { name: "Northern Ireland", users: 30, cities: ["Belfast", "Derry", "Lisburn"] }
-      ]
+    {
+      isAnalytics: true,
+      convertPeriod: true
     }
-  ];
+  );
 
-  const totalUsers = countryData.reduce((sum, country) => sum + country.users, 0);
+  // Calculate valid cities first - before any useEffect that uses it
+  const validCities = cityData
+    ? cityData.filter(
+        (city) =>
+          city.value !== "(not set)" &&
+          city.latitude !== 0 &&
+          city.longitude !== 0 &&
+          city.latitude !== null &&
+          city.longitude !== null
+      )
+    : [];
+
+  const totalUsers = cityData
+    ? cityData.reduce((sum, city) => sum + city.users, 0)
+    : 0;
+  const maxUsers =
+    validCities.length > 0
+      ? Math.max(...validCities.map((c) => c.users))
+      : 0;
+
+  const colors = ["#508995", "#58C3DB", "#2B889C", "#1A4752"];
+
+  // Calculate how many cards to show at once
+  const cardsPerView = 3;
+  const totalSlides = Math.max(0, validCities.length - cardsPerView + 1);
+
+  // Auto-scroll functionality - now validCities is defined
+  React.useEffect(() => {
+    if (!isAutoScrolling || !validCities.length) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % validCities.length);
+    }, 3000); // Change slide every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [isAutoScrolling, validCities.length]);
+
+  // Navigation functions
+  const goToNext = () => {
+    setIsAutoScrolling(false);
+    setCurrentIndex(prev => (prev + 1) % validCities.length);
+    // Resume auto-scroll after 10 seconds of inactivity
+    setTimeout(() => setIsAutoScrolling(true), 10000);
+  };
+
+  const goToPrev = () => {
+    setIsAutoScrolling(false);
+    setCurrentIndex(prev => (prev - 1 + validCities.length) % validCities.length);
+    // Resume auto-scroll after 10 seconds of inactivity
+    setTimeout(() => setIsAutoScrolling(true), 10000);
+  };
+
+  const goToSlide = (index) => {
+    setIsAutoScrolling(false);
+    setCurrentIndex(index);
+    // Resume auto-scroll after 10 seconds of inactivity
+    setTimeout(() => setIsAutoScrolling(true), 10000);
+  };
+
+  if (!activeProperty) {
+    return (
+      <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm">
+        <div className="flex justify-center items-center h-96 text-gray-500 font-medium">
+          Please select a property to view geographical details.
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm">
+        <div className="flex justify-center items-center h-96 text-gray-500 font-medium">
+          Loading geographical data...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm">
+        <div className="flex justify-center items-center h-96 text-red-500 font-medium">
+          Failed to load geographical data
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm">
-      <h3 className="font-semibold mb-4 text-gray-900">Geographical Details</h3>
-      <hr className="mb-4" />
+    <div className="bg-white text-gray-800 p-6 rounded-lg shadow-sm">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-semibold text-gray-900 text-xl">
+          Global User Distribution
+        </h3>
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Total Users: </span>
+          <span
+            className="font-bold"
+            style={{ color: "#1A4752" }}
+          >
+            {totalUsers.toLocaleString()}
+          </span>
+          <span className="ml-4 font-medium">Cities: </span>
+          <span
+            className="font-bold"
+            style={{ color: "#508995" }}
+          >
+            {validCities.length}
+          </span>
+        </div>
+      </div>
 
-      {/* World Map Visualization */}
-      <div className="relative bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 mb-4 h-48 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-200/20 to-green-200/20 rounded-lg"></div>
-        <div className="relative z-10 grid grid-cols-2 gap-4 h-full">
-          {countryData.map((country, index) => {
-            const size = Math.max(20, (country.users / totalUsers) * 80);
-            const positions = [
-              { top: '20%', left: '15%' }, // Sri Lanka
-              { top: '30%', left: '25%' }, // India  
-              { top: '25%', left: '70%' }, // USA
-              { top: '15%', left: '45%' }  // UK
-            ];
-            
+      {/* Real Map with react-leaflet */}
+      <div className="relative rounded-lg overflow-hidden shadow-md mb-4">
+        <MapContainer
+          center={[20, 0]}
+          zoom={2}
+          style={{ height: "400px", width: "100%" }}
+          scrollWheelZoom={false}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+          />
+          {validCities.map((city, index) => {
+            const size = Math.max(
+              6,
+              Math.min(25, (city.users / maxUsers) * 20 + 6)
+            );
+            const color = colors[index % colors.length];
             return (
-              <div
-                key={country.name}
-                className={`absolute rounded-full cursor-pointer transition-all duration-300 flex items-center justify-center text-white font-semibold text-xs shadow-lg hover:shadow-xl ${
-                  selectedCountry === country.name 
-                    ? 'bg-red-500 z-20 scale-110' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-                style={{
-                  width: `${size}px`,
-                  height: `${size}px`,
-                  top: positions[index]?.top || '50%',
-                  left: positions[index]?.left || '50%',
-                  transform: 'translate(-50%, -50%)'
+              <CircleMarker
+                key={city.value}
+                center={[city.latitude, city.longitude]}
+                radius={size}
+                fillColor={color}
+                fillOpacity={0.7}
+                stroke
+                color="white"
+                weight={1}
+                eventHandlers={{
+                  click: () => setSelectedCity(city.value)
                 }}
-                onClick={() => setSelectedCountry(
-                  selectedCountry === country.name ? null : country.name
-                )}
-                title={`${country.name}: ${country.users.toLocaleString()} users`}
               >
-                {country.users > 1000 ? `${Math.round(country.users/1000)}K` : country.users}
-              </div>
+                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                  <div className="text-sm font-semibold">
+                    {city.value}
+                  </div>
+                  <div>Users: {city.users.toLocaleString()}</div>
+                  <div>
+                    Share: {city.percentage.toFixed(1)}%
+                  </div>
+                  <div>
+                    Engagement: {city.engagementRate.toFixed(1)}%
+                  </div>
+                </Tooltip>
+              </CircleMarker>
             );
           })}
-        </div>
-        
-        {/* Legend */}
-        <div className="absolute bottom-2 right-2 text-xs text-gray-600 bg-white/80 px-2 py-1 rounded">
-          Click circles to view details
-        </div>
+        </MapContainer>
       </div>
 
-      {/* Country List */}
-      <div className="grid grid-cols-1 gap-2">
-        {countryData.map((country) => (
-          <div
-            key={country.name}
-            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-              selectedCountry === country.name
-                ? 'bg-blue-100 border-l-4 border-blue-500'
-                : 'bg-gray-50 hover:bg-gray-100'
-            }`}
-            onClick={() => setSelectedCountry(
-              selectedCountry === country.name ? null : country.name
-            )}
+      {/* Carousel Section */}
+      {validCities.length > 0 && (
+        <div
+          className="relative h-32 rounded-lg border overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(90deg, #1A4752 0%, #2B889C 50%, #508995 100%)"
+          }}
+        >
+          {/* Left Arrow */}
+          <button
+            onClick={goToPrev}
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+            style={{ backgroundColor: "#1A4752", color: "white" }}
+            disabled={validCities.length <= cardsPerView}
           >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+            </svg>
+          </button>
+
+          {/* Right Arrow */}
+          <button
+            onClick={goToNext}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+            style={{ backgroundColor: "#1A4752", color: "white" }}
+            disabled={validCities.length <= cardsPerView}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/>
+            </svg>
+          </button>
+
+          {/* Cards Container */}
+          <div className="absolute inset-0 flex items-center px-12">
+            <div 
+              className="flex space-x-4 transition-transform duration-500 ease-in-out"
+              style={{
+                transform: `translateX(-${currentIndex * (180 + 16)}px)` // 180px card width + 16px gap
+              }}
+            >
+              {validCities.map((city, index) => (
                 <div
-                  className={`w-3 h-3 rounded-full mr-3 ${
-                    selectedCountry === country.name ? 'bg-red-500' : 'bg-blue-500'
+                  key={city.value}
+                  className="flex-shrink-0 bg-white rounded-lg shadow-md border border-gray-200 p-3 w-[180px] cursor-pointer transition-all duration-200 hover:shadow-lg hover:bg-gray-50 transform hover:scale-105"
+                  onClick={() => setSelectedCity(city.value)}
+                >
+                  <div
+                    className="text-xs font-bold text-gray-800 truncate mb-2"
+                    title={city.value}
+                    style={{ color: "#1A4752" }}
+                  >
+                    {city.value.length > 22
+                      ? city.value.substring(0, 22) + "..."
+                      : city.value}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div
+                      className="text-center text-white rounded-md p-2"
+                      style={{ backgroundColor: "#1A4752" }}
+                    >
+                      <div className="font-bold text-sm">
+                        {city.users > 999
+                          ? `${(city.users / 1000).toFixed(1)}K`
+                          : city.users}
+                      </div>
+                      <div style={{ fontSize: "9px" }}>Users</div>
+                    </div>
+                    <div
+                      className="text-center text-white rounded-md p-2"
+                      style={{ backgroundColor: "#508995" }}
+                    >
+                      <div className="font-bold text-sm">
+                        {city.percentage.toFixed(1)}%
+                      </div>
+                      <div style={{ fontSize: "9px" }}>Share</div>
+                    </div>
+                    <div
+                      className="text-center text-white rounded-md p-2"
+                      style={{ backgroundColor: "#58C3DB" }}
+                    >
+                      <div className="font-bold text-sm">
+                        {city.engagementRate.toFixed(1)}%
+                      </div>
+                      <div style={{ fontSize: "9px" }}>Engage</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dots Indicator */}
+          {totalSlides > 1 && (
+            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex space-x-1">
+              {Array.from({ length: totalSlides }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goToSlide(i)}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
+                    i === currentIndex ? 'bg-white' : 'bg-white bg-opacity-50'
                   }`}
-                ></div>
-                <span className="font-medium">{country.name}</span>
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selected City Details */}
+      {selectedCity && (
+        <div className="mt-4 p-4 rounded-lg border" style={{ backgroundColor: "#f8fafc", borderColor: "#508995" }}>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-semibold" style={{ color: "#1A4752" }}>
+              Selected: {selectedCity}
+            </h4>
+            <button
+              onClick={() => setSelectedCity(null)}
+              className="text-gray-500 hover:text-gray-700 font-bold text-lg"
+            >
+              ✕
+            </button>
+          </div>
+          {validCities.filter(city => city.value === selectedCity).map(city => (
+            <div key={city.value} className="grid grid-cols-3 gap-4 text-sm">
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl font-bold" style={{ color: "#1A4752" }}>
+                  {city.users.toLocaleString()}
+                </div>
+                <div className="text-gray-500 text-xs">Total Users</div>
               </div>
-              <div className="text-right">
-                <div className="font-semibold">{country.users.toLocaleString()}</div>
-                <div className="text-sm text-gray-500">{country.percentage}%</div>
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl font-bold" style={{ color: "#508995" }}>
+                  {city.percentage.toFixed(1)}%
+                </div>
+                <div className="text-gray-500 text-xs">Market Share</div>
+              </div>
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl font-bold" style={{ color: "#58C3DB" }}>
+                  {city.engagementRate.toFixed(1)}%
+                </div>
+                <div className="text-gray-500 text-xs">Engagement Rate</div>
               </div>
             </div>
-
-            {/* Expanded Details */}
-            {selectedCountry === country.name && (
-              <div className="mt-3 pl-6 border-l-2 border-gray-200">
-                <h4 className="font-medium text-sm mb-2 text-gray-700">Regional Breakdown:</h4>
-                <div className="grid grid-cols-1 gap-2">
-                  {country.regions.map((region, index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                      <div>
-                        <span className="font-medium">{region.name}</span>
-                        <div className="text-xs text-gray-500">
-                          {region.cities.slice(0, 2).join(", ")}
-                          {region.cities.length > 2 && ` +${region.cities.length - 2} more`}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium">{region.users.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">
-                          {((region.users / country.users) * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Summary */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <div className="text-sm text-gray-600">
-          Total Users: <span className="font-semibold text-gray-800">{totalUsers.toLocaleString()}</span>
+          ))}
         </div>
-        <div className="text-xs text-gray-500 mt-1">
-          {selectedCountry ? `Viewing details for ${selectedCountry}` : 'Click on countries to view regional breakdown'}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

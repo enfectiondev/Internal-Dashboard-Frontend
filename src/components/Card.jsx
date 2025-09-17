@@ -10,3 +10,4 @@ function Card({ title, children, className }) {
 }
 
 export default Card;
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
 // ------------------ Custom Tooltip ------------------
 const CustomBarTooltip = ({ active, payload, label }) => {
@@ -30,71 +31,82 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const TrafficPerformanceBarChart = () => {
-  const [chartData, setChartData] = useState([]);
-  const [loading, setLoading] = useState(true);
+const TrafficPerformanceBarChart = ({ activeProperty, period }) => {
   const [showUsers, setShowUsers] = useState(true);
   const [showSessions, setShowSessions] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token"); // if your API needs auth
-        const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/channel-performance/417333460?period=90d",
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
+  // Use the universal hook to fetch channel performance data
+  const { data: rawData, loading, error } = useApiWithCache(
+    activeProperty?.id,
+    period,
+    'channel-performance',
+    async (propertyId, analyticsPeriod) => {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/channel-performance/${propertyId}?period=${analyticsPeriod}`,
+        {
+          headers: token
+            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+            : { "Content-Type": "application/json" },
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      return await res.json();
+    },
+    {
+      isAnalytics: true,
+      convertPeriod: true
+    }
+  );
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        const data = await res.json();
-
-        // Transform API data to match recharts format
-        const transformed = data.map((item) => ({
-          channel: item.channel,
-          Users: item.users,
-          Sessions: item.sessions,
-        }));
-
-        setChartData(transformed);
-      } catch (err) {
-        console.error("Failed to fetch traffic performance:", err);
-        setChartData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  // Transform API data to match recharts format
+  const chartData = React.useMemo(() => {
+    if (!rawData || !Array.isArray(rawData)) return [];
+    
+    return rawData.map((item) => ({
+      channel: item.channel || item.channelGrouping || 'Unknown',
+      Users: item.users || 0,
+      Sessions: item.sessions || 0,
+    }));
+  }, [rawData]);
 
   const labelBaseStyle = {
     cursor: "pointer",
     transition: "color 0.2s, text-decoration 0.2s",
   };
 
-  if (loading) {
+  if (!activeProperty) {
     return (
-      <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
-        Loading traffic performance...
+      <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
+        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+          Please select a property to view traffic performance.
+        </div>
       </div>
     );
   }
 
-  if (!chartData.length) {
+  if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
-        No traffic performance data available.
+      <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
+        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+          Loading traffic performance...
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !chartData.length) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
+        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+          No traffic performance data available.
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border">
+    <div className="bg-white p-4 rounded-lg shadow-sm border h-full">
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-black">Traffic Channel Performances</h3>
 

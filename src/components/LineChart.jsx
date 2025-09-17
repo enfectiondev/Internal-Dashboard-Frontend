@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   LineChart,
   Line,
@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
 // Custom Tooltip
 const CustomLineTooltip = ({ active, payload, label }) => {
@@ -29,48 +30,54 @@ const CustomLineTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function LineChartComp() {
-  const [timelineData, setTimelineData] = useState([]);
-  const [loading, setLoading] = useState(true);
+function LineChartComp({ activeCampaign, period }) {
   const [showClicks, setShowClicks] = useState(true);
   const [showCost, setShowCost] = useState(true);
   const [showImpressions, setShowImpressions] = useState(true);
 
-  useEffect(() => {
-    const fetchTimelineData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/3220426249?period=LAST_7_DAYS",
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
-
-        if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
-
-        const data = await response.json();
-        setTimelineData(data); // API returns array
-      } catch (error) {
-        console.error("Failed to fetch timeline data:", error);
-        setTimelineData([]);
-      } finally {
-        setLoading(false);
-      }
+  const convertPeriodForAPI = (period) => {
+    const periodMap = {
+      'LAST_7_DAYS': 'LAST_7_DAYS',
+      'LAST_30_DAYS': 'LAST_30_DAYS',
+      'LAST_3_MONTHS': 'LAST_90_DAYS',
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
+    return periodMap[period] || period;
+  };
 
-    fetchTimelineData();
-  }, []);
+  const timelineApiCall = async (customerId, period) => {
+    const token = localStorage.getItem("token");
+    const convertedPeriod = convertPeriodForAPI(period);
+
+    const response = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`,
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
+    return await response.json();
+  };
+
+  const { data: timelineData, loading, error } = useApiWithCache(
+    activeCampaign?.id,
+    period,
+    'time-performance',
+    timelineApiCall
+  );
 
   const labelBaseStyle = {
     cursor: "pointer",
     transition: "color 0.2s, text-decoration 0.2s",
   };
 
-  if (loading) return <p>Loading timeline data...</p>;
-  if (timelineData.length === 0) return <p>No timeline data available.</p>;
+  if (loading && !timelineData) return <p>Loading timeline data...</p>;
+
+  if (error) return <p>Error loading timeline data: {error.message}</p>;
+  if (!timelineData?.length) return <p>No timeline data available.</p>;
 
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm">
@@ -144,9 +151,9 @@ function LineChartComp() {
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip content={<CustomLineTooltip />} />
 
-          {showClicks && <Line type="monotone" dataKey="clicks" stroke="#374151" strokeWidth={3} dot={false} />}
-          {showCost && <Line type="monotone" dataKey="cost" stroke="#0d9488" strokeWidth={3} dot={false} />}
-          {showImpressions && <Line type="monotone" dataKey="impressions" stroke="#38bdf8" strokeWidth={3} dot={false} />}
+          {showClicks && <Line type="monotone" dataKey="clicks" stroke="#374151" strokeWidth={3} dot={false} name="Clicks" />}
+          {showCost && <Line type="monotone" dataKey="cost" stroke="#0d9488" strokeWidth={3} dot={false} name="Cost" />}
+          {showImpressions && <Line type="monotone" dataKey="impressions" stroke="#38bdf8" strokeWidth={3} dot={false} name="Impressions" />}
         </LineChart>
       </ResponsiveContainer>
     </div>

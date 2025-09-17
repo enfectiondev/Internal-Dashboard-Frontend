@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 
 function MetricCard({ title, value, subtitle, showNoData = false }) {
   if (showNoData) {
     return (
       <div className="bg-gray-50 text-gray-400 p-4 rounded-lg shadow-sm border-l-4 border-gray-300 relative">
         <div className="text-[15px] text-gray-400 font-bold mb-1 uppercase tracking-wide">{title}</div>
-        <div className="text-4xl font-bold text-gray-300">--</div>
+        <div className="text-4xl font-bold text-gray-300">{subtitle}</div>
         <div className="text-[13px] font-medium text-gray-400 mt-1">No data available</div>
         <div className="absolute top-2 right-2">
           <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

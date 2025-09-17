@@ -1,50 +1,111 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Download } from "lucide-react";
+import { useApiWithCache } from "../hooks/useApiWithCache";
 
-function KeywordTable() {
-  const [keywords, setKeywords] = useState([]);
+function KeywordTable({ activeCampaign, period }) {
   const [showAll, setShowAll] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    const fetchKeywords = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/3220426249?period=LAST_30_DAYS&offset=0&limit=50",
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
-        if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
-        const json = await res.json();
-        const transformed = (json.keywords || []).map((k) => ({
-          keyword: k.text,
-          clicks: k.clicks >= 1000 ? `${(k.clicks / 1000).toFixed(1)} K` : k.clicks,
-          impressions: k.impressions >= 1000 ? `${(k.impressions / 1000).toFixed(1)} K` : k.impressions,
-          cpc: `$ ${k.cpc.toFixed(2)}`,
-          ctr: `${k.ctr.toFixed(2)}%`,
-          cost: `$ ${k.cost.toFixed(2)}`,
-        }));
-        setKeywords(transformed);
-      } catch (err) {
-        console.error("Failed to fetch keywords:", err);
-        setKeywords([]);
-      } finally {
-        setLoading(false);
-      }
+  const convertPeriodForAPI = (period) => {
+    const periodMap = {
+      'LAST_7_DAYS': 'LAST_7_DAYS',
+      'LAST_30_DAYS': 'LAST_30_DAYS',
+      'LAST_3_MONTHS': 'LAST_90_DAYS',
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
+    return periodMap[period] || period;
+  };
 
-    fetchKeywords();
-  }, []);
+  const keywordsApiCall = async (customerId, period) => {
+    const token = localStorage.getItem("token");
+    const convertedPeriod = convertPeriodForAPI(period);
 
-  const displayedKeywords = showAll ? keywords : keywords.slice(0, 4);
-  const shouldShowViewMore = keywords.length > 4;
+    const res = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`,
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      }
+    );
 
-  if (loading) return <p>Loading keywords...</p>;
-  if (!keywords.length) return <p>No keywords data available.</p>;
+    if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
+    const json = await res.json();
+    
+    return {
+      raw: json.keywords || [],
+      formatted: (json.keywords || []).map((k) => ({
+        keyword: k.text,
+        clicks: k.clicks >= 1000 ? `${(k.clicks / 1000).toFixed(1)} K` : k.clicks,
+        impressions: k.impressions >= 1000 ? `${(k.impressions / 1000).toFixed(1)} K` : k.impressions,
+        cpc: `$ ${k.cpc.toFixed(2)}`,
+        ctr: `${k.ctr.toFixed(2)}%`,
+        cost: `$ ${k.cost.toFixed(2)}`,
+      }))
+    };
+  };
+
+  const { data: keywordsData, loading, error } = useApiWithCache(
+    activeCampaign?.id,
+    period,
+    'keywords',
+    keywordsApiCall
+  );
+
+  const downloadCSV = () => {
+    if (!keywordsData?.raw?.length) {
+      alert("No keywords data available to download");
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      
+      // Convert cached data to CSV format
+      const csvData = keywordsData.raw.map(k => [
+        `"${k.text}"`, // Wrap keyword in quotes to handle commas
+        k.clicks,
+        k.impressions,
+        k.cpc.toFixed(2),
+        k.ctr.toFixed(2),
+        k.cost.toFixed(2)
+      ]);
+
+      // Create CSV content
+      const headers = ['Keyword', 'Clicks', 'Impressions', 'CPC', 'CTR (%)', 'Cost'];
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.join(','))
+      ].join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `keywords_${activeCampaign?.name || 'campaign'}_${period}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error("Failed to download keywords:", err);
+      alert("Failed to download keywords data");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const displayedKeywords = showAll ? keywordsData?.formatted : keywordsData?.formatted?.slice(0, 4);
+  const shouldShowViewMore = (keywordsData?.formatted?.length || 0) > 4;
+
+  if (loading && !keywordsData) return <p>Loading keywords...</p>;
+
+  if (!keywordsData?.formatted?.length) return <p>No keywords data available.</p>;
 
   return (
     <div className="w-full bg-white rounded-2xl p-2 shadow-sm">
@@ -54,7 +115,16 @@ function KeywordTable() {
           <h2 className="text-lg font-semibold text-gray-900">
             Top Performing Keywords
           </h2>
-          <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded">
+          <button 
+            onClick={downloadCSV}
+            disabled={downloading || !keywordsData?.raw?.length}
+            className={`p-2 rounded transition-colors ${
+              downloading || !keywordsData?.raw?.length
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+            title={downloading ? "Downloading..." : "Download CSV"}
+          >
             <Download size={20} />
           </button>
         </div>
@@ -77,7 +147,7 @@ function KeywordTable() {
           <div className={`${showAll ? "max-h-96 overflow-y-auto" : ""} transition-all duration-300`}>
             <table className="w-full min-w-[600px] table-fixed">
               <tbody className="divide-y divide-gray-200">
-                {displayedKeywords.map((row, idx) => (
+                {displayedKeywords?.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-md text-black font-medium">{row.keyword}</td>
                     <td className="px-6 py-4 text-md text-black font-medium">{row.clicks}</td>
