@@ -136,9 +136,9 @@ export const CacheProvider = ({ children }) => {
       getFromCache,
       setCache,
       
-      // Backward compatibility for Ads
-      getFromCache: getFromCacheAds, // Default to ads for backward compatibility
-      setCache: setCacheAds, // Default to ads for backward compatibility
+    //   // Backward compatibility for Ads
+    //   getFromCache: getFromCacheAds, // Default to ads for backward compatibility
+    //   setCache: setCacheAds, // Default to ads for backward compatibility
       
       // Specific methods for Ads
       getFromCacheAds,
