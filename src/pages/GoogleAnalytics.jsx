@@ -10,7 +10,7 @@ import UserEngagement from "../components/UserEngagement";
 import ROIAnalytics from "../components/ROIAnalytics";
 import GeographicalDetailsCard from "../components/GeographicalDetailsCard";
 import AudienceInsightsCard from "../components/AudienceInsightsCard";
-import DevicePerformancePie from "../components/DeviceperformancePie";
+import DevicePerformancePie from "../components/DevicePerformancePie";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
 export default function GoogleAnalytics({ activeProperty, period }) {
