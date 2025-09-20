@@ -175,7 +175,7 @@ const AIChatComponent = ({
       setIsLoading(false);
     }
   };
-  
+
   const loadHistoryData = async () => {
     try {
       const historyData = await loadChatHistory(chatType);
@@ -449,9 +449,10 @@ const AIChatComponent = ({
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
-      console.log(`Loading conversation: ${sessionId} for module: ${moduleType}`); // Debug log
+      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`;
+      console.log('Full URL being called:', url); // Add this debug log
       
-      const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`, {
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
