@@ -105,6 +105,8 @@ const AIChatComponent = ({
   const handleNewChat = () => {
     setMessages([]);
     setInputValue('');
+    setCurrentSessionId(null); // ✅ CRITICAL: Reset session ID to force new session
+    
     // Re-initialize with welcome message
     const welcomeMessage = {
       id: Date.now(),
@@ -342,7 +344,7 @@ const AIChatComponent = ({
       const data = await response.json();
       
       // Update session ID if provided
-      if (data.session_id && !currentSessionId) {
+      if (data.session_id) {
         setCurrentSessionId(data.session_id);
       }
       
@@ -483,30 +485,7 @@ const AIChatComponent = ({
     loadSpecificConversation(sessionId);
   };
 
-  // Update the recent chats section in the JSX
-  {recentChats.length > 0 ? (
-    recentChats.map((chat, index) => (
-      <div
-        key={chat.id}
-        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
-          chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
-        }`}
-        onClick={() => handleRecentChatClick(chat.id)} // Add this click handler
-      >
-        <span className="text-sm truncate flex-1">{chat.title}</span>
-        <Trash2 
-          size={16} 
-          className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDeleteConversation(chat.id);
-          }}
-        />
-      </div>
-    ))
-  ) : (
-    <div className="text-sm text-gray-500 italic">No recent conversations</div>
-  )}
+ 
 
 
   // If chat is not shown, display the agent button
@@ -598,6 +577,7 @@ const AIChatComponent = ({
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
                       chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
                     }`}
+                    onClick={() => handleRecentChatClick(chat.id)}
                   >
                     <span className="text-sm truncate flex-1">{chat.title}</span>
                     <Trash2 
@@ -706,7 +686,21 @@ const AIChatComponent = ({
             </div>
           ))}
           
-          {isLoading && (
+          {/* Status Updates - Move this HERE */}
+          {showStatus && processingStatus && (
+            <div className="flex justify-start">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 max-w-[80%]">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  </div>
+                  <p className="text-blue-700 text-sm font-medium">{processingStatus}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {isLoading && !showStatus && (
             <div className="flex justify-start">
               <div className="bg-gray-100 rounded-lg px-4 py-3">
                 <div className="flex space-x-1">
@@ -720,32 +714,10 @@ const AIChatComponent = ({
           
           <div ref={messagesEndRef} />
         </div>
+          
 
-        {/* Status Updates */}
-        {showStatus && processingStatus && (
-          <div className="flex justify-start">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 max-w-[80%]">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                </div>
-                <p className="text-blue-700 text-sm font-medium">{processingStatus}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {isLoading && !showStatus && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg px-4 py-3">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              </div>
-            </div>
-          </div>
-        )}
+
         {/* Input Area - Fixed at bottom */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
             <div className="flex space-x-3">
