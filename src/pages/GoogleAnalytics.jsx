@@ -2,7 +2,7 @@ import React from "react";
 import MetricCard from "../components/MetricCard";
 import DevicePieChart from "../components/DevicePieChart";
 import KeywordTable from "../components/KeywordTable";
-import SummaryPanel from "../components/SummaryPanel";
+import AIChatComponent from "../components/AIChatComponent";
 import TrafficPerformanceBarChart from "../components/TrafficPerfomanceBarChart";
 import TrafficBreakdownPie from "../components/TrafficBreakdownPie";
 import AnalyticsOvertime from "../components/AnalyticsOvertime";
@@ -10,8 +10,10 @@ import UserEngagement from "../components/UserEngagement";
 import ROIAnalytics from "../components/ROIAnalytics";
 import GeographicalDetailsCard from "../components/GeographicalDetailsCard";
 import AudienceInsightsCard from "../components/AudienceInsightsCard";
-import DevicePerformancePie from "../components/DeviceperformancePie";
+import DevicePerformancePie from "../components/DevicePerformancePie";
 import { useApiWithCache } from "../hooks/useApiWithCache";
+
+
 
 export default function GoogleAnalytics({ activeProperty, period }) {
   const { data: metrics, loading: metricsLoading, error: metricsError } =
@@ -279,15 +281,15 @@ export default function GoogleAnalytics({ activeProperty, period }) {
         </div>
       </section>
 
-      {/* AI Insights Section - Full width */}
+      {/* AI Analytics Insights Section - Full width */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          AI-Generated Insights
-        </h2> */}
-        
         <div className="grid grid-cols-1">
           <div className="col-span-1">
-            <SummaryPanel activeProperty={activeProperty} period={period} />
+            <AIChatComponent 
+              chatType="analytics"
+              activeProperty={activeProperty}
+              period={period}
+          />
           </div>
         </div>
       </section>
