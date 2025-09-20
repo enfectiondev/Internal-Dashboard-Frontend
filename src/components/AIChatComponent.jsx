@@ -175,17 +175,23 @@ const AIChatComponent = ({
       setIsLoading(false);
     }
   };
+  
   const loadHistoryData = async () => {
     try {
       const historyData = await loadChatHistory(chatType);
+      console.log('Raw history data:', historyData); // Debug log
       
       // Transform the sessions data into recent chats format
-      const formattedChats = historyData.sessions?.map(session => ({
-        id: session.session_id,
-        title: session.messages?.[0]?.content?.substring(0, 30) + '...' || 'New conversation',
-        timestamp: session.messages?.[0]?.timestamp
-      })) || [];
+      const formattedChats = historyData.sessions?.map(session => {
+        console.log('Processing session:', session.session_id); // Debug log
+        return {
+          id: session.session_id,
+          title: session.messages?.[0]?.content?.substring(0, 30) + '...' || 'New conversation',
+          timestamp: session.messages?.[0]?.timestamp
+        };
+      }) || [];
       
+      console.log('Formatted chats:', formattedChats); // Debug log
       setRecentChats(formattedChats);
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -443,6 +449,8 @@ const AIChatComponent = ({
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
+      console.log(`Loading conversation: ${sessionId} for module: ${moduleType}`); // Debug log
+      
       const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`, {
         method: 'GET',
         headers: {
@@ -451,26 +459,44 @@ const AIChatComponent = ({
         }
       });
 
+      console.log(`Response status: ${response.status}`); // Debug log
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API Error: ${response.status} - ${errorText}`); // Debug log
         throw new Error(`API Error: ${response.status}`);
       }
 
       const conversation = await response.json();
+      console.log('Conversation loaded:', conversation); // Debug log
+      
+      // Check if messages exist
+      if (!conversation.messages || conversation.messages.length === 0) {
+        console.warn('No messages found in conversation');
+        setMessages([{
+          id: Date.now(),
+          type: 'ai',
+          content: 'This conversation appears to be empty.',
+          timestamp: new Date()
+        }]);
+        return;
+      }
       
       // Convert conversation messages to display format
       const formattedMessages = conversation.messages.map((msg, index) => ({
-        id: `${sessionId}-${index}`, // Use index for consistent IDs
+        id: `${sessionId}-${index}`,
         type: msg.role === 'user' ? 'user' : 'ai',
         content: msg.content,
         timestamp: new Date(msg.timestamp)
       }));
+      
+      console.log('Formatted messages:', formattedMessages); // Debug log
       
       setMessages(formattedMessages);
       setCurrentSessionId(sessionId);
       
     } catch (error) {
       console.error('Error loading conversation:', error);
-      // Add user feedback
       setMessages([{
         id: Date.now(),
         type: 'ai',
