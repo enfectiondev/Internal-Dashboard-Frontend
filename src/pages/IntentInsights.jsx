@@ -5,6 +5,7 @@ import SuggestedKeywordsTable from "../components/SuggestedKeywordsTable";
 import CountrySelector from "../components/CountrySelector";
 import AccountSelector from "../components/AccountSelector";
 import SearchesOverTimeChart from "../components/SearchesOverTimeChart";
+import AIChatComponent from "../components/AIChatComponent";
 
 export default function IntentInsights({ 
   period, 
@@ -385,6 +386,20 @@ export default function IntentInsights({
           </div>
         </div>
       )}
+
+    
+      {/* AI Intent Insights Section - Full width */}
+      <section className="space-y-4">
+        <div className="grid grid-cols-1">
+          <div className="col-span-1">
+            <AIChatComponent 
+              chatType="intent"
+              selectedAccount={selectedAccount}
+              period={period}
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

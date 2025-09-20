@@ -4,12 +4,13 @@ import CampaignMetrics from "../components/CampaignMetrics";
 import DevicePieChart from "../components/DevicePieChart";
 import LineChartComp from "../components/LineChart";
 import KeywordTable from "../components/KeywordTable";
-import SummaryPanel from "../components/SummaryPanel";
+import AIChatComponent from "../components/AIChatComponent";
 import CampaignProgressChart from "../components/CampaignProgressChart";
 import CampaignPerformanceDetails from "../components/CampaignPerformanceDetails";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
 export default function GoogleAds({ activeCampaign, period }) {
+
   // Convert frontend period → API period
   const convertPeriodForAPI = (period) => {
     const periodMap = {
@@ -98,7 +99,7 @@ export default function GoogleAds({ activeCampaign, period }) {
     );
   }
 
-  return (
+      return (
     <div className="space-y-4 lg:space-y-6">
       {/* Campaign Key Metrics Section - 12-column grid system */}
       <section className="space-y-4">
@@ -231,13 +232,13 @@ export default function GoogleAds({ activeCampaign, period }) {
 
       {/* AI Campaign Insights Section - Full width */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          AI Campaign Insights
-        </h2> */}
-        
         <div className="grid grid-cols-1">
           <div className="col-span-1">
-            <SummaryPanel campaign={activeCampaign} />
+            <AIChatComponent 
+              chatType="ads"
+              activeCampaign={activeCampaign}
+              period={period}
+            />
           </div>
         </div>
       </section>
