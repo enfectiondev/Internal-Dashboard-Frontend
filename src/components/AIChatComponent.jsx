@@ -184,10 +184,22 @@ const AIChatComponent = ({
       // Transform the sessions data into recent chats format
       const formattedChats = historyData.sessions?.map(session => {
         console.log('Processing session:', session.session_id); // Debug log
+        
+        // Get the first user message for the title (skip AI welcome messages)
+        let titleMessage = 'New conversation';
+        if (session.messages && session.messages.length > 0) {
+          // Find the first user message or use the first message
+          const firstUserMessage = session.messages.find(msg => msg.role === 'user');
+          const messageToUse = firstUserMessage || session.messages[0];
+          if (messageToUse && messageToUse.content) {
+            titleMessage = messageToUse.content.substring(0, 30) + '...';
+          }
+        }
+        
         return {
-          id: session.session_id,
-          title: session.messages?.[0]?.content?.substring(0, 30) + '...' || 'New conversation',
-          timestamp: session.messages?.[0]?.timestamp
+          id: session.session_id, // This should be the correct session ID
+          title: titleMessage,
+          timestamp: session.messages?.[0]?.timestamp || session.created_at
         };
       }) || [];
       
@@ -399,7 +411,30 @@ const AIChatComponent = ({
 
     return await response.json();
   };
-
+  
+  const debugChatSessions = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
+      
+      const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/sessions/${moduleType}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const sessions = await response.json();
+        console.log('Available sessions:', sessions);
+      } else {
+        console.error('Failed to get sessions:', response.status);
+      }
+    } catch (error) {
+      console.error('Error getting sessions:', error);
+    }
+  };
   const deleteConversation = async (sessionIds) => {
     const token = localStorage.getItem("token");
     
@@ -449,8 +484,13 @@ const AIChatComponent = ({
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
+      console.log('=== LOADING CONVERSATION DEBUG ===');
+      console.log('Session ID:', sessionId);
+      console.log('Module Type:', moduleType);
+      console.log('Chat Type:', chatType);
+      
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`;
-      console.log('Full URL being called:', url); // Add this debug log
+      console.log('Full URL being called:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -460,16 +500,27 @@ const AIChatComponent = ({
         }
       });
 
-      console.log(`Response status: ${response.status}`); // Debug log
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`API Error: ${response.status} - ${errorText}`); // Debug log
-        throw new Error(`API Error: ${response.status}`);
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+          url: url
+        });
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
 
       const conversation = await response.json();
-      console.log('Conversation loaded:', conversation); // Debug log
+      console.log('Conversation loaded successfully:', {
+        sessionId: conversation.session_id,
+        messageCount: conversation.messages?.length || 0,
+        userEmail: conversation.user_email,
+        moduleType: conversation.module_type
+      });
       
       // Check if messages exist
       if (!conversation.messages || conversation.messages.length === 0) {
@@ -491,7 +542,7 @@ const AIChatComponent = ({
         timestamp: new Date(msg.timestamp)
       }));
       
-      console.log('Formatted messages:', formattedMessages); // Debug log
+      console.log('Formatted messages:', formattedMessages.length, 'messages');
       
       setMessages(formattedMessages);
       setCurrentSessionId(sessionId);
@@ -501,11 +552,12 @@ const AIChatComponent = ({
       setMessages([{
         id: Date.now(),
         type: 'ai',
-        content: 'Sorry, I couldn\'t load that conversation. Please try starting a new chat.',
+        content: `Sorry, I couldn't load that conversation. Error: ${error.message}`,
         timestamp: new Date()
       }]);
     }
   };
+
 
   // Update the recent chats click handler
   const handleRecentChatClick = (sessionId) => {
@@ -604,7 +656,11 @@ const AIChatComponent = ({
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
                       chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
                     }`}
-                    onClick={() => handleRecentChatClick(chat.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Clicking on chat with ID:', chat.id);
+                      handleRecentChatClick(chat.id);
+                    }}
                   >
                     <span className="text-sm truncate flex-1">{chat.title}</span>
                     <Trash2 
