@@ -99,8 +99,8 @@ const AIChatComponent = ({
             const content = trimmedSection.replace(/^#{2,3}[^\n]*\n/, '');
             
             return (
-              <div key={index} className="bg-slate-50 rounded-lg p-4 border-l-4" style={{ borderColor: '#9AB4BA' }}>
-                <h3 className="font-semibold text-sm mb-2" style={{ color: '#1A4752' }}>{title}</h3>
+                <div key={index} className="bg-gray-50 rounded-lg p-4 border-l-4" style={{ borderColor: '#2B889C' }}>
+                   <h3 className="font-semibold text-sm mb-2 text-gray-800">{title}</h3>
                 {formatSectionContent(content)}
               </div>
             );
@@ -109,10 +109,10 @@ const AIChatComponent = ({
           // Check for metrics/performance data
           if (/total|impressions|clicks|cost|conversions|ctr|cpc/i.test(trimmedSection)) {
             return (
-              <div key={index} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-300">
                 <div className="flex items-center mb-2">
                   <TrendingUp size={16} className="text-blue-600 mr-2" />
-                  <h3 className="font-semibold text-sm text-blue-800">Performance Metrics</h3>
+                  <h3 className="font-semibold text-sm text-gray-800">Performance Metrics</h3>
                 </div>
                 {formatMetricsContent(trimmedSection)}
               </div>
@@ -122,10 +122,12 @@ const AIChatComponent = ({
           // Check for insights
           if (/insights?:/i.test(trimmedSection)) {
             return (
-              <div key={index} className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-300">
+
                 <div className="flex items-center mb-2">
                   <AlertCircle size={16} className="text-amber-600 mr-2" />
-                  <h3 className="font-semibold text-sm text-amber-800">Key Insights</h3>
+                  <h3 className="font-semibold text-sm text-gray-800">Key Insights</h3>
+
                 </div>
                 {formatInsightsContent(trimmedSection)}
               </div>
@@ -135,10 +137,11 @@ const AIChatComponent = ({
           // Check for recommendations
           if (/recommendations?:/i.test(trimmedSection)) {
             return (
-              <div key={index} className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-300">
                 <div className="flex items-center mb-2">
                   <Target size={16} className="text-green-600 mr-2" />
-                  <h3 className="font-semibold text-sm text-green-800">Actionable Recommendations</h3>
+                  <h3 className="font-semibold text-sm text-gray-800">Actionable Recommendations</h3>
+
                 </div>
                 {formatRecommendationsContent(trimmedSection)}
               </div>
@@ -169,7 +172,8 @@ const AIChatComponent = ({
             return (
               <div key={index} className="flex items-start space-x-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-2 flex-shrink-0"></div>
-                <span className="text-sm">{trimmed.replace(/^[-•*]\s/, '')}</span>
+                <span className="text-sm text-gray-800">{trimmed.replace(/^[-•*]\s/, '')}</span>
+
               </div>
             );
           }
@@ -183,12 +187,12 @@ const AIChatComponent = ({
                 <span className="bg-gray-200 text-gray-700 text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
                   {number}
                 </span>
-                <span className="text-sm">{text}</span>
+                <span className="text-sm text-gray-800">{text}</span>
               </div>
             );
           }
 
-          return <div key={index} className="text-sm">{trimmed}</div>;
+          return <div key={index} className="text-sm text-gray-800">{trimmed}</div>
         })}
       </div>
     );
@@ -212,9 +216,10 @@ const AIChatComponent = ({
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {metrics.map((metric, index) => (
-            <div key={index} className="bg-white rounded-lg p-3 border border-blue-100">
+            <div key={index} className="bg-white rounded-lg p-3 border" style={{ borderColor: '#2B889C' }}>
+
               <div className="text-xs text-gray-600 mb-1">{metric.label}</div>
-              <div className="font-semibold text-sm text-blue-800">{metric.value}</div>
+              <div className="font-semibold text-sm text-gray-800">{metric.value}</div>
             </div>
           ))}
         </div>
@@ -243,8 +248,10 @@ const AIChatComponent = ({
           if (/^\d+\.\s/.test(trimmed)) {
             const text = trimmed.replace(/^\d+\.\s/, '');
             return (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-green-100">
-                <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+              <div key={index} className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+
+                <CheckCircle size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#2B889C' }} />
+
                 <span className="text-sm">{text}</span>
               </div>
             );
@@ -851,7 +858,7 @@ const AIChatComponent = ({
                     </p>
                   </div>
                 ) : (
-                  <div className="max-w-[90%] rounded-lg px-4 py-4 bg-gray-50 border border-gray-200">
+                  <div className="max-w-[90%] rounded-lg px-4 py-4 bg-gray-100 border border-gray-300">
                     {formatAIResponse(message.content)}
                     <p className="text-gray-500 text-xs mt-3 pt-2 border-t border-gray-200">
                       {message.timestamp.toLocaleTimeString()}
