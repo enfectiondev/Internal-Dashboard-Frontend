@@ -73,6 +73,13 @@ const AIChatComponent = ({
       return <div className="text-sm">{content}</div>;
     }
 
+    // Clean up markdown-style formatting
+    content = content
+      .replace(/^#+\s*/gm, '') // Remove # at start of lines
+      .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove ** bold markers
+      .replace(/^\*+\s*/gm, '') // Remove * at start of lines
+      .trim();
+
     // Check if this looks like a structured analytics/ads response
     const hasMetrics = /(\d+[,\d]*|\$[\d,]+|[\d.]+%)/g.test(content);
     const hasInsights = /insights?:/i.test(content);
@@ -81,11 +88,13 @@ const AIChatComponent = ({
 
     if (!hasMetrics && !hasInsights && !hasRecommendations && !hasPerformance) {
       // Simple text response
-      return <div className="text-sm whitespace-pre-wrap">{content}</div>;
+      return <div className="text-sm text-gray-800 whitespace-pre-wrap">{content}</div>;
+
     }
 
     // Split content into sections
-    const sections = content.split(/(?=###|##|\n\n(?=[A-Z][^:]*:))/);
+    const sections = content.split(/(?=\n\n(?=[A-Z][^:]*:))/);
+
     
     return (
       <div className="space-y-4">
@@ -93,18 +102,6 @@ const AIChatComponent = ({
           const trimmedSection = section.trim();
           if (!trimmedSection) return null;
 
-          // Check section type
-          if (trimmedSection.startsWith('###') || trimmedSection.startsWith('##')) {
-            const title = trimmedSection.replace(/^#{2,3}\s*/, '').split('\n')[0];
-            const content = trimmedSection.replace(/^#{2,3}[^\n]*\n/, '');
-            
-            return (
-                <div key={index} className="bg-gray-50 rounded-lg p-4 border-l-4" style={{ borderColor: '#2B889C' }}>
-                   <h3 className="font-semibold text-sm mb-2 text-gray-800">{title}</h3>
-                {formatSectionContent(content)}
-              </div>
-            );
-          }
 
           // Check for metrics/performance data
           if (/total|impressions|clicks|cost|conversions|ctr|cpc/i.test(trimmedSection)) {
@@ -150,7 +147,7 @@ const AIChatComponent = ({
 
           // Default formatting
           return (
-            <div key={index} className="text-sm">
+            <div key={index} className="text-sm text-gray-800">
               {formatSectionContent(trimmedSection)}
             </div>
           );
@@ -179,7 +176,8 @@ const AIChatComponent = ({
           }
 
           // Check for numbered lists
-          if (/^\d+\.\s/.test(trimmed)) {
+          if (/^\d+[.*\s]/.test(trimmed)) {
+            const cleanText = trimmed.replace(/^\d+[.*\s]+/, '');
             const number = trimmed.match(/^(\d+)\./)[1];
             const text = trimmed.replace(/^\d+\.\s/, '');
             return (
