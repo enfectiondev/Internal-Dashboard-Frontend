@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChevronLeft, ChevronRight, Plus, Trash2, TrendingUp, AlertCircle, CheckCircle, Target } from 'lucide-react';
+import { Send, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 const AIChatComponent = ({ 
-  chatType,
+  chatType, // 'ads', 'analytics', 'intent'
   activeCampaign, 
   activeProperty, 
   selectedAccount,
@@ -67,210 +67,6 @@ const AIChatComponent = ({
 
   const currentConfig = chatConfig[chatType] || chatConfig.ads;
 
-  // Enhanced response formatter
-  const formatAIResponse = (content) => {
-    if (!content || typeof content !== 'string') {
-      return <div className="text-sm">{content}</div>;
-    }
-
-    // Clean up markdown-style formatting
-    content = content
-      .replace(/^#+\s*/gm, '') // Remove # at start of lines
-      .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove ** bold markers
-      .replace(/^\*+\s*/gm, '') // Remove * at start of lines
-      .trim();
-
-    // Check if this looks like a structured analytics/ads response
-    const hasMetrics = /(\d+[,\d]*|\$[\d,]+|[\d.]+%)/g.test(content);
-    const hasInsights = /insights?:/i.test(content);
-    const hasRecommendations = /recommendations?:/i.test(content);
-    const hasPerformance = /(performance|metrics|data)/i.test(content);
-
-    if (!hasMetrics && !hasInsights && !hasRecommendations && !hasPerformance) {
-      // Simple text response
-      return <div className="text-sm text-gray-800 whitespace-pre-wrap">{content}</div>;
-
-    }
-
-    // Split content into sections
-    const sections = content.split(/(?=\n\n(?=[A-Z][^:]*:))/);
-
-    
-    return (
-      <div className="space-y-4">
-        {sections.map((section, index) => {
-          const trimmedSection = section.trim();
-          if (!trimmedSection) return null;
-
-
-          // Check for metrics/performance data
-          if (/total|impressions|clicks|cost|conversions|ctr|cpc/i.test(trimmedSection)) {
-            return (
-              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-300">
-                <div className="flex items-center mb-2">
-                  <TrendingUp size={16} className="text-blue-600 mr-2" />
-                  <h3 className="font-semibold text-sm text-gray-800">Performance Metrics</h3>
-                </div>
-                {formatMetricsContent(trimmedSection)}
-              </div>
-            );
-          }
-
-          // Check for insights
-          if (/insights?:/i.test(trimmedSection)) {
-            return (
-              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-300">
-
-                <div className="flex items-center mb-2">
-                  <AlertCircle size={16} className="text-amber-600 mr-2" />
-                  <h3 className="font-semibold text-sm text-gray-800">Key Insights</h3>
-
-                </div>
-                {formatInsightsContent(trimmedSection)}
-              </div>
-            );
-          }
-
-          // Check for recommendations
-          if (/recommendations?:/i.test(trimmedSection)) {
-            return (
-              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-300">
-                <div className="flex items-center mb-2">
-                  <Target size={16} className="text-green-600 mr-2" />
-                  <h3 className="font-semibold text-sm text-gray-800">Actionable Recommendations</h3>
-
-                </div>
-                {formatRecommendationsContent(trimmedSection)}
-              </div>
-            );
-          }
-
-          // Default formatting
-          return (
-            <div key={index} className="text-sm text-gray-800">
-              {formatSectionContent(trimmedSection)}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const formatSectionContent = (content) => {
-    const lines = content.split('\n');
-    return (
-      <div className="space-y-2">
-        {lines.map((line, index) => {
-          const trimmed = line.trim();
-          if (!trimmed) return null;
-
-          // Check for bullet points
-          if (/^[-•*]\s/.test(trimmed)) {
-            return (
-              <div key={index} className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-2 flex-shrink-0"></div>
-                <span className="text-sm text-gray-800">{trimmed.replace(/^[-•*]\s/, '')}</span>
-
-              </div>
-            );
-          }
-
-          // Check for numbered lists
-          if (/^\d+[.*\s]/.test(trimmed)) {
-            const cleanText = trimmed.replace(/^\d+[.*\s]+/, '');
-            const number = trimmed.match(/^(\d+)\./)[1];
-            const text = trimmed.replace(/^\d+\.\s/, '');
-            return (
-              <div key={index} className="flex items-start space-x-2">
-                <span className="bg-gray-200 text-gray-700 text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {number}
-                </span>
-                <span className="text-sm text-gray-800">{text}</span>
-              </div>
-            );
-          }
-
-          return <div key={index} className="text-sm text-gray-800">{trimmed}</div>
-        })}
-      </div>
-    );
-  };
-
-  const formatMetricsContent = (content) => {
-    const metrics = [];
-    const lines = content.split('\n');
-    
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      // Extract metrics like "Total Impressions: 7,800"
-      const metricMatch = trimmed.match(/^[-•*]?\s*\*?\*?([^:]+):\s*(.+)$/);
-      if (metricMatch) {
-        const [, label, value] = metricMatch;
-        metrics.push({ label: label.trim(), value: value.trim() });
-      }
-    });
-
-    if (metrics.length > 0) {
-      return (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {metrics.map((metric, index) => (
-            <div key={index} className="bg-white rounded-lg p-3 border" style={{ borderColor: '#2B889C' }}>
-
-              <div className="text-xs text-gray-600 mb-1">{metric.label}</div>
-              <div className="font-semibold text-sm text-gray-800">{metric.value}</div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return <div className="text-sm">{content}</div>;
-  };
-
-  const formatInsightsContent = (content) => {
-    const cleanContent = content.replace(/^insights?:\s*/i, '');
-    return formatSectionContent(cleanContent);
-  };
-
-  const formatRecommendationsContent = (content) => {
-    const cleanContent = content.replace(/^(?:actionable\s+)?recommendations?:\s*/i, '');
-    const lines = cleanContent.split('\n');
-    
-    return (
-      <div className="space-y-3">
-        {lines.map((line, index) => {
-          const trimmed = line.trim();
-          if (!trimmed) return null;
-
-          // Check for numbered recommendations
-          if (/^\d+\.\s/.test(trimmed)) {
-            const text = trimmed.replace(/^\d+\.\s/, '');
-            return (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
-
-                <CheckCircle size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#2B889C' }} />
-
-                <span className="text-sm">{text}</span>
-              </div>
-            );
-          }
-
-          // Check for bullet points
-          if (/^[-•*]\s/.test(trimmed)) {
-            return (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-green-100">
-                <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                <span className="text-sm">{trimmed.replace(/^[-•*]\s/, '')}</span>
-              </div>
-            );
-          }
-
-          return <div key={index} className="text-sm">{trimmed}</div>;
-        })}
-      </div>
-    );
-  };
-
   // Initialize chat with welcome message when chat is opened
   useEffect(() => {
     if (showChat && messages.length === 0) {
@@ -309,8 +105,9 @@ const AIChatComponent = ({
   const handleNewChat = () => {
     setMessages([]);
     setInputValue('');
-    setCurrentSessionId(null);
+    setCurrentSessionId(null); // Reset session ID to force new session
     
+    // Re-initialize with welcome message
     const welcomeMessage = {
       id: Date.now(),
       type: 'ai',
@@ -344,12 +141,13 @@ const AIChatComponent = ({
         period
       );
       
+      // Format and clean up the AI response
       let formattedResponse = apiResponse.response;
       formattedResponse = formattedResponse
         .replace(/\\n\\n/g, '\n\n')
         .replace(/\\n/g, '\n')
         .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/### /g, '### ')
+        .replace(/### /g, '')
         .trim();
 
       const aiResponse = {
@@ -361,10 +159,12 @@ const AIChatComponent = ({
 
       setMessages(prev => [...prev, aiResponse]);
       
+      // Update current session ID if provided
       if (apiResponse.session_id) {
         setCurrentSessionId(apiResponse.session_id);
       }
       
+      // Refresh chat history
       loadHistoryData();
       
     } catch (error) {
@@ -400,11 +200,14 @@ const AIChatComponent = ({
       }
 
       const sessionsData = await response.json();
+      console.log('Sessions data received:', sessionsData);
       
+      // Transform the sessions data into recent chats format with proper titles
       const formattedChats = sessionsData.sessions?.map(session => {
         let titleMessage = 'New conversation';
         
         if (session.messages && session.messages.length > 0) {
+          // Find the first user message for the title
           const firstUserMessage = session.messages.find(msg => msg.role === 'user');
           if (firstUserMessage && firstUserMessage.content && firstUserMessage.content.trim()) {
             const content = firstUserMessage.content.trim();
@@ -420,8 +223,9 @@ const AIChatComponent = ({
           timestamp: session.last_activity || session.created_at,
           messageCount: session.messages ? session.messages.length : 0
         };
-      }).filter(chat => chat.messageCount > 0) || [];
+      }).filter(chat => chat.messageCount > 0) || []; // Only show chats with messages
       
+      console.log('Formatted chats:', formattedChats);
       setRecentChats(formattedChats);
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -444,6 +248,7 @@ const AIChatComponent = ({
   const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, period) => {
     const token = localStorage.getItem("token");
     
+    // Prepare context based on chat type
     let context = {};
     let customerId = null;
     let propertyId = null;
@@ -474,13 +279,14 @@ const AIChatComponent = ({
     const payload = {
       message: message,
       module_type: chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights',
-      session_id: currentSessionId,
+      session_id: currentSessionId, // Use existing session ID if available
       customer_id: customerId,
       property_id: propertyId,
       period: period,
       context: context
     };
 
+    // Status updates
     const statusUpdates = [
       "Message received, processing your question...",
       "AI agent is analyzing your request...",
@@ -546,6 +352,7 @@ const AIChatComponent = ({
 
       const data = await response.json();
       
+      // Update session ID if provided
       if (data.session_id) {
         setCurrentSessionId(data.session_id);
       }
@@ -610,6 +417,8 @@ const AIChatComponent = ({
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
+      console.log('Loading conversation:', sessionId, 'for module:', moduleType);
+      
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`;
       
       const response = await fetch(url, {
@@ -622,6 +431,10 @@ const AIChatComponent = ({
 
       if (!response.ok) {
         console.error('Failed to load conversation:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        // Show user-friendly error
         setMessages([{
           id: Date.now(),
           type: 'ai',
@@ -632,8 +445,11 @@ const AIChatComponent = ({
       }
 
       const conversation = await response.json();
+      console.log('Conversation loaded:', conversation);
       
+      // Check if messages exist
       if (!conversation.messages || conversation.messages.length === 0) {
+        console.warn('No messages found in conversation');
         setMessages([{
           id: Date.now(),
           type: 'ai',
@@ -643,6 +459,7 @@ const AIChatComponent = ({
         return;
       }
       
+      // Convert conversation messages to display format
       const formattedMessages = conversation.messages.map((msg, index) => ({
         id: `${sessionId}-${index}`,
         type: msg.role === 'user' ? 'user' : 'ai',
@@ -650,6 +467,7 @@ const AIChatComponent = ({
         timestamp: new Date(msg.timestamp)
       }));
       
+      console.log('Setting messages:', formattedMessages);
       setMessages(formattedMessages);
       setCurrentSessionId(sessionId);
       
@@ -665,9 +483,11 @@ const AIChatComponent = ({
   };
 
   const handleRecentChatClick = (sessionId) => {
+    console.log('Chat clicked:', sessionId);
     loadSpecificConversation(sessionId);
   };
 
+  // If chat is not shown, display the agent button
   if (!showChat) {
     return (
       <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm min-h-[500px] flex items-center justify-center">
@@ -696,6 +516,7 @@ const AIChatComponent = ({
     );
   }
 
+  // Chat interface
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[600px] flex flex-col">
       <div className="flex flex-1 min-h-0">
@@ -703,6 +524,7 @@ const AIChatComponent = ({
         <div className={`transition-all duration-300 flex flex-col ${
           isSidebarCollapsed ? 'w-12' : 'w-64'
         }`} style={{ backgroundColor: '#f4f4f4' }}>
+          {/* Sidebar Header */}
           <div className="p-4 flex items-center justify-between">
             {!isSidebarCollapsed && (
               <div className="flex items-center space-x-2">
@@ -725,6 +547,7 @@ const AIChatComponent = ({
             </button>
           </div>
 
+          {/* New Chat Button */}
           {!isSidebarCollapsed && (
             <div className="p-4">
               <button
@@ -740,6 +563,7 @@ const AIChatComponent = ({
             </div>
           )}
 
+          {/* Recent Chats */}
           {!isSidebarCollapsed && (
             <div className="flex-1 px-4 flex flex-col min-h-0">
               <h3 className="text-sm font-semibold mb-3 text-gray-800">Recents</h3>
@@ -777,6 +601,7 @@ const AIChatComponent = ({
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-h-0">
+          {/* Chat Header */}
           <div className="p-4 border-b" style={{ borderColor: '#9AB4BA' }}>
             <div className="text-center">
               <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>{currentConfig.title} Chat</h1>
@@ -787,6 +612,7 @@ const AIChatComponent = ({
             </div>
           </div>
 
+          {/* Context Info */}
           {(activeCampaign || activeProperty || selectedAccount) && (
             <div className="px-4 py-2 border-b" style={{ backgroundColor: '#9AB4BA', borderColor: '#58C3DB' }}>
               <div className="text-xs" style={{ color: '#1A4752' }}>
@@ -842,27 +668,20 @@ const AIChatComponent = ({
                 key={message.id}
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.type === 'user' ? (
-                  <div
-                    className="max-w-[80%] rounded-lg px-4 py-3"
-                    style={{
-                      backgroundColor: '#508995',
-                      color: 'white'
-                    }}
-                  >
-                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                    <p className="text-teal-100 text-xs mt-2">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="max-w-[90%] rounded-lg px-4 py-4 bg-gray-100 border border-gray-300">
-                    {formatAIResponse(message.content)}
-                    <p className="text-gray-500 text-xs mt-3 pt-2 border-t border-gray-200">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
-                )}
+                <div
+                  className="max-w-[80%] rounded-lg px-4 py-3"
+                  style={{
+                    backgroundColor: message.type === 'user' ? '#508995' : '#9AB4BA',
+                    color: message.type === 'user' ? 'white' : '#1A4752'
+                  }}
+                >
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <p className={`text-xs mt-2 ${
+                    message.type === 'user' ? 'text-teal-100' : 'text-gray-500'
+                  }`}>
+                    {message.timestamp.toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
             ))}
             
@@ -935,7 +754,7 @@ const AIChatComponent = ({
               </div>
               <span className="text-sm font-medium">Conversation deleted successfully</span>
             </div>
-          </div>
+            </div>
         )}
       </div>
     </div>           
@@ -943,4 +762,3 @@ const AIChatComponent = ({
 };
 
 export default AIChatComponent;
-   
