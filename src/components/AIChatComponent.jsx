@@ -18,7 +18,6 @@ const AIChatComponent = ({
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [showStatus, setShowStatus] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -93,22 +92,20 @@ const AIChatComponent = ({
     }
   }, [showChat]);
 
+  useEffect(() => {
+    if (showChat) {
+      loadHistoryData();
+    }
+  }, [showChat, chatType]);
+
   const handleStartChat = () => {
     setShowChat(true);
   };
 
-  useEffect(() => {
-    if (showChat) {
-      loadHistoryData();
-      debugChatSessions();
-      testConversationEndpoint();
-    }
-  }, [showChat, chatType]);
-
   const handleNewChat = () => {
     setMessages([]);
     setInputValue('');
-    setCurrentSessionId(null); // ✅ CRITICAL: Reset session ID to force new session
+    setCurrentSessionId(null); // Reset session ID to force new session
     
     // Re-initialize with welcome message
     const welcomeMessage = {
@@ -162,6 +159,11 @@ const AIChatComponent = ({
 
       setMessages(prev => [...prev, aiResponse]);
       
+      // Update current session ID if provided
+      if (apiResponse.session_id) {
+        setCurrentSessionId(apiResponse.session_id);
+      }
+      
       // Refresh chat history
       loadHistoryData();
       
@@ -181,8 +183,6 @@ const AIChatComponent = ({
 
   const loadHistoryData = async () => {
     try {
-      setIsLoadingHistory(true);
-      // Use the sessions endpoint instead of history endpoint for more reliable data
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
@@ -199,36 +199,31 @@ const AIChatComponent = ({
       }
 
       const sessionsData = await response.json();
-      console.log('Raw sessions data:', sessionsData);
       
-      // Transform the sessions data into recent chats format
+      // Transform the sessions data into recent chats format with proper titles
       const formattedChats = sessionsData.sessions?.map(session => {
-        console.log('Processing session:', session.session_id);
-        
-        // Get the first user message for the title (skip AI welcome messages)
         let titleMessage = 'New conversation';
+        
         if (session.messages && session.messages.length > 0) {
-          // Find the first user message or use the first message
+          // Find the first user message for the title
           const firstUserMessage = session.messages.find(msg => msg.role === 'user');
-          const messageToUse = firstUserMessage || session.messages[0];
-          if (messageToUse && messageToUse.content) {
-            titleMessage = messageToUse.content.substring(0, 30) + '...';
+          if (firstUserMessage && firstUserMessage.content) {
+            titleMessage = firstUserMessage.content.length > 40 
+              ? firstUserMessage.content.substring(0, 40) + '...'
+              : firstUserMessage.content;
           }
         }
         
         return {
-          id: session.session_id, // This should be the correct session ID
+          id: session.session_id,
           title: titleMessage,
-          timestamp: session.messages?.[0]?.timestamp || session.created_at
+          timestamp: session.last_activity || session.created_at
         };
       }) || [];
       
-      console.log('Formatted chats:', formattedChats);
       setRecentChats(formattedChats);
     } catch (error) {
       console.error('Error loading chat history:', error);
-    } finally {
-      setIsLoadingHistory(false);
     }
   };
 
@@ -244,31 +239,7 @@ const AIChatComponent = ({
     }
   };
 
-  // Generate mock AI responses based on chat type
-  const generateAIResponse = (userInput, type) => {
-    const responses = {
-      ads: [
-        "Based on your campaign data, I can see that your cost per conversion has increased by 15% this month. Here are three key optimizations: 1) Pause underperforming keywords with high cost and low conversions, 2) Increase bids on your top-performing ad groups, 3) Test new ad copy variations to improve CTR.",
-        "Your Google Ads performance shows strong potential. Your top campaign is generating excellent ROAS, but I notice some budget allocation opportunities. Would you like me to analyze your keyword performance in detail?",
-        "I've analyzed your campaign metrics and found several optimization opportunities. Your impression share could be improved by increasing bids on high-converting keywords. Should I provide specific keyword recommendations?"
-      ],
-      analytics: [
-        "Your website analytics show interesting user behavior patterns. The bounce rate on your landing pages is 12% above industry average, but your engagement time is strong. I recommend optimizing your page load speed and improving your call-to-action placement.",
-        "Based on your GA4 data, your mobile users have 23% higher conversion rates than desktop users. This suggests you should allocate more marketing budget to mobile-focused campaigns. Would you like specific mobile optimization recommendations?",
-        "Your traffic analysis reveals that organic search is your strongest performing channel with 4.2 pages per session. However, your direct traffic has low engagement. I can help you develop strategies to improve direct visitor experience."
-      ],
-      intent: [
-        "I've identified several high-opportunity keywords in your industry. There are 15 keywords with high search volume and low competition that you're not currently targeting. These could drive an estimated 2,300 additional monthly visits.",
-        "Your keyword analysis shows strong performance in branded terms, but there's untapped potential in long-tail keywords. I found 8 'buying intent' keywords with 40% less competition than your current targets.",
-        "The search intent data reveals seasonal patterns in your target keywords. Peak search volume occurs in Q4, suggesting you should increase your keyword bids by 25% starting in October for maximum ROI."
-      ]
-    };
-    
-    const typeResponses = responses[type] || responses.ads;
-    return typeResponses[Math.floor(Math.random() * typeResponses.length)];
-  };
-
-    // API call functions
+  // API call functions
   const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, period) => {
     const token = localStorage.getItem("token");
     
@@ -347,7 +318,7 @@ const AIChatComponent = ({
           setProcessingStatus(finalMessages[finalIndex]);
           statusIndex++;
         }
-      }, 1500); // Slower updates for more realistic feel
+      }, 1500);
     };
     
     // Stop status updates
@@ -415,112 +386,24 @@ const AIChatComponent = ({
     }
   };
 
-  const loadChatHistory = async (chatType) => {
-    const token = localStorage.getItem("token");
-    const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
-    
-    const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/history/${moduleType}?limit=15`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
-
-    return await response.json();
-  };
-
-  const debugChatSessions = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
-      
-      const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/sessions/${moduleType}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const sessions = await response.json();
-        console.log('Available sessions:', sessions);
-      } else {
-        console.error('Failed to get sessions:', response.status);
-      }
-    } catch (error) {
-      console.error('Error getting sessions:', error);
-    }
-  };
-  const deleteConversation = async (sessionIds) => {
-    const token = localStorage.getItem("token");
-    
-    const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/delete', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        session_ids: sessionIds
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
-
-    return await response.json();
-  };
-
-  // const handleRecentChatClick = (sessionId) => {
-  //   if (!sessionId) {
-  //     console.error('No session ID provided');
-  //     return;
-  //   }
-    
-  //   console.log('Loading conversation with session ID:', sessionId);
-  //   loadSpecificConversation(sessionId);
-  // };
-  
-  const testConversationEndpoint = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const testSessionId = "8db9a4a1-b4b1-4fb5-b00b-07e89c030d4d"; // Use a real session ID from your debug
-      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
-      
-      // Test the test endpoint first
-      const testUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/test/${testSessionId}?module_type=${moduleType}`;
-      console.log('Testing with URL:', testUrl);
-      
-      const testResponse = await fetch(testUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (testResponse.ok) {
-        const testResult = await testResponse.json();
-        console.log('Test endpoint result:', testResult);
-      } else {
-        console.error('Test endpoint failed:', testResponse.status);
-      }
-      
-    } catch (error) {
-      console.error('Test endpoint error:', error);
-    }
-  };
-
   const handleDeleteConversation = async (sessionId) => {
     try {
-      await deleteConversation([sessionId]);
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/delete', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_ids: [sessionId]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
       
       // Show success notification
       setShowSuccessToast(true);
@@ -539,19 +422,12 @@ const AIChatComponent = ({
     }
   };
 
-  // Add this method to AIChatComponent
   const loadSpecificConversation = async (sessionId) => {
     try {
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
-      console.log('=== LOADING CONVERSATION DEBUG ===');
-      console.log('Session ID:', sessionId);
-      console.log('Module Type:', moduleType);
-      console.log('Chat Type:', chatType);
-      
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`;
-      console.log('Full URL being called:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -560,9 +436,6 @@ const AIChatComponent = ({
           'Content-Type': 'application/json'
         }
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -576,12 +449,6 @@ const AIChatComponent = ({
       }
 
       const conversation = await response.json();
-      console.log('Conversation loaded successfully:', {
-        sessionId: conversation.session_id,
-        messageCount: conversation.messages?.length || 0,
-        userEmail: conversation.user_email,
-        moduleType: conversation.module_type
-      });
       
       // Check if messages exist
       if (!conversation.messages || conversation.messages.length === 0) {
@@ -603,8 +470,6 @@ const AIChatComponent = ({
         timestamp: new Date(msg.timestamp)
       }));
       
-      console.log('Formatted messages:', formattedMessages.length, 'messages');
-      
       setMessages(formattedMessages);
       setCurrentSessionId(sessionId);
       
@@ -619,14 +484,10 @@ const AIChatComponent = ({
     }
   };
 
-
   // Update the recent chats click handler
   const handleRecentChatClick = (sessionId) => {
     loadSpecificConversation(sessionId);
   };
-
- 
-
 
   // If chat is not shown, display the agent button
   if (!showChat) {
@@ -661,220 +522,215 @@ const AIChatComponent = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[600px] flex flex-col">
       <div className="flex flex-1 min-h-0">
-      {/* Sidebar */}
-      <div className={`transition-all duration-300 flex flex-col ${
-        isSidebarCollapsed ? 'w-12' : 'w-64'
-      }`} style={{ backgroundColor: '#f4f4f4' }}>
-        {/* Sidebar Header */}
-        <div className="p-4 flex items-center justify-between">
-          {!isSidebarCollapsed && (
-            <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-semibold" style={{ color: '#1A4752' }}>{currentConfig.title}</h2>
-              <div className="flex items-center space-x-1 text-white px-2 py-1 rounded text-xs">
-                <span className="text-xs">AI</span>
+        {/* Sidebar */}
+        <div className={`transition-all duration-300 flex flex-col ${
+          isSidebarCollapsed ? 'w-12' : 'w-64'
+        }`} style={{ backgroundColor: '#f4f4f4' }}>
+          {/* Sidebar Header */}
+          <div className="p-4 flex items-center justify-between">
+            {!isSidebarCollapsed && (
+              <div className="flex items-center space-x-2">
+                <h2 className="text-lg font-semibold" style={{ color: '#1A4752' }}>{currentConfig.title}</h2>
+                <div className="flex items-center space-x-1 text-white px-2 py-1 rounded text-xs">
+                  <span className="text-xs">AI</span>
+                </div>
               </div>
-            </div>
-          )}
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title={isSidebarCollapsed ? "Expand" : "Collapse"}
-          >
-            {isSidebarCollapsed ? (
-              <ChevronRight size={16} style={{ color: '#508995' }} />
-            ) : (
-              <ChevronLeft size={16} style={{ color: '#508995' }} />
             )}
-          </button>
-        </div>
-
-        {/* New Chat Button */}
-        {!isSidebarCollapsed && (
-          <div className="p-4">
             <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="p-1 hover:bg-gray-200 rounded transition-colors"
+              title={isSidebarCollapsed ? "Expand" : "Collapse"}
+            >
+              {isSidebarCollapsed ? (
+                <ChevronRight size={16} style={{ color: '#508995' }} />
+              ) : (
+                <ChevronLeft size={16} style={{ color: '#508995' }} />
+              )}
+            </button>
+          </div>
+
+          {/* New Chat Button */}
+          {!isSidebarCollapsed && (
+            <div className="p-4">
+              <button
                 onClick={handleNewChat}
                 className="w-full flex items-center space-x-3 p-3 text-white rounded-lg transition-colors"
                 style={{ backgroundColor: '#508995' }}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#1A4752'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = '#508995'}
               >
-              <Plus size={20} />
-              <span>New Chat</span>
-            </button>
-          </div>
-        )}
+                <Plus size={20} />
+                <span>New Chat</span>
+              </button>
+            </div>
+          )}
 
-        {/* Recent Chats */}
-        {/* Recent Chats */}
-        {!isSidebarCollapsed && (
-          <div className="flex-1 px-4 flex flex-col min-h-0">
-            <h3 className="text-sm font-semibold mb-3 text-gray-800">Recents</h3>
-            <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-              {recentChats.length > 0 ? (
-                recentChats.map((chat, index) => (
-                  <div
-                    key={chat.id}
-                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
-                      chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log('Clicking on chat with ID:', chat.id);
-                      handleRecentChatClick(chat.id);
-                    }}
-                  >
-                    <span className="text-sm truncate flex-1">{chat.title}</span>
-                    <Trash2 
-                      size={16} 
-                      className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
+          {/* Recent Chats */}
+          {!isSidebarCollapsed && (
+            <div className="flex-1 px-4 flex flex-col min-h-0">
+              <h3 className="text-sm font-semibold mb-3 text-gray-800">Recents</h3>
+              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+                {recentChats.length > 0 ? (
+                  recentChats.map((chat, index) => (
+                    <div
+                      key={chat.id}
+                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
+                        chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteConversation(chat.id);
+                        handleRecentChatClick(chat.id);
                       }}
-                    />
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 italic">No recent conversations</div>
-              )}
+                    >
+                      <span className="text-sm truncate flex-1">{chat.title}</span>
+                      <Trash2 
+                        size={16} 
+                        className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConversation(chat.id);
+                        }}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 italic">No recent conversations</div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {/* Chat Header */}
-        <div className="p-4 border-b" style={{ borderColor: '#9AB4BA' }}>
-          <div className="text-center">
-            <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>{currentConfig.title} Chat</h1>
-            <p className="text-sm flex items-center justify-center space-x-1" style={{ color: '#508995' }}>
-              <span className="text-yellow-500">💡</span>
-              <span>{currentConfig.subtitle}</span>
-            </p>
-          </div>
+          )}
         </div>
 
-        {/* Context Info */}
-        {(activeCampaign || activeProperty || selectedAccount) && (
-          <div className="px-4 py-2 border-b" style={{ backgroundColor: '#9AB4BA', borderColor: '#58C3DB' }}>
-            <div className="text-xs" style={{ color: '#1A4752' }}>
-              <span className="font-medium">Context: </span>
-              {chatType === 'ads' && activeCampaign && (
-                <span>{activeCampaign.name} • {period}</span>
-              )}
-              {chatType === 'analytics' && activeProperty && (
-                <span>{activeProperty.name} • {period}</span>
-              )}
-              {chatType === 'intent' && selectedAccount && (
-                <span>{selectedAccount.name || selectedAccount.descriptiveName} • {period}</span>
-              )}
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Chat Header */}
+          <div className="p-4 border-b" style={{ borderColor: '#9AB4BA' }}>
+            <div className="text-center">
+              <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>{currentConfig.title} Chat</h1>
+              <p className="text-sm flex items-center justify-center space-x-1" style={{ color: '#508995' }}>
+                <span className="text-yellow-500">💡</span>
+                <span>{currentConfig.subtitle}</span>
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Suggestion Cards - Only show initially */}
-        {messages.length <= 1 && (
-          <div className="p-4 flex flex-col items-center">
-            {/* First row - 3 columns */}
-            <div className="grid grid-cols-3 gap-3 mb-4 w-full max-w-4xl">
-              {currentConfig.suggestions.slice(0, 3).map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
-                  style={{ borderColor: '#508995' }}
-                >
-                  <p className="text-xs leading-relaxed break-words">{suggestion}</p>
-                </button>
-              ))}
+          {/* Context Info */}
+          {(activeCampaign || activeProperty || selectedAccount) && (
+            <div className="px-4 py-2 border-b" style={{ backgroundColor: '#9AB4BA', borderColor: '#58C3DB' }}>
+              <div className="text-xs" style={{ color: '#1A4752' }}>
+                <span className="font-medium">Context: </span>
+                {chatType === 'ads' && activeCampaign && (
+                  <span>{activeCampaign.name} • {period}</span>
+                )}
+                {chatType === 'analytics' && activeProperty && (
+                  <span>{activeProperty.name} • {period}</span>
+                )}
+                {chatType === 'intent' && selectedAccount && (
+                  <span>{selectedAccount.name || selectedAccount.descriptiveName} • {period}</span>
+                )}
+              </div>
             </div>
-            
-            {/* Second row - 2 columns centered */}
-            <div className="grid grid-cols-2 gap-3 w-full max-w-2xl">
-              {currentConfig.suggestions.slice(3, 5).map((suggestion, index) => (
-                <button
-                  key={index + 3}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
-                  style={{ borderColor: '#508995' }}
-                >
-                  <p className="text-xs leading-relaxed break-words">{suggestion}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+          {/* Suggestion Cards - Only show initially */}
+          {messages.length <= 1 && (
+            <div className="p-4 flex flex-col items-center">
+              {/* First row - 3 columns */}
+              <div className="grid grid-cols-3 gap-3 mb-4 w-full max-w-4xl">
+                {currentConfig.suggestions.slice(0, 3).map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
+                    style={{ borderColor: '#508995' }}
+                  >
+                    <p className="text-xs leading-relaxed break-words">{suggestion}</p>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Second row - 2 columns centered */}
+              <div className="grid grid-cols-2 gap-3 w-full max-w-2xl">
+                {currentConfig.suggestions.slice(3, 5).map((suggestion, index) => (
+                  <button
+                    key={index + 3}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
+                    style={{ borderColor: '#508995' }}
+                  >
+                    <p className="text-xs leading-relaxed break-words">{suggestion}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+            {messages.map((message) => (
               <div
-                className="max-w-[80%] rounded-lg px-4 py-3"
-                style={{
-                  backgroundColor: message.type === 'user' ? '#508995' : '#9AB4BA',
-                  color: message.type === 'user' ? 'white' : '#1A4752'
-                }}
+                key={message.id}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                <p className={`text-xs mt-2 ${
-                  message.type === 'user' ? 'text-teal-100' : 'text-gray-500'
-                }`}>
-                  {message.timestamp.toLocaleTimeString()}
-                </p>
+                <div
+                  className="max-w-[80%] rounded-lg px-4 py-3"
+                  style={{
+                    backgroundColor: message.type === 'user' ? '#508995' : '#9AB4BA',
+                    color: message.type === 'user' ? 'white' : '#1A4752'
+                  }}
+                >
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <p className={`text-xs mt-2 ${
+                    message.type === 'user' ? 'text-teal-100' : 'text-gray-500'
+                  }`}>
+                    {message.timestamp.toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-          
-          {/* Status Updates - Move this HERE */}
-          {showStatus && processingStatus && (
-            <div className="flex justify-start">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 max-w-[80%]">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            ))}
+            
+            {/* Status Updates */}
+            {showStatus && processingStatus && (
+              <div className="flex justify-start">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 max-w-[80%]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    </div>
+                    <p className="text-blue-700 text-sm font-medium">{processingStatus}</p>
                   </div>
-                  <p className="text-blue-700 text-sm font-medium">{processingStatus}</p>
                 </div>
               </div>
-            </div>
-          )}
-          
-          {isLoading && !showStatus && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-lg px-4 py-3">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            )}
+            
+            {isLoading && !showStatus && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-lg px-4 py-3">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-          
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
 
-
-
-        {/* Input Area - Fixed at bottom */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+          {/* Input Area - Fixed at bottom */}
+          <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
             <div className="flex space-x-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="How can I help you?"
-              className="flex-1 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white"
-              disabled={isLoading}
-            />
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="How can I help you?"
+                className="flex-1 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white"
+                disabled={isLoading}
+              />
               <button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isLoading}
@@ -887,27 +743,28 @@ const AIChatComponent = ({
                   if (!(!inputValue.trim() || isLoading)) e.target.style.backgroundColor = '#508995';
                 }}
               >
-              <Send size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-            {/* Success Toast */}
-      {showSuccessToast && (
-        <div className="fixed top-4 right-4 z-50">
-          <div 
-            className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2"
-            style={{
-              animation: 'fadeIn 0.3s ease-out',
-            }}
-          >            <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
-              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                <Send size={16} />
+              </button>
             </div>
-            <span className="text-sm font-medium">Conversation deleted successfully</span>
           </div>
         </div>
-      )}
+
+        {/* Success Toast */}
+        {showSuccessToast && (
+          <div className="fixed top-4 right-4 z-50">
+            <div 
+              className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2"
+              style={{
+                animation: 'fadeIn 0.3s ease-out',
+              }}
+            >            
+              <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+              </div>
+              <span className="text-sm font-medium">Conversation deleted successfully</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>           
   );
