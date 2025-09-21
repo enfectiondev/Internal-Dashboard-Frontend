@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, RotateCcw, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Send, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 const AIChatComponent = ({ 
   chatType, // 'ads', 'analytics', 'intent'
@@ -195,10 +195,12 @@ const AIChatComponent = ({
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        console.error(`Failed to load history: ${response.status}`);
+        return;
       }
 
       const sessionsData = await response.json();
+      console.log('Sessions data received:', sessionsData);
       
       // Transform the sessions data into recent chats format with proper titles
       const formattedChats = sessionsData.sessions?.map(session => {
@@ -207,20 +209,23 @@ const AIChatComponent = ({
         if (session.messages && session.messages.length > 0) {
           // Find the first user message for the title
           const firstUserMessage = session.messages.find(msg => msg.role === 'user');
-          if (firstUserMessage && firstUserMessage.content) {
-            titleMessage = firstUserMessage.content.length > 40 
-              ? firstUserMessage.content.substring(0, 40) + '...'
-              : firstUserMessage.content;
+          if (firstUserMessage && firstUserMessage.content && firstUserMessage.content.trim()) {
+            const content = firstUserMessage.content.trim();
+            titleMessage = content.length > 40 
+              ? content.substring(0, 40) + '...'
+              : content;
           }
         }
         
         return {
           id: session.session_id,
           title: titleMessage,
-          timestamp: session.last_activity || session.created_at
+          timestamp: session.last_activity || session.created_at,
+          messageCount: session.messages ? session.messages.length : 0
         };
-      }) || [];
+      }).filter(chat => chat.messageCount > 0) || []; // Only show chats with messages
       
+      console.log('Formatted chats:', formattedChats);
       setRecentChats(formattedChats);
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -281,14 +286,12 @@ const AIChatComponent = ({
       context: context
     };
 
-    // Status updates with more realistic timing
+    // Status updates
     const statusUpdates = [
       "Message received, processing your question...",
       "AI agent is analyzing your request...",
       "Identifying relevant data sources...",
       "Searching for existing data in your account...",
-      "Checking data availability for your time period...",
-      "Fetching fresh data if needed...",
       "Analyzing your marketing performance...",
       "Preparing insights and recommendations...",
       "Finalizing response..."
@@ -297,7 +300,6 @@ const AIChatComponent = ({
     let statusIndex = 0;
     let statusInterval;
     
-    // Start status updates
     const startStatusUpdates = () => {
       setShowStatus(true);
       setProcessingStatus(statusUpdates[0]);
@@ -308,7 +310,6 @@ const AIChatComponent = ({
           setProcessingStatus(statusUpdates[statusIndex]);
           statusIndex++;
         } else {
-          // Cycle through final messages
           const finalMessages = [
             "Almost ready...",
             "Analyzing final details...",
@@ -321,7 +322,6 @@ const AIChatComponent = ({
       }, 1500);
     };
     
-    // Stop status updates
     const stopStatusUpdates = () => {
       if (statusInterval) {
         clearInterval(statusInterval);
@@ -332,7 +332,6 @@ const AIChatComponent = ({
     };
 
     try {
-      // Start status updates
       startStatusUpdates();
       
       const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/message', {
@@ -344,7 +343,6 @@ const AIChatComponent = ({
         body: JSON.stringify(payload)
       });
 
-      // Stop status updates on completion
       stopStatusUpdates();
 
       if (!response.ok) {
@@ -362,12 +360,9 @@ const AIChatComponent = ({
       return data;
       
     } catch (error) {
-      // Stop status updates on error
       stopStatusUpdates();
-      
       console.error('Error sending message:', error);
       
-      // Provide more specific error messages
       let errorMessage = "I'm sorry, I encountered an error while processing your request.";
       
       if (error.message.includes('401')) {
@@ -378,8 +373,6 @@ const AIChatComponent = ({
         errorMessage = "Service not found. Please try again later.";
       } else if (error.message.includes('500')) {
         errorMessage = "Server error. Our team has been notified. Please try again in a few moments.";
-      } else if (error.message.includes('Network')) {
-        errorMessage = "Network connection issue. Please check your internet connection and try again.";
       }
       
       throw new Error(errorMessage);
@@ -405,14 +398,11 @@ const AIChatComponent = ({
         throw new Error(`API Error: ${response.status}`);
       }
       
-      // Show success notification
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
       
-      // Refresh the history after deletion
       loadHistoryData();
       
-      // If the deleted conversation was the current one, reset
       if (sessionId === currentSessionId) {
         setCurrentSessionId(null);
         setMessages([]);
@@ -427,6 +417,8 @@ const AIChatComponent = ({
       const token = localStorage.getItem("token");
       const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
       
+      console.log('Loading conversation:', sessionId, 'for module:', moduleType);
+      
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`;
       
       const response = await fetch(url, {
@@ -438,17 +430,22 @@ const AIChatComponent = ({
       });
 
       if (!response.ok) {
+        console.error('Failed to load conversation:', response.status, response.statusText);
         const errorText = await response.text();
-        console.error('API Error Details:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText,
-          url: url
-        });
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
+        console.error('Error response:', errorText);
+        
+        // Show user-friendly error
+        setMessages([{
+          id: Date.now(),
+          type: 'ai',
+          content: `Sorry, I couldn't load that conversation. Please try starting a new conversation.`,
+          timestamp: new Date()
+        }]);
+        return;
       }
 
       const conversation = await response.json();
+      console.log('Conversation loaded:', conversation);
       
       // Check if messages exist
       if (!conversation.messages || conversation.messages.length === 0) {
@@ -470,6 +467,7 @@ const AIChatComponent = ({
         timestamp: new Date(msg.timestamp)
       }));
       
+      console.log('Setting messages:', formattedMessages);
       setMessages(formattedMessages);
       setCurrentSessionId(sessionId);
       
@@ -484,8 +482,8 @@ const AIChatComponent = ({
     }
   };
 
-  // Update the recent chats click handler
   const handleRecentChatClick = (sessionId) => {
+    console.log('Chat clicked:', sessionId);
     loadSpecificConversation(sessionId);
   };
 
@@ -518,7 +516,7 @@ const AIChatComponent = ({
     );
   }
 
-  // Chat interface - embedded within the same container
+  // Chat interface
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[600px] flex flex-col">
       <div className="flex flex-1 min-h-0">
@@ -571,7 +569,7 @@ const AIChatComponent = ({
               <h3 className="text-sm font-semibold mb-3 text-gray-800">Recents</h3>
               <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
                 {recentChats.length > 0 ? (
-                  recentChats.map((chat, index) => (
+                  recentChats.map((chat) => (
                     <div
                       key={chat.id}
                       className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
@@ -582,7 +580,7 @@ const AIChatComponent = ({
                         handleRecentChatClick(chat.id);
                       }}
                     >
-                      <span className="text-sm truncate flex-1">{chat.title}</span>
+                      <span className="text-sm truncate flex-1" title={chat.title}>{chat.title}</span>
                       <Trash2 
                         size={16} 
                         className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
@@ -635,7 +633,6 @@ const AIChatComponent = ({
           {/* Suggestion Cards - Only show initially */}
           {messages.length <= 1 && (
             <div className="p-4 flex flex-col items-center">
-              {/* First row - 3 columns */}
               <div className="grid grid-cols-3 gap-3 mb-4 w-full max-w-4xl">
                 {currentConfig.suggestions.slice(0, 3).map((suggestion, index) => (
                   <button
@@ -649,7 +646,6 @@ const AIChatComponent = ({
                 ))}
               </div>
               
-              {/* Second row - 2 columns centered */}
               <div className="grid grid-cols-2 gap-3 w-full max-w-2xl">
                 {currentConfig.suggestions.slice(3, 5).map((suggestion, index) => (
                   <button
@@ -718,7 +714,7 @@ const AIChatComponent = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area - Fixed at bottom */}
+          {/* Input Area */}
           <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
             <div className="flex space-x-3">
               <input
@@ -752,12 +748,7 @@ const AIChatComponent = ({
         {/* Success Toast */}
         {showSuccessToast && (
           <div className="fixed top-4 right-4 z-50">
-            <div 
-              className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2"
-              style={{
-                animation: 'fadeIn 0.3s ease-out',
-              }}
-            >            
+            <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2">
               <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
               </div>
