@@ -18,6 +18,7 @@ const AIChatComponent = ({
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [showStatus, setShowStatus] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -99,6 +100,8 @@ const AIChatComponent = ({
   useEffect(() => {
     if (showChat) {
       loadHistoryData();
+      debugChatSessions();
+      testConversationEndpoint();
     }
   }, [showChat, chatType]);
 
@@ -178,12 +181,29 @@ const AIChatComponent = ({
 
   const loadHistoryData = async () => {
     try {
-      const historyData = await loadChatHistory(chatType);
-      console.log('Raw history data:', historyData); // Debug log
+      setIsLoadingHistory(true);
+      // Use the sessions endpoint instead of history endpoint for more reliable data
+      const token = localStorage.getItem("token");
+      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
+      
+      const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/sessions/${moduleType}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const sessionsData = await response.json();
+      console.log('Raw sessions data:', sessionsData);
       
       // Transform the sessions data into recent chats format
-      const formattedChats = historyData.sessions?.map(session => {
-        console.log('Processing session:', session.session_id); // Debug log
+      const formattedChats = sessionsData.sessions?.map(session => {
+        console.log('Processing session:', session.session_id);
         
         // Get the first user message for the title (skip AI welcome messages)
         let titleMessage = 'New conversation';
@@ -203,10 +223,12 @@ const AIChatComponent = ({
         };
       }) || [];
       
-      console.log('Formatted chats:', formattedChats); // Debug log
+      console.log('Formatted chats:', formattedChats);
       setRecentChats(formattedChats);
     } catch (error) {
       console.error('Error loading chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -411,7 +433,7 @@ const AIChatComponent = ({
 
     return await response.json();
   };
-  
+
   const debugChatSessions = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -456,6 +478,45 @@ const AIChatComponent = ({
     return await response.json();
   };
 
+  // const handleRecentChatClick = (sessionId) => {
+  //   if (!sessionId) {
+  //     console.error('No session ID provided');
+  //     return;
+  //   }
+    
+  //   console.log('Loading conversation with session ID:', sessionId);
+  //   loadSpecificConversation(sessionId);
+  // };
+  
+  const testConversationEndpoint = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const testSessionId = "8db9a4a1-b4b1-4fb5-b00b-07e89c030d4d"; // Use a real session ID from your debug
+      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
+      
+      // Test the test endpoint first
+      const testUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/test/${testSessionId}?module_type=${moduleType}`;
+      console.log('Testing with URL:', testUrl);
+      
+      const testResponse = await fetch(testUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (testResponse.ok) {
+        const testResult = await testResponse.json();
+        console.log('Test endpoint result:', testResult);
+      } else {
+        console.error('Test endpoint failed:', testResponse.status);
+      }
+      
+    } catch (error) {
+      console.error('Test endpoint error:', error);
+    }
+  };
 
   const handleDeleteConversation = async (sessionId) => {
     try {
