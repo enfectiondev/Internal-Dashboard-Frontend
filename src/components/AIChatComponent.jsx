@@ -530,7 +530,16 @@ const AIChatComponent = ({
               <div className="flex items-center space-x-2">
                 <h2 className="text-lg font-semibold" style={{ color: '#1A4752' }}>{currentConfig.title}</h2>
                 <div className="flex items-center space-x-1 text-white px-2 py-1 rounded text-xs">
-                  <span className="text-xs">AI</span>
+                  {/* <span className="text-xs">AI</span> */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowMessage(!showMessage)}
+                      className="relative w-12 h-12 rounded-full flex items-center justify-center"
+                    >
+                      <img src="/images/ai.png" alt="AI Assistant" className="w-6 h-6" />
+                      <span className="absolute inset-0 rounded-full animate-ping bg-[#2B889C] opacity-50"></span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -618,13 +627,13 @@ const AIChatComponent = ({
               <div className="text-xs" style={{ color: '#1A4752' }}>
                 <span className="font-medium">Context: </span>
                 {chatType === 'ads' && activeCampaign && (
-                  <span>{activeCampaign.name} • {period}</span>
+                  <span style="font-size: 14px; font-family: monospace; font-weight: bold;">{activeCampaign.name}</span>
                 )}
                 {chatType === 'analytics' && activeProperty && (
-                  <span>{activeProperty.name} • {period}</span>
+                  <span style="font-size: 14px; font-family: monospace; font-weight: bold;">{activeProperty.name}</span>
                 )}
                 {chatType === 'intent' && selectedAccount && (
-                  <span>{selectedAccount.name || selectedAccount.descriptiveName} • {period}</span>
+                  <span style="font-size: 14px; font-family: monospace; font-weight: bold;">{selectedAccount.name || selectedAccount.descriptiveName}</span>
                 )}
               </div>
             </div>
