@@ -4,7 +4,7 @@ import GoogleAnalytics from "../pages/GoogleAnalytics";
 import IntentInsights from "../pages/IntentInsights";
 import DateRangePicker from "../components/DateRangePicker";
 import { useCache } from "../context/CacheContext";
-import { usePDFReport } from "../utils/PDFReportGenerator"; // Import the PDF generator
+import { generateAndDownloadReport } from "../utils/PDFReportGenerator"; // Import the PDF generator function
 
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
 
@@ -31,8 +31,8 @@ export default function Layout({ user, onLogout }) {
   });
 
   const token = localStorage.getItem("token");
-  const { clearCache } = useCache();
-  const { generateAndDownloadReport } = usePDFReport(); // Use the PDF generator hook
+  const cache = useCache(); // Get the full cache object
+  // const { generateAndDownloadReport } = usePDFReport(); // Use the PDF generator hook
 
   // Period options
   const periodOptions = [
@@ -121,7 +121,7 @@ export default function Layout({ user, onLogout }) {
   }, [token]);
 
   const handleLogout = () => {
-    clearCache(); // Clear cache before logout
+    cache.clearCache(); // Clear cache before logout
     setSelectedIntentAccount(null); // Clear selected account on logout
     onLogout();
   };
@@ -153,7 +153,17 @@ export default function Layout({ user, onLogout }) {
       setIsDownloading(true);
       console.log("Starting PDF generation...");
       
-      const result = await generateAndDownloadReport(user);
+      // Debug cache before generating PDF
+      const cacheStats = cache.getCacheStats();
+      console.log("Cache stats before PDF generation:", cacheStats);
+      console.log("Full cache object:", cache);
+      
+      if (cacheStats.totalKeys === 0) {
+        alert("No data found in cache. Please navigate through the dashboard tabs to load data first, then try downloading the report again.");
+        return;
+      }
+      
+      const result = await generateAndDownloadReport(cache, user);
       
       if (result.success) {
         console.log(`PDF report downloaded successfully: ${result.filename}`);

@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useCache } from '../context/CacheContext';
 
 export class PDFReportGenerator {
   constructor(cache, user) {
@@ -37,20 +36,35 @@ export class PDFReportGenerator {
     this.currentY += 15;
   }
 
-  // Convert Google Ads data to table format
+  // Process Google Ads data to table format
   processGoogleAdsData(data, customerId, period, endpoint) {
     const tables = [];
     
     try {
-      if (endpoint === 'campaigns') {
+      console.log(`Processing Google Ads data for endpoint: ${endpoint}`, data);
+      
+      if (endpoint.includes('key-stats')) {
+        if (data && typeof data === 'object') {
+          const tableData = Object.entries(data).map(([key, value]) => [
+            this.formatKey(key),
+            this.formatValue(value)
+          ]);
+
+          tables.push({
+            title: `Google Ads Key Stats (Customer: ${customerId}, Period: ${period})`,
+            headers: ['Metric', 'Value'],
+            data: tableData
+          });
+        }
+      } else if (endpoint.includes('campaigns') || endpoint.includes('campaign-details')) {
         if (Array.isArray(data)) {
-          const tableData = data.map(campaign => [
-            campaign.name || 'N/A',
-            campaign.status || 'N/A',
-            campaign.impressions?.toString() || '0',
-            campaign.clicks?.toString() || '0',
-            campaign.cost ? `$${(campaign.cost / 1000000).toFixed(2)}` : '$0.00',
-            campaign.ctr ? `${(campaign.ctr * 100).toFixed(2)}%` : '0%'
+          const tableData = data.map((item, index) => [
+            item.name || item.campaignName || `Campaign ${index + 1}`,
+            item.status || 'N/A',
+            item.impressions?.toString() || '0',
+            item.clicks?.toString() || '0',
+            item.cost ? `${(item.cost / 1000000).toFixed(2)}` : '$0.00',
+            item.ctr ? `${(item.ctr * 100).toFixed(2)}%` : '0%'
           ]);
 
           tables.push({
@@ -59,15 +73,15 @@ export class PDFReportGenerator {
             data: tableData
           });
         }
-      } else if (endpoint === 'keywords') {
+      } else if (endpoint.includes('keywords')) {
         if (Array.isArray(data)) {
-          const tableData = data.map(keyword => [
-            keyword.keyword || 'N/A',
-            keyword.matchType || 'N/A',
-            keyword.impressions?.toString() || '0',
-            keyword.clicks?.toString() || '0',
-            keyword.cost ? `$${(keyword.cost / 1000000).toFixed(2)}` : '$0.00',
-            keyword.cpc ? `$${(keyword.cpc / 1000000).toFixed(2)}` : '$0.00'
+          const tableData = data.map((item, index) => [
+            item.keyword || item.text || `Keyword ${index + 1}`,
+            item.matchType || 'N/A',
+            item.impressions?.toString() || '0',
+            item.clicks?.toString() || '0',
+            item.cost ? `${(item.cost / 1000000).toFixed(2)}` : '$0.00',
+            item.cpc ? `${(item.cpc / 1000000).toFixed(2)}` : '$0.00'
           ]);
 
           tables.push({
@@ -76,18 +90,63 @@ export class PDFReportGenerator {
             data: tableData
           });
         }
-      } else if (endpoint === 'performance') {
-        if (data && typeof data === 'object') {
-          const tableData = Object.entries(data).map(([key, value]) => [
-            this.formatKey(key),
-            this.formatValue(value)
+      } else if (endpoint.includes('device-performance')) {
+        if (Array.isArray(data)) {
+          const tableData = data.map(item => [
+            item.device || 'Unknown',
+            item.impressions?.toString() || '0',
+            item.clicks?.toString() || '0',
+            item.cost ? `${(item.cost / 1000000).toFixed(2)}` : '$0.00',
+            item.ctr ? `${(item.ctr * 100).toFixed(2)}%` : '0%'
           ]);
 
           tables.push({
-            title: `Google Ads Performance (Customer: ${customerId}, Period: ${period})`,
-            headers: ['Metric', 'Value'],
+            title: `Google Ads Device Performance (Customer: ${customerId}, Period: ${period})`,
+            headers: ['Device', 'Impressions', 'Clicks', 'Cost', 'CTR'],
             data: tableData
           });
+        }
+      } else if (endpoint.includes('time-performance')) {
+        if (Array.isArray(data)) {
+          const tableData = data.map(item => [
+            item.date || item.time || 'Unknown',
+            item.impressions?.toString() || '0',
+            item.clicks?.toString() || '0',
+            item.cost ? `${(item.cost / 1000000).toFixed(2)}` : '$0.00'
+          ]);
+
+          tables.push({
+            title: `Google Ads Time Performance (Customer: ${customerId}, Period: ${period})`,
+            headers: ['Date/Time', 'Impressions', 'Clicks', 'Cost'],
+            data: tableData
+          });
+        }
+      } else {
+        // Generic fallback for any other data
+        if (data && typeof data === 'object') {
+          if (Array.isArray(data)) {
+            const tableData = data.map((item, index) => [
+              index + 1,
+              JSON.stringify(item).substring(0, 100) + '...'
+            ]);
+            
+            tables.push({
+              title: `Google Ads ${endpoint} (Customer: ${customerId}, Period: ${period})`,
+              headers: ['Index', 'Data'],
+              data: tableData
+            });
+          } else {
+            const tableData = Object.entries(data).map(([key, value]) => [
+              this.formatKey(key),
+              this.formatValue(value)
+            ]);
+
+            tables.push({
+              title: `Google Ads ${endpoint} (Customer: ${customerId}, Period: ${period})`,
+              headers: ['Metric', 'Value'],
+              data: tableData
+            });
+          }
         }
       }
     } catch (error) {
@@ -243,6 +302,7 @@ export class PDFReportGenerator {
       // Get all cached data
       const cacheStats = this.cache.getCacheStats();
       console.log('Cache stats for PDF generation:', cacheStats);
+      console.log('Full cache object in PDF generator:', this.cache);
 
       let hasData = false;
 
@@ -254,21 +314,37 @@ export class PDFReportGenerator {
         this.doc.text('Google Ads Data', this.margin, this.currentY);
         this.currentY += 15;
 
+        console.log('Processing ads cache entries...');
+        console.log('All cache keys:', cacheStats.allKeys);
+
         // Iterate through all ads cache entries
         cacheStats.allKeys.forEach(key => {
           if (key.startsWith('ads_')) {
-            const [type, customerId, period, endpoint] = key.split('_');
-            const data = this.cache.getFromCacheAds(customerId, period, endpoint);
+            console.log(`Processing cache key: ${key}`);
+            
+            // Get data using the raw cache access method
+            const data = this.cache.getRawCacheData(key);
+            console.log(`Raw cache data for ${key}:`, data);
             
             if (data) {
+              const keyParts = key.split('_');
+              const customerId = keyParts[1];
+              const period = keyParts[2];
+              const endpoint = keyParts.slice(3).join('_');
+              
               const tables = this.processGoogleAdsData(data, customerId, period, endpoint);
+              console.log(`Generated ${tables.length} tables for ${key}`);
               tables.forEach(table => {
                 this.addTable(table);
                 hasData = true;
               });
+            } else {
+              console.log(`No data found for ${key}`);
             }
           }
         });
+      } else {
+        console.log('No ads stats found:', cacheStats.adsStats);
       }
 
       // Process Google Analytics data
@@ -282,10 +358,15 @@ export class PDFReportGenerator {
         // Iterate through all analytics cache entries
         cacheStats.allKeys.forEach(key => {
           if (key.startsWith('analytics_')) {
-            const [type, propertyId, period, endpoint] = key.split('_');
-            const data = this.cache.getFromCacheAnalytics(propertyId, period, endpoint);
+            const data = this.cache.getRawCacheData(key);
+            console.log(`Processing analytics cache entry: ${key}`, data);
             
             if (data) {
+              const parts = key.split('_');
+              const propertyId = parts[1];
+              const period = parts[2];
+              const endpoint = parts.slice(3).join('_');
+              
               const tables = this.processGoogleAnalyticsData(data, propertyId, period, endpoint);
               tables.forEach(table => {
                 this.addTable(table);
@@ -303,6 +384,9 @@ export class PDFReportGenerator {
         this.doc.setFont(undefined, 'normal');
         this.doc.text('No cached data available for report generation.', this.margin, this.currentY);
         this.doc.text('Please navigate through the dashboard to load data first.', this.margin, this.currentY + 10);
+        this.doc.text(`Total cache keys found: ${cacheStats.totalKeys}`, this.margin, this.currentY + 20);
+        this.doc.text(`Ads entries: ${Object.keys(cacheStats.adsStats).length}`, this.margin, this.currentY + 30);
+        this.doc.text(`Analytics entries: ${Object.keys(cacheStats.analyticsStats).length}`, this.margin, this.currentY + 40);
       }
 
       // Add footer with page numbers
@@ -326,28 +410,22 @@ export class PDFReportGenerator {
   }
 }
 
-// Hook to use the PDF generator
-export const usePDFReport = () => {
-  const cache = useCache();
-
-  const generateAndDownloadReport = async (user) => {
-    try {
-      const generator = new PDFReportGenerator(cache, user);
-      const doc = await generator.generateReport();
-      
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `analytics-report-${timestamp}.pdf`;
-      
-      // Download the PDF
-      doc.save(filename);
-      
-      return { success: true, filename };
-    } catch (error) {
-      console.error('Failed to generate PDF report:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  return { generateAndDownloadReport };
+// Standalone function to generate and download report
+export const generateAndDownloadReport = async (cache, user) => {
+  try {
+    const generator = new PDFReportGenerator(cache, user);
+    const doc = await generator.generateReport();
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `analytics-report-${timestamp}.pdf`;
+    
+    // Download the PDF
+    doc.save(filename);
+    
+    return { success: true, filename };
+  } catch (error) {
+    console.error('Failed to generate PDF report:', error);
+    return { success: false, error: error.message };
+  }
 };
