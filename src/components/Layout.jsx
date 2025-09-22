@@ -5,6 +5,7 @@ import IntentInsights from "../pages/IntentInsights";
 import DateRangePicker from "../components/DateRangePicker";
 import { useCache } from "../context/CacheContext";
 
+
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
 
 export default function Layout({ user, onLogout }) {
