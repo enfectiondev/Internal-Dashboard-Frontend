@@ -4,6 +4,7 @@ import GoogleAnalytics from "../pages/GoogleAnalytics";
 import IntentInsights from "../pages/IntentInsights";
 import DateRangePicker from "../components/DateRangePicker";
 import { useCache } from "../context/CacheContext";
+import { usePDFReport } from "../utils/PDFReportGenerator"; // Import the PDF generator
 
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
 
@@ -17,6 +18,7 @@ export default function Layout({ user, onLogout }) {
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // Add download state
   const dropdownRef = useRef(null);
   
   // Add persistent selected account state for Intent Insights
@@ -30,6 +32,7 @@ export default function Layout({ user, onLogout }) {
 
   const token = localStorage.getItem("token");
   const { clearCache } = useCache();
+  const { generateAndDownloadReport } = usePDFReport(); // Use the PDF generator hook
 
   // Period options
   const periodOptions = [
@@ -142,6 +145,29 @@ export default function Layout({ user, onLogout }) {
   // Handle account change (reset selected account)
   const handleIntentAccountChange = () => {
     setSelectedIntentAccount(null);
+  };
+
+  // Handle PDF download
+  const handleDownloadReport = async () => {
+    try {
+      setIsDownloading(true);
+      console.log("Starting PDF generation...");
+      
+      const result = await generateAndDownloadReport(user);
+      
+      if (result.success) {
+        console.log(`PDF report downloaded successfully: ${result.filename}`);
+        // You could show a success toast here
+      } else {
+        console.error("Failed to generate PDF report:", result.error);
+        alert(`Failed to generate report: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      alert("An error occurred while generating the report. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const getCurrentPeriodLabel = () => {
@@ -292,10 +318,22 @@ export default function Layout({ user, onLogout }) {
 
           <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8 mr-4">
             <button
-              className="w-full bg-teal-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-teal-700"
-              disabled={activeTab !== "Intent Insights" && currentData.items.length === 0}
+              onClick={handleDownloadReport}
+              disabled={isDownloading}
+              className={`w-full p-2 md:p-3 rounded text-sm md:text-base transition-colors ${
+                isDownloading 
+                  ? "bg-gray-500 text-gray-300 cursor-not-allowed" 
+                  : "bg-teal-600 text-white hover:bg-teal-700"
+              }`}
             >
-              Download Full Report
+              {isDownloading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Generating...</span>
+                </div>
+              ) : (
+                "Download Full Report"
+              )}
             </button>
             <button
               onClick={handleLogout}
@@ -390,6 +428,30 @@ export default function Layout({ user, onLogout }) {
               </div>
             )}
           </div>
+
+          {/* Download button for Intent Insights (full width layout) */}
+          {activeTab === "Intent Insights" && (
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={handleDownloadReport}
+                disabled={isDownloading}
+                className={`px-6 py-2 rounded text-sm transition-colors ${
+                  isDownloading 
+                    ? "bg-gray-500 text-gray-300 cursor-not-allowed" 
+                    : "bg-teal-600 text-white hover:bg-teal-700"
+                }`}
+              >
+                {isDownloading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Generating...</span>
+                  </div>
+                ) : (
+                  "Download Full Report"
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Page Content */}
           <div className="bg-[#1A6473] p-4 md:p-6 rounded-lg">{renderContent()}</div>
