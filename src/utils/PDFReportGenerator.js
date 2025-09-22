@@ -1,5 +1,5 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export class PDFReportGenerator {
   constructor(cache, user) {
@@ -268,8 +268,8 @@ export class PDFReportGenerator {
       return;
     }
 
-    // Add table
-    this.doc.autoTable({
+    // Add table using autoTable
+    autoTable(this.doc, {
       head: [tableConfig.headers],
       body: tableConfig.data,
       startY: this.currentY,
