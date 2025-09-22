@@ -31,6 +31,14 @@ export const CacheProvider = ({ children }) => {
     return data;
   };
 
+  // NEW: Direct cache access by key
+  const getRawCacheData = (key) => {
+    const data = cache[key] || null;
+    console.log(`[RAW CACHE GET] Key: ${key}`);
+    console.log(`[RAW CACHE GET] Data:`, data);
+    return data;
+  };
+
   // Generic set cache
   const setCache = (id, period, endpoint, data, type = 'ads') => {
     const key = getCacheKey(id, period, endpoint, type);
@@ -136,9 +144,8 @@ export const CacheProvider = ({ children }) => {
       getFromCache,
       setCache,
       
-    //   // Backward compatibility for Ads
-    //   getFromCache: getFromCacheAds, // Default to ads for backward compatibility
-    //   setCache: setCacheAds, // Default to ads for backward compatibility
+      // NEW: Raw cache access
+      getRawCacheData,
       
       // Specific methods for Ads
       getFromCacheAds,
