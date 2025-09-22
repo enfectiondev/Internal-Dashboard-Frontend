@@ -618,13 +618,13 @@ const AIChatComponent = ({
               <div className="text-xs" style={{ color: '#1A4752' }}>
                 <span className="font-medium">Context: </span>
                 {chatType === 'ads' && activeCampaign && (
-                  <span style="font-size: 14px; font-family: monospace; font-weight: bold;">{activeCampaign.name}</span>
+                  <span>{activeCampaign.name}</span>
                 )}
                 {chatType === 'analytics' && activeProperty && (
-                  <span style="font-size: 14px; font-family: monospace; font-weight: bold;">{activeProperty.name}</span>
+                  <span>{activeProperty.name}</span>
                 )}
                 {chatType === 'intent' && selectedAccount && (
-                  <span style="font-size: 14px; font-family: monospace; font-weight: bold;">{selectedAccount.name || selectedAccount.descriptiveName}</span>
+                  <span>{selectedAccount.name || selectedAccount.descriptiveName}</span>
                 )}
               </div>
             </div>
