@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useCache } from '../context/CacheContext';
 
 export class PDFReportGenerator {
   constructor(cache, user) {
