@@ -4,8 +4,7 @@ import GoogleAnalytics from "../pages/GoogleAnalytics";
 import IntentInsights from "../pages/IntentInsights";
 import DateRangePicker from "../components/DateRangePicker";
 import { useCache } from "../context/CacheContext";
-import { generateAndDownloadReport } from "../utils/PDFReportGenerator"; // Import the PDF generator function
-
+import { generateAndDownloadReport } from "../utils/PDFReportGenerator";
 
 const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
 
@@ -19,8 +18,10 @@ export default function Layout({ user, onLogout }) {
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false); // Add download state
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false); // NEW: Profile dropdown state
   const dropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null); // NEW: Profile dropdown ref
   
   // Add persistent selected account state for Intent Insights
   const [selectedIntentAccount, setSelectedIntentAccount] = useState(null);
@@ -32,8 +33,7 @@ export default function Layout({ user, onLogout }) {
   });
 
   const token = localStorage.getItem("token");
-  const cache = useCache(); // Get the full cache object
-  // const { generateAndDownloadReport } = usePDFReport(); // Use the PDF generator hook
+  const cache = useCache();
 
   // Period options
   const periodOptions = [
@@ -48,6 +48,10 @@ export default function Layout({ user, onLogout }) {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
+      }
+      // NEW: Close profile dropdown when clicking outside
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setIsProfileDropdownOpen(false);
       }
     };
 
@@ -103,7 +107,6 @@ export default function Layout({ user, onLogout }) {
 
         const data = await res.json();
         console.log("API properties data:", data);
-        // Convert to match expected structure
         const formattedProperties = data.map(prop => ({
           id: prop.propertyId,
           name: prop.displayName,
@@ -122,8 +125,8 @@ export default function Layout({ user, onLogout }) {
   }, [token]);
 
   const handleLogout = () => {
-    cache.clearCache(); // Clear cache before logout
-    setSelectedIntentAccount(null); // Clear selected account on logout
+    cache.clearCache();
+    setSelectedIntentAccount(null);
     onLogout();
   };
 
@@ -137,15 +140,21 @@ export default function Layout({ user, onLogout }) {
     setIsDropdownOpen(false);
   };
 
-  // Handle account selection for Intent Insights
   const handleIntentAccountSelect = (account) => {
     setSelectedIntentAccount(account);
     console.log("Intent account selected:", account);
   };
 
-  // Handle account change (reset selected account)
   const handleIntentAccountChange = () => {
     setSelectedIntentAccount(null);
+  };
+
+  // NEW: Handle privacy/terms page navigation
+  const handlePageNavigation = (page) => {
+    const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
+    const url = `${baseUrl}/${page}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setIsProfileDropdownOpen(false);
   };
 
   // Handle PDF download
@@ -154,7 +163,6 @@ export default function Layout({ user, onLogout }) {
       setIsDownloading(true);
       console.log("Starting PDF generation...");
       
-      // Debug cache before generating PDF
       const cacheStats = cache.getCacheStats();
       console.log("Cache stats before PDF generation:", cacheStats);
       console.log("Full cache object:", cache);
@@ -168,7 +176,6 @@ export default function Layout({ user, onLogout }) {
       
       if (result.success) {
         console.log(`PDF report downloaded successfully: ${result.filename}`);
-        // You could show a success toast here
       } else {
         console.error("Failed to generate PDF report:", result.error);
         alert(`Failed to generate report: ${result.error}`);
@@ -186,7 +193,6 @@ export default function Layout({ user, onLogout }) {
     return option ? option.label : "7 Days";
   };
 
-  // Get current data based on active tab
   const getCurrentData = () => {
     if (activeTab === "Google Ads Campaigns") {
       return {
@@ -205,7 +211,6 @@ export default function Layout({ user, onLogout }) {
         type: 'properties'
       };
     } else if (activeTab === "Intent Insights") {
-      // Intent Insights doesn't need campaigns or properties selection
       return {
         items: [],
         loading: false,
@@ -274,14 +279,48 @@ export default function Layout({ user, onLogout }) {
         <h1 className="text-2xl md:text-4xl font-normal text-[#A1BCD3]">ANALYTICS DASHBOARD</h1>
         <div className="flex items-center space-x-3">
           <span className="text-sm md:text-base text-white">{user?.name}</span>
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center">
-            <span className="text-teal-800 font-semibold text-sm md:text-base">
-              {user?.name
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
-            </span>
+          
+          {/* NEW: Profile dropdown container */}
+          <div className="relative" ref={profileDropdownRef}>
+            <div 
+              className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+            >
+              <span className="text-teal-800 font-semibold text-sm md:text-base">
+                {user?.name
+                  ?.split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
+              </span>
+            </div>
+
+            {/* NEW: Profile dropdown menu */}
+            {isProfileDropdownOpen && (
+              <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-50">
+                <div className="py-2">
+                  <button
+                    onClick={() => handlePageNavigation('privacy')}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Privacy Policy
+                  </button>
+                  <button
+                    onClick={() => handlePageNavigation('terms')}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Terms of Service
+                  </button>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -291,7 +330,6 @@ export default function Layout({ user, onLogout }) {
         {activeTab !== "Intent Insights" && (
           <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
           <div className="space-y-4 flex-1">
-            {/* Only show items for Google Ads and Analytics tabs */}
             {activeTab === "Intent Insights" ? (
               <div className="text-white/70 p-4 text-sm md:text-base">
                 Intent Insights - Keyword Research Tools
@@ -346,12 +384,7 @@ export default function Layout({ user, onLogout }) {
                 "Download Full Report"
               )}
             </button>
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gray-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-gray-700"
-            >
-              Logout
-            </button>
+            {/* REMOVED: Individual logout button since it's now in the profile dropdown */}
           </div>
         </aside>
         )}
@@ -369,13 +402,11 @@ export default function Layout({ user, onLogout }) {
                     key={tab}
                     onClick={() => {
                       setActiveTab(tab);
-                      // Reset active index when switching tabs (but keep Intent account selection)
                       if (tab === "Google Ads Campaigns") {
                         setActiveCampaignIdx(0);
                       } else if (tab === "Google Analytics") {
                         setActivePropertyIdx(0);
                       }
-                      // Don't reset selectedIntentAccount when switching to Intent Insights
                     }}
                     className={`flex-1 md:flex-none md:min-w-[200px] px-4 md:px-8 py-2 md:py-4 text-sm md:text-base text-center cursor-pointer transition-colors rounded-lg ${
                       isActive
