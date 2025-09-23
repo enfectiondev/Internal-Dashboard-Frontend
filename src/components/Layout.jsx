@@ -275,13 +275,13 @@ export default function Layout({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0B4E5D] via-[#05242A] to-[#1E1E1E] text-white">
       {/* Header */}
-      <header className="backdrop-blur-sm p-4 flex items-center justify-between border-b border-white">
+      <header className="backdrop-blur-sm p-4 flex items-center justify-between border-b border-white relative z-[9999]">
         <h1 className="text-2xl md:text-4xl font-normal text-[#A1BCD3]">ANALYTICS DASHBOARD</h1>
         <div className="flex items-center space-x-3">
           <span className="text-sm md:text-base text-white">{user?.name}</span>
           
           {/* NEW: Profile dropdown container */}
-          <div className="relative" ref={profileDropdownRef}>
+          <div className="relative z-[9999]" ref={profileDropdownRef}>
             <div 
               className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
               onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
@@ -448,7 +448,7 @@ export default function Layout({ user, onLogout }) {
                   </button>
                   
                   {isDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[120px] z-50">
+                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[120px] z-40">
                       {periodOptions.map((option) => (
                         <button
                           key={option.value}
