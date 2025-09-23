@@ -295,9 +295,9 @@ export default function Layout({ user, onLogout }) {
               </span>
             </div>
 
-            {/* NEW: Profile dropdown menu */}
+            {/* Profile dropdown menu - Only Privacy and Terms */}
             {isProfileDropdownOpen && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-50">
+              <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-[9999]">
                 <div className="py-2">
                   <button
                     onClick={() => handlePageNavigation('privacy')}
@@ -310,13 +310,6 @@ export default function Layout({ user, onLogout }) {
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     Terms of Service
-                  </button>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    Logout
                   </button>
                 </div>
               </div>
@@ -384,7 +377,12 @@ export default function Layout({ user, onLogout }) {
                 "Download Full Report"
               )}
             </button>
-            {/* REMOVED: Individual logout button since it's now in the profile dropdown */}
+            <button
+              onClick={handleLogout}
+              className="w-full bg-gray-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-gray-700"
+            >
+              Logout
+            </button>
           </div>
         </aside>
         )}
