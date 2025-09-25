@@ -8,14 +8,37 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // Loading state to prevent flash redirect
 
+
+
   useEffect(() => {
     const checkToken = () => {
       const params = new URLSearchParams(window.location.search);
       const token = params.get("token");
-      const error = params.get("error"); // Check for OAuth error
+      const facebookToken = params.get("facebook_token");
+      const error = params.get("error");
 
+      // Handle Facebook token separately
+      if (facebookToken) {
+        try {
+          // Decode URL-encoded token
+          const decodedToken = decodeURIComponent(facebookToken);
+          localStorage.setItem('facebook_token', decodedToken);
+          console.log("Facebook token stored successfully");
+          
+          // Store flag to switch to Facebook tab
+          localStorage.setItem('switch_to_facebook_tab', 'true');
+          
+          // Clean URL without affecting main authentication
+          window.history.replaceState({}, document.title, "/dashboard");
+          setLoading(false);
+          return;
+        } catch (err) {
+          console.error("Facebook token processing error:", err);
+        }
+      }
+
+      // Rest of your existing code for Google token handling...
       if (error) {
-        // Handle OAuth error
         console.error("OAuth error:", error);
         alert("Login failed: " + decodeURIComponent(error));
         window.history.replaceState({}, document.title, "/login");
@@ -25,7 +48,6 @@ export default function App() {
 
       if (token) {
         try {
-          // Decode JWT to get user info
           const base64Url = token.split(".")[1];
           const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
           const jsonPayload = decodeURIComponent(
@@ -36,7 +58,6 @@ export default function App() {
           );
           const userData = JSON.parse(jsonPayload);
 
-          // Validate token expiration
           const currentTime = Math.floor(Date.now() / 1000);
           if (userData.exp && userData.exp < currentTime) {
             console.error("Token expired");
@@ -46,7 +67,6 @@ export default function App() {
             return;
           }
 
-          // Save token and user in localStorage
           localStorage.setItem("token", token);
           localStorage.setItem("user", JSON.stringify(userData));
           setUser(userData);
@@ -54,22 +74,19 @@ export default function App() {
           console.error("JWT decode error:", err);
           alert("Login failed: Invalid token");
         } finally {
-          // Remove token from URL after setting user
           window.history.replaceState({}, document.title, "/dashboard");
           setLoading(false);
         }
       } else {
-        // Fallback: check localStorage
+        // Check localStorage for existing Google auth
         const storedToken = localStorage.getItem("token");
         const storedUser = localStorage.getItem("user");
         
         if (storedToken && storedUser) {
           try {
             const userData = JSON.parse(storedUser);
-            // Validate stored token expiration
             const currentTime = Math.floor(Date.now() / 1000);
             if (userData.exp && userData.exp < currentTime) {
-              // Token expired, clear storage
               localStorage.removeItem("token");
               localStorage.removeItem("user");
             } else {
@@ -91,6 +108,8 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    // Keep Facebook token separate - don't remove on main logout
+    // localStorage.removeItem("facebook_token"); // Only remove this if user specifically disconnects Facebook
     setUser(null);
   };
 

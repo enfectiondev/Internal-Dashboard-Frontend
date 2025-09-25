@@ -2,26 +2,34 @@ import React, { useState, useEffect, useRef } from "react";
 import GoogleAds from "../pages/GoogleAds";
 import GoogleAnalytics from "../pages/GoogleAnalytics";
 import IntentInsights from "../pages/IntentInsights";
+import FacebookAnalytics from "../pages/FacebookAnalytics"; // Add this import
+import InstagramAnalytics from "../pages/InstagramAnalytics"; // Add this import
 import DateRangePicker from "../components/DateRangePicker";
 import { useCache } from "../context/CacheContext";
 import { generateAndDownloadReport } from "../utils/PDFReportGenerator";
 
-const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights"];
+const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights", "Facebook", "Instagram"];
 
 export default function Layout({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("Google Ads Campaigns");
   const [activeCampaignIdx, setActiveCampaignIdx] = useState(0);
   const [activePropertyIdx, setActivePropertyIdx] = useState(0);
+  const [activeFacebookIdx, setActiveFacebookIdx] = useState(0);
+  const [activeInstagramIdx, setActiveInstagramIdx] = useState(0);
   const [period, setPeriod] = useState("LAST_7_DAYS");
   const [campaigns, setCampaigns] = useState([]);
   const [properties, setProperties] = useState([]);
+  const [facebookAccounts, setFacebookAccounts] = useState([]);
+  const [instagramAccounts, setInstagramAccounts] = useState([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingProperties, setLoadingProperties] = useState(true);
+  const [loadingFacebook, setLoadingFacebook] = useState(false);
+  const [loadingInstagram, setLoadingInstagram] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false); // NEW: Profile dropdown state
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const profileDropdownRef = useRef(null); // NEW: Profile dropdown ref
+  const profileDropdownRef = useRef(null);
   
   // Add persistent selected account state for Intent Insights
   const [selectedIntentAccount, setSelectedIntentAccount] = useState(null);
@@ -49,7 +57,6 @@ export default function Layout({ user, onLogout }) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
-      // NEW: Close profile dropdown when clicking outside
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setIsProfileDropdownOpen(false);
       }
@@ -124,11 +131,86 @@ export default function Layout({ user, onLogout }) {
     fetchProperties();
   }, [token]);
 
-  const handleLogout = () => {
-    cache.clearCache();
-    setSelectedIntentAccount(null);
-    onLogout();
-  };
+  // In Layout.jsx, update the fetchFacebookAccounts function:
+  useEffect(() => {
+    const fetchFacebookAccounts = async () => {
+      const facebookToken = localStorage.getItem('facebook_token');
+      if (!facebookToken) {
+        setFacebookAccounts([]);
+        setLoadingFacebook(false);
+        return;
+      }
+
+      setLoadingFacebook(true);
+      try {
+        // Use production backend URL, not localhost
+        const res = await fetch(
+          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/facebook/accounts",
+          { headers: { Authorization: `Bearer ${facebookToken}` } }
+        );
+        
+        if (!res.ok) {
+          console.error("Failed to fetch Facebook accounts:", res.status);
+          if (res.status === 401) {
+            localStorage.removeItem('facebook_token');
+          }
+          setFacebookAccounts([]);
+          return;
+        }
+        
+        const data = await res.json();
+        
+        const formattedAccounts = [
+          ...(data.pages || []).map(page => ({
+            id: page.id,
+            name: page.name,
+            type: 'page'
+          })),
+          ...(data.ad_accounts || []).map(account => ({
+            id: account.id,
+            name: account.name,
+            type: 'ad_account'
+          }))
+        ];
+        
+        setFacebookAccounts(formattedAccounts);
+      } catch (err) {
+        console.error("Error fetching Facebook accounts:", err);
+        setFacebookAccounts([]);
+      } finally {
+        setLoadingFacebook(false);
+      }
+    };
+
+    fetchFacebookAccounts();
+  }, []);
+
+  // Add this useEffect to handle Facebook tab switching
+  useEffect(() => {
+    const shouldSwitchToFacebook = localStorage.getItem('switch_to_facebook_tab');
+    if (shouldSwitchToFacebook === 'true') {
+      setActiveTab('Facebook');
+      localStorage.removeItem('switch_to_facebook_tab'); // Clean up flag
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchInstagramAccounts = async () => {
+      // Placeholder for Instagram accounts fetch - similar to Facebook
+      setInstagramAccounts([]);
+      setLoadingInstagram(false);
+    };
+
+    fetchInstagramAccounts();
+  }, [token]);
+
+const handleLogout = () => {
+  cache.clearCache();
+  setSelectedIntentAccount(null);
+  // Don't clear Facebook token on main logout
+  // localStorage.removeItem('facebook_token'); // Only clear when user disconnects Facebook specifically
+  onLogout();
+};
 
   const handleDateRangeChange = (startDate, endDate) => {
     setDateRange({ startDate, endDate });
@@ -149,9 +231,10 @@ export default function Layout({ user, onLogout }) {
     setSelectedIntentAccount(null);
   };
 
-  // NEW: Handle privacy/terms page navigation
+  // Handle privacy/terms page navigation
   const handlePageNavigation = (page) => {
-    const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
+    // const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
+    const baseUrl = "http://localhost:8000"; // --- IGNORE ---
     const url = `${baseUrl}/${page}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     setIsProfileDropdownOpen(false);
@@ -193,6 +276,7 @@ export default function Layout({ user, onLogout }) {
     return option ? option.label : "7 Days";
   };
 
+  // In Layout.jsx, update getCurrentData function:
   const getCurrentData = () => {
     if (activeTab === "Google Ads Campaigns") {
       return {
@@ -209,6 +293,23 @@ export default function Layout({ user, onLogout }) {
         activeIndex: activePropertyIdx,
         setActiveIndex: setActivePropertyIdx,
         type: 'properties'
+      };
+    } else if (activeTab === "Facebook") {
+      // Facebook handles its own authentication
+      return {
+        items: [],
+        loading: false,
+        activeIndex: 0,
+        setActiveIndex: () => {},
+        type: 'facebook'
+      };
+    } else if (activeTab === "Instagram") {
+      return {
+        items: [],
+        loading: false,
+        activeIndex: 0,
+        setActiveIndex: () => {},
+        type: 'instagram'
       };
     } else if (activeTab === "Intent Insights") {
       return {
@@ -237,15 +338,27 @@ export default function Layout({ user, onLogout }) {
         />
       );
     }
+
+    if (activeTab === "Facebook") {
+      return (
+        <FacebookAnalytics period={getCurrentPeriodLabel()} />
+      );
+    }
+
+    if (activeTab === "Instagram") {
+      return (
+        <InstagramAnalytics period={getCurrentPeriodLabel()} />
+      );
+    }
     
     if (currentData.loading) {
       return <div className="text-white p-4">Loading {activeTab.toLowerCase()}...</div>;
     }
     
-    if (!currentData.items.length && activeTab !== "Intent Insights") {
+    if (!currentData.items.length && activeTab !== "Intent Insights" && activeTab !== "Facebook" && activeTab !== "Instagram") {
       return (
         <div className="text-white p-4">
-          No {currentData.type} related to your Google account
+          No {currentData.type} related to your {activeTab === "Facebook" || activeTab === "Instagram" ? activeTab : "Google"} account
         </div>
       );
     }
@@ -280,7 +393,7 @@ export default function Layout({ user, onLogout }) {
         <div className="flex items-center space-x-3">
           <span className="text-sm md:text-base text-white">{user?.name}</span>
           
-          {/* NEW: Profile dropdown container */}
+          {/* Profile dropdown container */}
           <div className="relative z-[9999]" ref={profileDropdownRef}>
             <div 
               className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
@@ -295,7 +408,7 @@ export default function Layout({ user, onLogout }) {
               </span>
             </div>
 
-            {/* Profile dropdown menu - Only Privacy and Terms */}
+            {/* Profile dropdown menu */}
             {isProfileDropdownOpen && (
               <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-[9999]">
                 <div className="py-2">
@@ -346,14 +459,22 @@ export default function Layout({ user, onLogout }) {
                   >
                     <div className="font-bold text-lg md:text-xl">{item.name}</div>
                     <div className="text-xs md:text-sm opacity-75 mt-1">
-                      {activeTab === "Google Analytics" ? `Property: ${item.id}` : item.id}
+                      {activeTab === "Google Analytics" ? `Property: ${item.id}` : 
+                       activeTab === "Facebook" ? `Page: ${item.id}` :
+                       activeTab === "Instagram" ? `Account: ${item.id}` : 
+                       item.id}
                     </div>
                   </div>
                 );
               })
             ) : (
               <div className="text-white/70 p-4 text-sm md:text-base">
-                No {currentData.type} related to your Google account
+                {activeTab === "Facebook" ? 
+                  "Connect your Facebook account to get started" : 
+                  activeTab === "Instagram" ? 
+                  "Instagram integration coming soon" : 
+                  `No ${currentData.type} related to your Google account`
+                }
               </div>
             )}
           </div>
@@ -404,9 +525,13 @@ export default function Layout({ user, onLogout }) {
                         setActiveCampaignIdx(0);
                       } else if (tab === "Google Analytics") {
                         setActivePropertyIdx(0);
+                      } else if (tab === "Facebook") {
+                        setActiveFacebookIdx(0);
+                      } else if (tab === "Instagram") {
+                        setActiveInstagramIdx(0);
                       }
                     }}
-                    className={`flex-1 md:flex-none md:min-w-[200px] px-4 md:px-8 py-2 md:py-4 text-sm md:text-base text-center cursor-pointer transition-colors rounded-lg ${
+                    className={`flex-1 md:flex-none md:min-w-[160px] px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm text-center cursor-pointer transition-colors rounded-lg ${
                       isActive
                         ? "bg-[#508995] text-black font-bold"
                         : "bg-[#0F4653] text-white font-bold hover:bg-white hover:text-black"
