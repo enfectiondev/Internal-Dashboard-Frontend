@@ -16,6 +16,8 @@ export default function Login() {
     try {
       const response = await fetch(
         "https://eyqi6vd53z.us-east-2.awsapprunner.com/auth/login"
+        // "http://localhost:8000/auth/login"
+        
       );
 
       // Check if response is ok
