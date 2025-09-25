@@ -233,8 +233,8 @@ const handleLogout = () => {
 
   // Handle privacy/terms page navigation
   const handlePageNavigation = (page) => {
-    // const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
-    const baseUrl = "http://localhost:8000"; // --- IGNORE ---
+    const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
+    // const baseUrl = "http://localhost:8000"; // --- IGNORE ---
     const url = `${baseUrl}/${page}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     setIsProfileDropdownOpen(false);
