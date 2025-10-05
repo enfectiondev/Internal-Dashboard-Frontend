@@ -8,16 +8,20 @@ const ScrollableTabs = ({ tabs, activeTab, onTabChange }) => {
   const checkScrollPosition = () => {
     if (tabsContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = tabsContainerRef.current;
-      setShowLeftArrow(scrollLeft > 0);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 5);
+      setShowLeftArrow(scrollLeft > 10);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
     }
   };
 
   useEffect(() => {
     checkScrollPosition();
+    const timer = setTimeout(checkScrollPosition, 100);
     window.addEventListener('resize', checkScrollPosition);
-    return () => window.removeEventListener('resize', checkScrollPosition);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkScrollPosition);
+    };
+  }, [tabs]);
 
   const scroll = (direction) => {
     if (tabsContainerRef.current) {

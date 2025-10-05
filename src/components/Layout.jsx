@@ -435,7 +435,7 @@ export default function Layout({ user, onLogout }) {
   const currentData = getCurrentData();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0B4E5D] via-[#05242A] to-[#1E1E1E] text-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#0B4E5D] via-[#05242A] to-[#1E1E1E] text-white overflow-x-hidden">
       <header className="backdrop-blur-sm p-4 flex items-center justify-between border-b border-white relative z-[9999]">
         <h1 className="text-2xl md:text-4xl font-normal text-[#A1BCD3]">ANALYTICS DASHBOARD</h1>
         <div className="flex items-center space-x-3">
@@ -555,8 +555,8 @@ export default function Layout({ user, onLogout }) {
         )}
 
         <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6">
-            <div className="w-full md:w-auto mb-2 md:mb-0">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 md:mb-6 gap-4">
+            <div className="w-full lg:flex-1 overflow-hidden">
               <ScrollableTabs 
                 tabs={tabs}
                 activeTab={activeTab}
@@ -565,8 +565,8 @@ export default function Layout({ user, onLogout }) {
             </div>
 
             {activeTab === "Intent Insights" ? (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm md:text-base text-white">Period:</span>
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <span className="text-sm md:text-base text-white whitespace-nowrap">Period:</span>
                 <DateRangePicker
                   startDate={dateRange.startDate}
                   endDate={dateRange.endDate}
@@ -574,8 +574,8 @@ export default function Layout({ user, onLogout }) {
                 />
               </div>
             ) : (
-              <div className="flex items-center space-x-2 bg-[#6A6A6A] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white">
-                <span className="text-sm md:text-base">Period:</span>
+              <div className="flex items-center space-x-2 bg-[#6A6A6A] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white flex-shrink-0">
+                <span className="text-sm md:text-base whitespace-nowrap">Period:</span>
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
