@@ -199,6 +199,16 @@ export default function Layout({ user, onLogout }) {
     }
   }, []);
 
+  // Add this after the existing Facebook tab switch useEffect
+  useEffect(() => {
+    const shouldSwitchToMetaAds = localStorage.getItem('switch_to_meta_ads_tab');
+    if (shouldSwitchToMetaAds === 'true') {
+      setActiveTab('Meta Ads');
+      localStorage.removeItem('switch_to_meta_ads_tab');
+    }
+  }, []);
+
+
   useEffect(() => {
     const fetchInstagramAccounts = async () => {
       setInstagramAccounts([]);

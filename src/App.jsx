@@ -15,6 +15,7 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const token = params.get("token");
       const facebookToken = params.get("facebook_token");
+      const switchToMetaAds = params.get("switch_to_meta_ads");
       const error = params.get("error");
 
       // Handle Facebook token separately
@@ -25,11 +26,19 @@ export default function App() {
           localStorage.setItem('facebook_token', decodedToken);
           console.log("Facebook token stored successfully");
           
-          // Store flag to switch to Facebook tab
-          localStorage.setItem('switch_to_facebook_tab', 'true');
+          // Store flag to switch to Meta Ads tab instead of Facebook tab
+          if (switchToMetaAds === "true") {
+            localStorage.setItem('switch_to_meta_ads_tab', 'true');
+          }
           
-          // Clean URL without affecting main authentication
+          // Clean URL
           window.history.replaceState({}, document.title, "/dashboard");
+          
+          // If no Google token exists, create a temporary user for Facebook-only auth
+          if (!localStorage.getItem("token")) {
+            setUser({ name: "Facebook User", email: "facebook_user", auth_provider: "facebook" });
+          }
+          
           setLoading(false);
           return;
         } catch (err) {
@@ -97,6 +106,12 @@ export default function App() {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
           }
+        } else {
+          // Check if user has Facebook token only
+          const fbToken = localStorage.getItem("facebook_token");
+          if (fbToken) {
+            setUser({ name: "Facebook User", email: "facebook_user", auth_provider: "facebook" });
+          }
         }
         setLoading(false);
       }
@@ -134,9 +149,9 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            user ? (
+            user || localStorage.getItem("facebook_token") ? (
               <CacheProvider>
-                <Layout user={user} onLogout={handleLogout} />
+                <Layout user={user || { name: "Facebook User", email: "facebook_user" }} onLogout={handleLogout} />
               </CacheProvider>
             ) : (
               <Navigate to="/login" />
