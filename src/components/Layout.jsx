@@ -59,8 +59,33 @@ export default function Layout({ user, onLogout }) {
     { value: "LAST_7_DAYS", label: "7 Days" },
     { value: "LAST_30_DAYS", label: "30 Days" },
     { value: "LAST_3_MONTHS", label: "3 Months" },
-    { value: "LAST_1_YEAR", label: "1 Year" }
+    { value: "LAST_1_YEAR", label: "1 Year" },
+    { value: "CUSTOM", label: "Custom Range" }
   ];
+
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [customDates, setCustomDates] = useState({
+    startDate: '',
+    endDate: ''
+  });
+
+  const handlePeriodSelect = (periodValue) => {
+    if (periodValue === "CUSTOM") {
+      setShowCustomDatePicker(true);
+    } else {
+      setShowCustomDatePicker(false);
+      setPeriod(periodValue);
+      setIsDropdownOpen(false);
+    }
+  };
+
+  const handleCustomDateSubmit = () => {
+    if (customDates.startDate && customDates.endDate) {
+      setPeriod("CUSTOM");
+      setIsDropdownOpen(false);
+      setShowCustomDatePicker(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -252,14 +277,22 @@ export default function Layout({ user, onLogout }) {
     }
   }, []);
 
-  // Add this after the existing Facebook tab switch useEffect
   useEffect(() => {
     const shouldSwitchToMetaAds = localStorage.getItem('switch_to_meta_ads_tab');
     if (shouldSwitchToMetaAds === 'true') {
       setActiveTab('Meta Ads');
+      setPeriod('LAST_30_DAYS'); // Set to 30 days
       localStorage.removeItem('switch_to_meta_ads_tab');
     }
   }, []);
+
+  // Auto-select first Meta account when accounts load
+  useEffect(() => {
+    if (activeTab === "Meta Ads" && metaAdsAccounts.length > 0 && activeMetaAdsIdx === 0) {
+      // First account is already selected by default, just trigger data fetch
+      console.log("Auto-selected first Meta Ads account:", metaAdsAccounts[0]);
+    }
+  }, [metaAdsAccounts, activeTab]);
 
 
   useEffect(() => {
@@ -291,10 +324,10 @@ export default function Layout({ user, onLogout }) {
     console.log("Date range changed:", startDate, endDate);
   };
 
-  const handlePeriodSelect = (periodValue) => {
-    setPeriod(periodValue);
-    setIsDropdownOpen(false);
-  };
+  // const handlePeriodSelect = (periodValue) => {
+  //   setPeriod(periodValue);
+  //   setIsDropdownOpen(false);
+  // };
 
   const handleIntentAccountSelect = (account) => {
     setSelectedIntentAccount(account);
@@ -454,7 +487,8 @@ export default function Layout({ user, onLogout }) {
     if (activeTab === "Meta Ads") {
       return (
         <MetaAds 
-          period={getCurrentPeriodLabel()}
+          period={period}
+          customDates={customDates}
           selectedAccount={metaAdsAccounts[activeMetaAdsIdx]}
         />
       );
@@ -658,23 +692,57 @@ export default function Layout({ user, onLogout }) {
                     </svg>
                   </button>
                   
-                  {isDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[120px] z-40">
-                      {periodOptions.map((option) => (
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[280px] z-40">
+                    {periodOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handlePeriodSelect(option.value)}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg ${
+                          option.value === "CUSTOM" ? '' : 'last:rounded-b-lg'
+                        } transition-colors ${
+                          period === option.value 
+                            ? 'bg-[#508995] text-white hover:bg-[#508995]' 
+                            : 'text-gray-800'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    
+                    {showCustomDatePicker && (
+                      <div className="p-4 border-t border-gray-200 space-y-3">
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Start Date</label>
+                          <input
+                            type="date"
+                            value={customDates.startDate}
+                            onChange={(e) => setCustomDates(prev => ({ ...prev, startDate: e.target.value }))}
+                            placeholder="YYYY-MM-DD"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">End Date</label>
+                          <input
+                            type="date"
+                            value={customDates.endDate}
+                            onChange={(e) => setCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
+                            placeholder="YYYY-MM-DD"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                          />
+                        </div>
                         <button
-                          key={option.value}
-                          onClick={() => handlePeriodSelect(option.value)}
-                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                            period === option.value 
-                              ? 'bg-[#508995] text-white hover:bg-[#508995]' 
-                              : 'text-gray-800'
-                          }`}
+                          onClick={handleCustomDateSubmit}
+                          disabled={!customDates.startDate || !customDates.endDate}
+                          className="w-full px-4 py-2 bg-[#508995] text-white rounded hover:bg-[#3F7380] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
                         >
-                          {option.label}
+                          Apply Custom Range
                         </button>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
               </div>
             )}

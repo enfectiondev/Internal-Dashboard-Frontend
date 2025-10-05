@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
+import { useMetaApi } from "../hooks/useMetaApi";
 import MetaMetricCard from "../components/MetaMetricCard";
 import MetaCampaignsTable from "../components/MetaCampaignsTable";
 
-const MetaAds = ({ period, selectedAccount }) => {
+const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
     facebookUser, 
     facebookToken, 
@@ -13,49 +14,38 @@ const MetaAds = ({ period, selectedAccount }) => {
     handleDisconnect, 
     isAuthenticated 
   } = useFacebookAuth();
-  
-  const [campaignData, setCampaignData] = useState(null);
-  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
-  const [customPeriod, setCustomPeriod] = useState({
-    startDate: '',
-    endDate: ''
-  });
-  const [useCustomPeriod, setUseCustomPeriod] = useState(false);
 
-  useEffect(() => {
-    if (facebookToken && selectedAccount) {
-      fetchCampaignData();
-    }
-  }, [facebookToken, selectedAccount, period, customPeriod]);
-
-  const fetchCampaignData = async () => {
-    if (!selectedAccount) return;
+  // API call function for campaigns
+  const campaignApiCall = useCallback(async (accountId, period, customDates) => {
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${accountId}/campaigns`;
     
-    setIsLoadingCampaigns(true);
-    try {
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/campaigns`;
-      
-      // Add date parameters if custom period is being used
-      if (useCustomPeriod && customPeriod.startDate && customPeriod.endDate) {
-        url += `?start_date=${customPeriod.startDate}&end_date=${customPeriod.endDate}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${facebookToken}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCampaignData(data);
-      } else if (response.status === 401) {
+    // Add date parameters if custom period is being used
+    if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+    
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${facebookToken}` }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
         handleDisconnect();
       }
-    } catch (error) {
-      console.error('Error fetching campaign data:', error);
-    } finally {
-      setIsLoadingCampaigns(false);
+      throw new Error('Failed to fetch campaign data');
     }
-  };
+    
+    return await response.json();
+  }, [facebookToken, handleDisconnect]);
+
+  // Use the caching hook
+  const { data: campaignData, loading: isLoadingCampaigns, error } = useMetaApi(
+    selectedAccount?.id,
+    period,
+    customDates,
+    'campaigns',
+    campaignApiCall
+  );
 
   if (isLoading) {
     return (
@@ -70,10 +60,11 @@ const MetaAds = ({ period, selectedAccount }) => {
     return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
   }
 
+  // Display selected account details if available
   if (selectedAccount) {
     return (
       <div className="space-y-6">
-        {/* User Info Header */}
+        {/* User Info Header with Selected Account */}
         <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -102,43 +93,13 @@ const MetaAds = ({ period, selectedAccount }) => {
           </div>
         </div>
 
-        {/* Custom Date Range Selector */}
-        <div className="bg-white rounded-lg p-4 shadow-sm">
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={useCustomPeriod}
-                onChange={(e) => setUseCustomPeriod(e.target.checked)}
-                className="w-4 h-4 text-[#1A4752] rounded"
-              />
-              <span className="text-sm font-medium text-gray-700">Use Custom Date Range</span>
-            </label>
-            
-            {useCustomPeriod && (
-              <>
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm text-gray-600">Start:</label>
-                  <input
-                    type="date"
-                    value={customPeriod.startDate}
-                    onChange={(e) => setCustomPeriod(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm text-gray-600">End:</label>
-                  <input
-                    type="date"
-                    value={customPeriod.endDate}
-                    onChange={(e) => setCustomPeriod(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
-                  />
-                </div>
-              </>
-            )}
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="text-red-800 font-medium">Error loading campaign data</div>
+            <div className="text-red-600 text-sm mt-1">{error.message}</div>
           </div>
-        </div>
+        )}
 
         {/* Campaign Metrics Cards */}
         {isLoadingCampaigns ? (
@@ -148,6 +109,7 @@ const MetaAds = ({ period, selectedAccount }) => {
           </div>
         ) : campaignData?.totals ? (
           <>
+            {/* Metric Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <MetaMetricCard
                 title="Total Spend"
@@ -174,20 +136,48 @@ const MetaAds = ({ period, selectedAccount }) => {
 
             {/* Campaigns Table */}
             <MetaCampaignsTable 
-              campaigns={campaignData.campaigns}
+              campaigns={campaignData.campaigns || []}
               currency={selectedAccount.currency}
             />
+
+            {/* Success Info */}
+            <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <h4 className="font-semibold">Meta Ads Account Active!</h4>
+                  <p className="text-sm mt-1">
+                    Viewing {campaignData.campaigns?.length || 0} campaigns for {selectedAccount.name}
+                    {period === 'CUSTOM' && customDates?.startDate && customDates?.endDate && (
+                      <> ({customDates.startDate} to {customDates.endDate})</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
           </>
         ) : (
-          <div className="bg-white rounded-lg p-6 text-center text-gray-500">
-            No campaign data available for the selected period
+          <div className="bg-white rounded-lg p-8 text-center">
+            <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No Campaign Data Available
+            </h3>
+            <p className="text-gray-600">
+              No campaign data found for the selected period. Try adjusting the date range.
+            </p>
           </div>
         )}
       </div>
     );
   }
 
-  // Default view when no account selected
+  // Default view when no account is selected but authenticated
   return (
     <div className="space-y-6">
       <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
@@ -201,8 +191,12 @@ const MetaAds = ({ period, selectedAccount }) => {
               />
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">Connected to Meta Ads</h2>
-              <p className="text-[#A1BCD3]">{facebookUser.name} • {facebookUser.email}</p>
+              <h2 className="text-xl font-bold text-white">
+                Connected to Meta Ads
+              </h2>
+              <p className="text-[#A1BCD3]">
+                {facebookUser.name} • {facebookUser.email}
+              </p>
             </div>
           </div>
           <button
@@ -222,7 +216,7 @@ const MetaAds = ({ period, selectedAccount }) => {
           <div>
             <h4 className="font-semibold">Select an Ad Account</h4>
             <p className="text-sm mt-1">
-              Please select a Meta Ads account from the sidebar to view details and analytics.
+              Please select a Meta Ads account from the sidebar to view campaign details and analytics.
             </p>
           </div>
         </div>

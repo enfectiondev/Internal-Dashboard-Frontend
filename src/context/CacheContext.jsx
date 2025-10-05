@@ -138,27 +138,45 @@ export const CacheProvider = ({ children }) => {
     };
   };
 
+
+  // Add Meta Ads cache methods
+  const getFromCacheMeta = (accountId, period, endpoint) => {
+    return getFromCache(accountId, period, endpoint, 'meta');
+  };
+
+  const setCacheMeta = (accountId, period, endpoint, data) => {
+    return setCache(accountId, period, endpoint, data, 'meta');
+  };
+
+  const clearCacheForMetaAccount = (accountId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for Meta account: ${accountId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`meta_${accountId}_`)) {
+          console.log(`[CACHE CLEAR] Removing key: ${key}`);
+          delete newCache[key];
+        }
+      });
+      return newCache;
+    });
+  };
+  // Update return value
   return (
     <CacheContext.Provider value={{
-      // Generic methods
       getFromCache,
       setCache,
-      
-      // NEW: Raw cache access
       getRawCacheData,
-      
-      // Specific methods for Ads
       getFromCacheAds,
       setCacheAds,
-      
-      // Specific methods for Analytics
       getFromCacheAnalytics,
       setCacheAnalytics,
-      
-      // Clear methods
+      getFromCacheMeta,
+      setCacheMeta,
       clearCache,
       clearCacheForCustomer,
       clearCacheForProperty,
+      clearCacheForMetaAccount,
       getCacheStats
     }}>
       {children}
