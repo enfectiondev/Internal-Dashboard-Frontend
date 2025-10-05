@@ -569,7 +569,7 @@ export default function Layout({ user, onLogout }) {
                         {activeTab === "Google Analytics" ? `Property: ${item.id}` : 
                         activeTab === "Facebook" ? `Page: ${item.id}` :
                         activeTab === "Instagram" ? `Account: ${item.id}` : 
-                        activeTab === "Meta Ads" ? `${item.status} • ${item.currency}` :
+                        activeTab === "Meta Ads" ? `${item.account_id} | ${item.currency}` :
                         item.id}
                       </div>
                     </div>

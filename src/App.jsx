@@ -21,21 +21,20 @@ export default function App() {
       // Handle Facebook token separately
       if (facebookToken) {
         try {
-          // Decode URL-encoded token
           const decodedToken = decodeURIComponent(facebookToken);
           localStorage.setItem('facebook_token', decodedToken);
           console.log("Facebook token stored successfully");
           
-          // Store flag to switch to Meta Ads tab instead of Facebook tab
           if (switchToMetaAds === "true") {
             localStorage.setItem('switch_to_meta_ads_tab', 'true');
           }
           
-          // Clean URL
           window.history.replaceState({}, document.title, "/dashboard");
           
-          // If no Google token exists, create a temporary user for Facebook-only auth
-          if (!localStorage.getItem("token")) {
+          // DON'T override user if Google auth already exists
+          const storedUser = localStorage.getItem("user");
+          if (!storedUser) {
+            // Only set Facebook user if no Google user exists
             setUser({ name: "Facebook User", email: "facebook_user", auth_provider: "facebook" });
           }
           

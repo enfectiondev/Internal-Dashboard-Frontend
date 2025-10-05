@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
+import MetaMetricCard from "../components/MetaMetricCard";
+import MetaCampaignsTable from "../components/MetaCampaignsTable";
 
 const MetaAds = ({ period, selectedAccount }) => {
   const { 
@@ -12,33 +14,46 @@ const MetaAds = ({ period, selectedAccount }) => {
     isAuthenticated 
   } = useFacebookAuth();
   
-  const [metaAdsData, setMetaAdsData] = useState(null);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [campaignData, setCampaignData] = useState(null);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
+  const [customPeriod, setCustomPeriod] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [useCustomPeriod, setUseCustomPeriod] = useState(false);
 
   useEffect(() => {
-    if (facebookToken && facebookUser) {
-      fetchMetaAdsData();
+    if (facebookToken && selectedAccount) {
+      fetchCampaignData();
     }
-  }, [facebookToken, facebookUser, period]);
+  }, [facebookToken, selectedAccount, period, customPeriod]);
 
-  const fetchMetaAdsData = async () => {
-    setIsLoadingData(true);
+  const fetchCampaignData = async () => {
+    if (!selectedAccount) return;
+    
+    setIsLoadingCampaigns(true);
     try {
-      const response = await fetch(
-        "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts",
-        { headers: { Authorization: `Bearer ${facebookToken}` } }
-      );
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/campaigns`;
+      
+      // Add date parameters if custom period is being used
+      if (useCustomPeriod && customPeriod.startDate && customPeriod.endDate) {
+        url += `?start_date=${customPeriod.startDate}&end_date=${customPeriod.endDate}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${facebookToken}` }
+      });
       
       if (response.ok) {
         const data = await response.json();
-        setMetaAdsData(data);
+        setCampaignData(data);
       } else if (response.status === 401) {
         handleDisconnect();
       }
     } catch (error) {
-      console.error('Error fetching Meta Ads data:', error);
+      console.error('Error fetching campaign data:', error);
     } finally {
-      setIsLoadingData(false);
+      setIsLoadingCampaigns(false);
     }
   };
 
@@ -55,11 +70,10 @@ const MetaAds = ({ period, selectedAccount }) => {
     return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
   }
 
-  // Display selected account details if available
   if (selectedAccount) {
     return (
       <div className="space-y-6">
-        {/* User Info Header with Selected Account */}
+        {/* User Info Header */}
         <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -75,7 +89,7 @@ const MetaAds = ({ period, selectedAccount }) => {
                   {selectedAccount.name}
                 </h2>
                 <p className="text-[#A1BCD3]">
-                  Account ID: {selectedAccount.account_id} • {selectedAccount.status}
+                  {selectedAccount.account_id} | {selectedAccount.currency}
                 </p>
               </div>
             </div>
@@ -88,58 +102,92 @@ const MetaAds = ({ period, selectedAccount }) => {
           </div>
         </div>
 
-        {/* Account Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-            <h3 className="text-sm text-[#A1BCD3] mb-2">Amount Spent</h3>
-            <p className="text-2xl font-bold text-white">
-              {selectedAccount.currency} {selectedAccount.amount_spent.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-            </p>
-          </div>
-          
-          <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-            <h3 className="text-sm text-[#A1BCD3] mb-2">Balance</h3>
-            <p className="text-2xl font-bold text-white">
-              {selectedAccount.currency} {selectedAccount.balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-            </p>
-          </div>
-          
-          <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-            <h3 className="text-sm text-[#A1BCD3] mb-2">Status</h3>
-            <p className="text-2xl font-bold text-white">{selectedAccount.status}</p>
-          </div>
-          
-          <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-            <h3 className="text-sm text-[#A1BCD3] mb-2">Timezone</h3>
-            <p className="text-base font-bold text-white">{selectedAccount.timezone}</p>
+        {/* Custom Date Range Selector */}
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={useCustomPeriod}
+                onChange={(e) => setUseCustomPeriod(e.target.checked)}
+                className="w-4 h-4 text-[#1A4752] rounded"
+              />
+              <span className="text-sm font-medium text-gray-700">Use Custom Date Range</span>
+            </label>
+            
+            {useCustomPeriod && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-600">Start:</label>
+                  <input
+                    type="date"
+                    value={customPeriod.startDate}
+                    onChange={(e) => setCustomPeriod(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-600">End:</label>
+                  <input
+                    type="date"
+                    value={customPeriod.endDate}
+                    onChange={(e) => setCustomPeriod(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Success Message */}
-        <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
-          <div className="flex items-center space-x-3">
-            <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <h4 className="font-semibold">Meta Ads Account Active!</h4>
-              <p className="text-sm mt-1">
-                Viewing data for {selectedAccount.name}. Period: {period}
-              </p>
+        {/* Campaign Metrics Cards */}
+        {isLoadingCampaigns ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-[#1A4752] border-t-transparent rounded-full animate-spin"></div>
+            <span className="ml-3 text-gray-700">Loading campaign data...</span>
+          </div>
+        ) : campaignData?.totals ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetaMetricCard
+                title="Total Spend"
+                value={campaignData.totals.total_spend}
+                currency={selectedAccount.currency}
+                subtitle="Campaign budget utilized"
+              />
+              <MetaMetricCard
+                title="Total Impressions"
+                value={campaignData.totals.total_impressions?.toLocaleString()}
+                subtitle="Total ad views"
+              />
+              <MetaMetricCard
+                title="Total Clicks"
+                value={campaignData.totals.total_clicks?.toLocaleString()}
+                subtitle="User engagement"
+              />
+              <MetaMetricCard
+                title="Total Reach"
+                value={campaignData.totals.total_reach?.toLocaleString()}
+                subtitle="Unique users reached"
+              />
             </div>
-          </div>
-        </div>
 
-        {/* Placeholder for future campaign data */}
-        <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Campaign Performance</h3>
-          <p className="text-[#A1BCD3]">Campaign analytics and performance metrics will be displayed here.</p>
-        </div>
+            {/* Campaigns Table */}
+            <MetaCampaignsTable 
+              campaigns={campaignData.campaigns}
+              currency={selectedAccount.currency}
+            />
+          </>
+        ) : (
+          <div className="bg-white rounded-lg p-6 text-center text-gray-500">
+            No campaign data available for the selected period
+          </div>
+        )}
       </div>
     );
   }
 
-  // Default view when no account is selected but authenticated
+  // Default view when no account selected
   return (
     <div className="space-y-6">
       <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
@@ -153,12 +201,8 @@ const MetaAds = ({ period, selectedAccount }) => {
               />
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">
-                Connected to Meta Ads
-              </h2>
-              <p className="text-[#A1BCD3]">
-                {facebookUser.name} • {facebookUser.email}
-              </p>
+              <h2 className="text-xl font-bold text-white">Connected to Meta Ads</h2>
+              <p className="text-[#A1BCD3]">{facebookUser.name} • {facebookUser.email}</p>
             </div>
           </div>
           <button
