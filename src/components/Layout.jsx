@@ -140,6 +140,59 @@ export default function Layout({ user, onLogout }) {
   }, [token]);
 
   useEffect(() => {
+    const fetchMetaAdsAccounts = async () => {
+      const facebookToken = localStorage.getItem('facebook_token');
+      if (!facebookToken) {
+        setMetaAdsAccounts([]);
+        setLoadingMetaAds(false);
+        return;
+      }
+
+      setLoadingMetaAds(true);
+      try {
+        const res = await fetch(
+          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts",
+          { headers: { Authorization: `Bearer ${facebookToken}` } }
+        );
+        
+        if (!res.ok) {
+          console.error("Failed to fetch Meta Ads accounts:", res.status);
+          if (res.status === 401) {
+            localStorage.removeItem('facebook_token');
+          }
+          setMetaAdsAccounts([]);
+          return;
+        }
+        
+        const data = await res.json();
+        console.log("Meta Ads accounts data:", data);
+        
+        const formattedAccounts = data.map(account => ({
+          id: account.id,
+          account_id: account.account_id,
+          name: account.name,
+          status: account.status,
+          currency: account.currency,
+          timezone: account.timezone,
+          amount_spent: account.amount_spent,
+          balance: account.balance
+        }));
+        
+        setMetaAdsAccounts(formattedAccounts);
+      } catch (err) {
+        console.error("Error fetching Meta Ads accounts:", err);
+        setMetaAdsAccounts([]);
+      } finally {
+        setLoadingMetaAds(false);
+      }
+    };
+
+    fetchMetaAdsAccounts();
+  }, []);
+
+
+
+  useEffect(() => {
     const fetchFacebookAccounts = async () => {
       const facebookToken = localStorage.getItem('facebook_token');
       if (!facebookToken) {
@@ -329,10 +382,10 @@ export default function Layout({ user, onLogout }) {
       };
     } else if (activeTab === "Meta Ads") {
       return {
-        items: [],
-        loading: false,
-        activeIndex: 0,
-        setActiveIndex: () => {},
+        items: metaAdsAccounts,
+        loading: loadingMetaAds,
+        activeIndex: activeMetaAdsIdx,
+        setActiveIndex: setActiveMetaAdsIdx,
         type: 'metaads'
       };
     } else if (activeTab === "Intent Insights") {
@@ -400,7 +453,10 @@ export default function Layout({ user, onLogout }) {
 
     if (activeTab === "Meta Ads") {
       return (
-        <MetaAds period={getCurrentPeriodLabel()} />
+        <MetaAds 
+          period={getCurrentPeriodLabel()}
+          selectedAccount={metaAdsAccounts[activeMetaAdsIdx]}
+        />
       );
     }
 
@@ -511,10 +567,10 @@ export default function Layout({ user, onLogout }) {
                       <div className="font-bold text-lg md:text-xl">{item.name}</div>
                       <div className="text-xs md:text-sm opacity-75 mt-1">
                         {activeTab === "Google Analytics" ? `Property: ${item.id}` : 
-                         activeTab === "Facebook" ? `Page: ${item.id}` :
-                         activeTab === "Instagram" ? `Account: ${item.id}` : 
-                         activeTab === "Meta Ads" ? `Account: ${item.id}` :
-                         item.id}
+                        activeTab === "Facebook" ? `Page: ${item.id}` :
+                        activeTab === "Instagram" ? `Account: ${item.id}` : 
+                        activeTab === "Meta Ads" ? `${item.status} • ${item.currency}` :
+                        item.id}
                       </div>
                     </div>
                   );
