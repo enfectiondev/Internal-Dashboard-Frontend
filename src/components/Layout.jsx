@@ -2,13 +2,24 @@ import React, { useState, useEffect, useRef } from "react";
 import GoogleAds from "../pages/GoogleAds";
 import GoogleAnalytics from "../pages/GoogleAnalytics";
 import IntentInsights from "../pages/IntentInsights";
-import FacebookAnalytics from "../pages/FacebookAnalytics"; // Add this import
-import InstagramAnalytics from "../pages/InstagramAnalytics"; // Add this import
+import FacebookAnalytics from "../pages/FacebookAnalytics";
+import InstagramAnalytics from "../pages/InstagramAnalytics";
+import MetaAds from "../pages/MetaAds";
+import Reporting from "../pages/Reporting";
 import DateRangePicker from "../components/DateRangePicker";
+import ScrollableTabs from "../components/ScrollableTabs";
 import { useCache } from "../context/CacheContext";
 import { generateAndDownloadReport } from "../utils/PDFReportGenerator";
 
-const tabs = ["Google Ads Campaigns", "Google Analytics", "Intent Insights", "Facebook", "Instagram"];
+const tabs = [
+  "Google Ads Campaigns",
+  "Google Analytics",
+  "Meta Ads",
+  "Facebook",
+  "Instagram",
+  "Intent Insights",
+  "Reporting"
+];
 
 export default function Layout({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("Google Ads Campaigns");
@@ -16,34 +27,34 @@ export default function Layout({ user, onLogout }) {
   const [activePropertyIdx, setActivePropertyIdx] = useState(0);
   const [activeFacebookIdx, setActiveFacebookIdx] = useState(0);
   const [activeInstagramIdx, setActiveInstagramIdx] = useState(0);
+  const [activeMetaAdsIdx, setActiveMetaAdsIdx] = useState(0);
   const [period, setPeriod] = useState("LAST_7_DAYS");
   const [campaigns, setCampaigns] = useState([]);
   const [properties, setProperties] = useState([]);
   const [facebookAccounts, setFacebookAccounts] = useState([]);
   const [instagramAccounts, setInstagramAccounts] = useState([]);
+  const [metaAdsAccounts, setMetaAdsAccounts] = useState([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingFacebook, setLoadingFacebook] = useState(false);
   const [loadingInstagram, setLoadingInstagram] = useState(false);
+  const [loadingMetaAds, setLoadingMetaAds] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const profileDropdownRef = useRef(null);
   
-  // Add persistent selected account state for Intent Insights
   const [selectedIntentAccount, setSelectedIntentAccount] = useState(null);
   
-  // Date range state for Intent Insights
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     endDate: new Date()
   });
 
   const token = localStorage.getItem("token");
   const cache = useCache();
 
-  // Period options
   const periodOptions = [
     { value: "LAST_7_DAYS", label: "7 Days" },
     { value: "LAST_30_DAYS", label: "30 Days" },
@@ -51,7 +62,6 @@ export default function Layout({ user, onLogout }) {
     { value: "LAST_1_YEAR", label: "1 Year" }
   ];
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -68,7 +78,6 @@ export default function Layout({ user, onLogout }) {
     };
   }, []);
 
-  // Fetch campaigns for Google Ads
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
@@ -97,7 +106,6 @@ export default function Layout({ user, onLogout }) {
     fetchCampaigns();
   }, [token]);
 
-  // Fetch properties for Google Analytics
   useEffect(() => {
     const fetchProperties = async () => {
       try {
@@ -131,7 +139,6 @@ export default function Layout({ user, onLogout }) {
     fetchProperties();
   }, [token]);
 
-  // In Layout.jsx, update the fetchFacebookAccounts function:
   useEffect(() => {
     const fetchFacebookAccounts = async () => {
       const facebookToken = localStorage.getItem('facebook_token');
@@ -143,7 +150,6 @@ export default function Layout({ user, onLogout }) {
 
       setLoadingFacebook(true);
       try {
-        // Use production backend URL, not localhost
         const res = await fetch(
           "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/facebook/accounts",
           { headers: { Authorization: `Bearer ${facebookToken}` } }
@@ -185,18 +191,16 @@ export default function Layout({ user, onLogout }) {
     fetchFacebookAccounts();
   }, []);
 
-  // Add this useEffect to handle Facebook tab switching
   useEffect(() => {
     const shouldSwitchToFacebook = localStorage.getItem('switch_to_facebook_tab');
     if (shouldSwitchToFacebook === 'true') {
       setActiveTab('Facebook');
-      localStorage.removeItem('switch_to_facebook_tab'); // Clean up flag
+      localStorage.removeItem('switch_to_facebook_tab');
     }
   }, []);
 
   useEffect(() => {
     const fetchInstagramAccounts = async () => {
-      // Placeholder for Instagram accounts fetch - similar to Facebook
       setInstagramAccounts([]);
       setLoadingInstagram(false);
     };
@@ -204,13 +208,20 @@ export default function Layout({ user, onLogout }) {
     fetchInstagramAccounts();
   }, [token]);
 
-const handleLogout = () => {
-  cache.clearCache();
-  setSelectedIntentAccount(null);
-  // Don't clear Facebook token on main logout
-  // localStorage.removeItem('facebook_token'); // Only clear when user disconnects Facebook specifically
-  onLogout();
-};
+  useEffect(() => {
+    const fetchMetaAdsAccounts = async () => {
+      setMetaAdsAccounts([]);
+      setLoadingMetaAds(false);
+    };
+
+    fetchMetaAdsAccounts();
+  }, [token]);
+
+  const handleLogout = () => {
+    cache.clearCache();
+    setSelectedIntentAccount(null);
+    onLogout();
+  };
 
   const handleDateRangeChange = (startDate, endDate) => {
     setDateRange({ startDate, endDate });
@@ -231,16 +242,13 @@ const handleLogout = () => {
     setSelectedIntentAccount(null);
   };
 
-  // Handle privacy/terms page navigation
   const handlePageNavigation = (page) => {
     const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
-    // const baseUrl = "http://localhost:8000"; // --- IGNORE ---
     const url = `${baseUrl}/${page}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     setIsProfileDropdownOpen(false);
   };
 
-  // Handle PDF download
   const handleDownloadReport = async () => {
     try {
       setIsDownloading(true);
@@ -276,7 +284,6 @@ const handleLogout = () => {
     return option ? option.label : "7 Days";
   };
 
-  // In Layout.jsx, update getCurrentData function:
   const getCurrentData = () => {
     if (activeTab === "Google Ads Campaigns") {
       return {
@@ -295,7 +302,6 @@ const handleLogout = () => {
         type: 'properties'
       };
     } else if (activeTab === "Facebook") {
-      // Facebook handles its own authentication
       return {
         items: [],
         loading: false,
@@ -311,6 +317,14 @@ const handleLogout = () => {
         setActiveIndex: () => {},
         type: 'instagram'
       };
+    } else if (activeTab === "Meta Ads") {
+      return {
+        items: [],
+        loading: false,
+        activeIndex: 0,
+        setActiveIndex: () => {},
+        type: 'metaads'
+      };
     } else if (activeTab === "Intent Insights") {
       return {
         items: [],
@@ -319,8 +333,31 @@ const handleLogout = () => {
         setActiveIndex: () => {},
         type: 'insights'
       };
+    } else if (activeTab === "Reporting") {
+      return {
+        items: [],
+        loading: false,
+        activeIndex: 0,
+        setActiveIndex: () => {},
+        type: 'reporting'
+      };
     }
     return { items: [], loading: false, activeIndex: 0, setActiveIndex: () => {}, type: 'unknown' };
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === "Google Ads Campaigns") {
+      setActiveCampaignIdx(0);
+    } else if (tab === "Google Analytics") {
+      setActivePropertyIdx(0);
+    } else if (tab === "Facebook") {
+      setActiveFacebookIdx(0);
+    } else if (tab === "Instagram") {
+      setActiveInstagramIdx(0);
+    } else if (tab === "Meta Ads") {
+      setActiveMetaAdsIdx(0);
+    }
   };
 
   const renderContent = () => {
@@ -350,15 +387,27 @@ const handleLogout = () => {
         <InstagramAnalytics period={getCurrentPeriodLabel()} />
       );
     }
+
+    if (activeTab === "Meta Ads") {
+      return (
+        <MetaAds period={getCurrentPeriodLabel()} />
+      );
+    }
+
+    if (activeTab === "Reporting") {
+      return (
+        <Reporting period={getCurrentPeriodLabel()} />
+      );
+    }
     
     if (currentData.loading) {
       return <div className="text-white p-4">Loading {activeTab.toLowerCase()}...</div>;
     }
     
-    if (!currentData.items.length && activeTab !== "Intent Insights" && activeTab !== "Facebook" && activeTab !== "Instagram") {
+    if (!currentData.items.length && activeTab !== "Intent Insights" && activeTab !== "Facebook" && activeTab !== "Instagram" && activeTab !== "Meta Ads" && activeTab !== "Reporting") {
       return (
         <div className="text-white p-4">
-          No {currentData.type} related to your {activeTab === "Facebook" || activeTab === "Instagram" ? activeTab : "Google"} account
+          No {currentData.type} related to your {activeTab === "Facebook" || activeTab === "Instagram" || activeTab === "Meta Ads" ? activeTab : "Google"} account
         </div>
       );
     }
@@ -387,13 +436,11 @@ const handleLogout = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0B4E5D] via-[#05242A] to-[#1E1E1E] text-white">
-      {/* Header */}
       <header className="backdrop-blur-sm p-4 flex items-center justify-between border-b border-white relative z-[9999]">
         <h1 className="text-2xl md:text-4xl font-normal text-[#A1BCD3]">ANALYTICS DASHBOARD</h1>
         <div className="flex items-center space-x-3">
           <span className="text-sm md:text-base text-white">{user?.name}</span>
           
-          {/* Profile dropdown container */}
           <div className="relative z-[9999]" ref={profileDropdownRef}>
             <div 
               className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
@@ -408,7 +455,6 @@ const handleLogout = () => {
               </span>
             </div>
 
-            {/* Profile dropdown menu */}
             {isProfileDropdownOpen && (
               <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-[9999]">
                 <div className="py-2">
@@ -432,118 +478,92 @@ const handleLogout = () => {
       </header>
 
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)]">
-        {/* Sidebar - Hide for Intent Insights */}
         {activeTab !== "Intent Insights" && (
           <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
-          <div className="space-y-4 flex-1">
-            {activeTab === "Intent Insights" ? (
-              <div className="text-white/70 p-4 text-sm md:text-base">
-                Intent Insights - Keyword Research Tools
-              </div>
-            ) : currentData.loading ? (
-              <div className="text-white p-4">
-                Loading {currentData.type}...
-              </div>
-            ) : currentData.items.length > 0 ? (
-              currentData.items.map((item, idx) => {
-                const isActive = idx === currentData.activeIndex;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => currentData.setActiveIndex(idx)}
-                    className={`p-3 md:p-4 text-sm md:text-base cursor-pointer transition-colors rounded-lg ${
-                      isActive
-                        ? "bg-[#508995] text-black font-bold"
-                        : "bg-white text-black hover:bg-[#508995] hover:text-white"
-                    }`}
-                  >
-                    <div className="font-bold text-lg md:text-xl">{item.name}</div>
-                    <div className="text-xs md:text-sm opacity-75 mt-1">
-                      {activeTab === "Google Analytics" ? `Property: ${item.id}` : 
-                       activeTab === "Facebook" ? `Page: ${item.id}` :
-                       activeTab === "Instagram" ? `Account: ${item.id}` : 
-                       item.id}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-white/70 p-4 text-sm md:text-base">
-                {activeTab === "Facebook" ? 
-                  "Connect your Facebook account to get started" : 
-                  activeTab === "Instagram" ? 
-                  "Instagram integration coming soon" : 
-                  `No ${currentData.type} related to your Google account`
-                }
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8 mr-4">
-            <button
-              onClick={handleDownloadReport}
-              disabled={isDownloading}
-              className={`w-full p-2 md:p-3 rounded text-sm md:text-base transition-colors ${
-                isDownloading 
-                  ? "bg-gray-500 text-gray-300 cursor-not-allowed" 
-                  : "bg-teal-600 text-white hover:bg-teal-700"
-              }`}
-            >
-              {isDownloading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Generating...</span>
+            <div className="space-y-4 flex-1">
+              {currentData.loading ? (
+                <div className="text-white p-4">
+                  Loading {currentData.type}...
                 </div>
+              ) : currentData.items.length > 0 ? (
+                currentData.items.map((item, idx) => {
+                  const isActive = idx === currentData.activeIndex;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => currentData.setActiveIndex(idx)}
+                      className={`p-3 md:p-4 text-sm md:text-base cursor-pointer transition-colors rounded-lg ${
+                        isActive
+                          ? "bg-[#508995] text-black font-bold"
+                          : "bg-white text-black hover:bg-[#508995] hover:text-white"
+                      }`}
+                    >
+                      <div className="font-bold text-lg md:text-xl">{item.name}</div>
+                      <div className="text-xs md:text-sm opacity-75 mt-1">
+                        {activeTab === "Google Analytics" ? `Property: ${item.id}` : 
+                         activeTab === "Facebook" ? `Page: ${item.id}` :
+                         activeTab === "Instagram" ? `Account: ${item.id}` : 
+                         activeTab === "Meta Ads" ? `Account: ${item.id}` :
+                         item.id}
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
-                "Download Full Report"
+                <div className="text-white/70 p-4 text-sm md:text-base">
+                  {activeTab === "Facebook" ? 
+                    "Connect your Facebook account to get started" : 
+                    activeTab === "Instagram" ? 
+                    "Instagram integration coming soon" :
+                    activeTab === "Meta Ads" ?
+                    "Connect your Meta Ads account to get started" :
+                    activeTab === "Reporting" ?
+                    "Reporting features coming soon" :
+                    `No ${currentData.type} related to your Google account`
+                  }
+                </div>
               )}
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gray-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-gray-700"
-            >
-              Logout
-            </button>
-          </div>
-        </aside>
-        )}
-
-        {/* Main Section - Full width for Intent Insights */}
-        <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
-          {/* Tabs & Period/Date Range Selector */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6">
-            {/* Tabs */}
-            <div className="flex flex-wrap md:flex-nowrap space-x-0 md:space-x-4 mb-2 md:mb-0 w-full md:w-auto">
-              {tabs.map((tab) => {
-                const isActive = tab === activeTab;
-                return (
-                  <div
-                    key={tab}
-                    onClick={() => {
-                      setActiveTab(tab);
-                      if (tab === "Google Ads Campaigns") {
-                        setActiveCampaignIdx(0);
-                      } else if (tab === "Google Analytics") {
-                        setActivePropertyIdx(0);
-                      } else if (tab === "Facebook") {
-                        setActiveFacebookIdx(0);
-                      } else if (tab === "Instagram") {
-                        setActiveInstagramIdx(0);
-                      }
-                    }}
-                    className={`flex-1 md:flex-none md:min-w-[160px] px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm text-center cursor-pointer transition-colors rounded-lg ${
-                      isActive
-                        ? "bg-[#508995] text-black font-bold"
-                        : "bg-[#0F4653] text-white font-bold hover:bg-white hover:text-black"
-                    }`}
-                  >
-                    {tab}
-                  </div>
-                );
-              })}
             </div>
 
-            {/* Period Selector for Ads/Analytics, Date Range Picker for Intent Insights */}
+            <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8 mr-4">
+              <button
+                onClick={handleDownloadReport}
+                disabled={isDownloading}
+                className={`w-full p-2 md:p-3 rounded text-sm md:text-base transition-colors ${
+                  isDownloading 
+                    ? "bg-gray-500 text-gray-300 cursor-not-allowed" 
+                    : "bg-teal-600 text-white hover:bg-teal-700"
+                }`}
+              >
+                {isDownloading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Generating...</span>
+                  </div>
+                ) : (
+                  "Download Full Report"
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full bg-gray-600 text-white p-2 md:p-3 rounded text-sm md:text-base hover:bg-gray-700"
+              >
+                Logout
+              </button>
+            </div>
+          </aside>
+        )}
+
+        <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6">
+            <div className="w-full md:w-auto mb-2 md:mb-0">
+              <ScrollableTabs 
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+              />
+            </div>
+
             {activeTab === "Intent Insights" ? (
               <div className="flex items-center space-x-2">
                 <span className="text-sm md:text-base text-white">Period:</span>
@@ -594,7 +614,6 @@ const handleLogout = () => {
             )}
           </div>
 
-          {/* Download button for Intent Insights (full width layout) */}
           {activeTab === "Intent Insights" && (
             <div className="mb-4 flex justify-end">
               <button
@@ -618,7 +637,6 @@ const handleLogout = () => {
             </div>
           )}
 
-          {/* Page Content */}
           <div className="bg-[#1A6473] p-4 md:p-6 rounded-lg">{renderContent()}</div>
         </div>
       </div>
