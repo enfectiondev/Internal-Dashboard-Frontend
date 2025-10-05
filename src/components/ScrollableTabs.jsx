@@ -36,6 +36,7 @@ const ScrollableTabs = ({ tabs, activeTab, onTabChange }) => {
 
   return (
     <div className="relative flex items-center">
+      {/* Left Arrow */}
       {showLeftArrow && (
         <button
           onClick={() => scroll('left')}
@@ -48,6 +49,7 @@ const ScrollableTabs = ({ tabs, activeTab, onTabChange }) => {
         </button>
       )}
 
+      {/* Tabs Container */}
       <div
         ref={tabsContainerRef}
         onScroll={checkScrollPosition}
@@ -72,6 +74,7 @@ const ScrollableTabs = ({ tabs, activeTab, onTabChange }) => {
         })}
       </div>
 
+      {/* Right Arrow */}
       {showRightArrow && (
         <button
           onClick={() => scroll('right')}

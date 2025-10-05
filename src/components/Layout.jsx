@@ -479,7 +479,7 @@ export default function Layout({ user, onLogout }) {
 
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)]">
         {activeTab !== "Intent Insights" && (
-          <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
+          <aside className="w-full md:w-[280px] lg:w-[320px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
             <div className="space-y-4 flex-1">
               {currentData.loading ? (
                 <div className="text-white p-4">
