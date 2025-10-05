@@ -477,9 +477,9 @@ export default function Layout({ user, onLogout }) {
         </div>
       </header>
 
-      <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)]">
+      <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)] max-w-full">
         {activeTab !== "Intent Insights" && (
-          <aside className="w-full md:w-[280px] lg:w-[320px] bg-[#1A4752] pt-6 md:pt-24 pl-4 flex flex-col">
+          <aside className="w-full md:w-[280px] bg-[#1A4752] pt-6 md:pt-24 pl-4 pr-4 flex flex-col flex-shrink-0">
             <div className="space-y-4 flex-1">
               {currentData.loading ? (
                 <div className="text-white p-4">
@@ -525,7 +525,7 @@ export default function Layout({ user, onLogout }) {
               )}
             </div>
 
-            <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8 mr-4">
+            <div className="space-y-2 mt-4 md:mt-8 mb-4 md:mb-8">
               <button
                 onClick={handleDownloadReport}
                 disabled={isDownloading}
@@ -554,9 +554,9 @@ export default function Layout({ user, onLogout }) {
           </aside>
         )}
 
-        <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 md:mb-6 gap-4">
-            <div className="w-full lg:flex-1 overflow-hidden">
+        <div className={`flex-1 bg-[#0F4653] p-4 md:p-6 min-w-0 ${activeTab === "Intent Insights" ? "w-full" : ""}`}>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 md:mb-6 gap-3 max-w-full">
+            <div className="flex-1 min-w-0 w-full lg:w-auto">
               <ScrollableTabs 
                 tabs={tabs}
                 activeTab={activeTab}
