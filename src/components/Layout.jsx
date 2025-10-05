@@ -711,26 +711,28 @@ export default function Layout({ user, onLogout }) {
                     ))}
                     
                     {showCustomDatePicker && (
-                      <div className="p-4 border-t border-gray-200 space-y-3">
+                      <div className="p-4 border-t border-gray-200 space-y-3 bg-white">
                         <div>
-                          <label className="text-xs text-gray-600 block mb-1">Start Date</label>
+                          <label className="text-xs font-medium text-gray-700 block mb-1">Start Date</label>
                           <input
                             type="date"
                             value={customDates.startDate}
                             onChange={(e) => setCustomDates(prev => ({ ...prev, startDate: e.target.value }))}
-                            placeholder="YYYY-MM-DD"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                            style={{ colorScheme: 'light' }}
                           />
+                          <span className="text-xs text-gray-500 mt-1 block">Format: YYYY-MM-DD</span>
                         </div>
                         <div>
-                          <label className="text-xs text-gray-600 block mb-1">End Date</label>
+                          <label className="text-xs font-medium text-gray-700 block mb-1">End Date</label>
                           <input
                             type="date"
                             value={customDates.endDate}
                             onChange={(e) => setCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
-                            placeholder="YYYY-MM-DD"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
+                            style={{ colorScheme: 'light' }}
                           />
+                          <span className="text-xs text-gray-500 mt-1 block">Format: YYYY-MM-DD</span>
                         </div>
                         <button
                           onClick={handleCustomDateSubmit}

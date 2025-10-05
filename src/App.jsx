@@ -19,6 +19,7 @@ export default function App() {
       const error = params.get("error");
 
       // Handle Facebook token separately
+      // Handle Facebook token separately
       if (facebookToken) {
         try {
           const decodedToken = decodeURIComponent(facebookToken);
@@ -31,11 +32,16 @@ export default function App() {
           
           window.history.replaceState({}, document.title, "/dashboard");
           
-          // DON'T override user if Google auth already exists
+          // Preserve Google user if it exists
+          const storedToken = localStorage.getItem("token");
           const storedUser = localStorage.getItem("user");
-          if (!storedUser) {
-            // Only set Facebook user if no Google user exists
-            setUser({ name: "Facebook User", email: "facebook_user", auth_provider: "facebook" });
+          if (storedToken && storedUser) {
+            try {
+              const userData = JSON.parse(storedUser);
+              setUser(userData); // Keep Google user data
+            } catch (err) {
+              console.error("Error parsing stored user:", err);
+            }
           }
           
           setLoading(false);

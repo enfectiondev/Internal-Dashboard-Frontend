@@ -4,6 +4,7 @@ import { useFacebookAuth } from "../hooks/useFacebookAuth";
 import { useMetaApi } from "../hooks/useMetaApi";
 import MetaMetricCard from "../components/MetaMetricCard";
 import MetaCampaignsTable from "../components/MetaCampaignsTable";
+import MetaLoadingSkeleton from "../components/MetaLoadingSkeleton";
 
 const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
@@ -15,8 +16,36 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     isAuthenticated 
   } = useFacebookAuth();
 
+  // Check if Facebook token exists in localStorage as fallback
+  const hasFacebookToken = isAuthenticated || localStorage.getItem('facebook_token');
+
+  // Get display user - prefer original user from localStorage, fallback to Facebook user
+  const getDisplayUser = () => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser);
+      } catch (err) {
+        console.error("Error parsing stored user:", err);
+      }
+    }
+    return facebookUser || { 
+      name: "Meta User", 
+      email: "meta_user",
+      picture: null 
+    };
+  };
+
+  const displayUser = getDisplayUser();
+
   // API call function for campaigns
   const campaignApiCall = useCallback(async (accountId, period, customDates) => {
+    const token = facebookToken || localStorage.getItem('facebook_token');
+    
+    if (!token) {
+      throw new Error('No Facebook token available');
+    }
+
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${accountId}/campaigns`;
     
     // Add date parameters if custom period is being used
@@ -25,14 +54,15 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     }
     
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${facebookToken}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
     
     if (!response.ok) {
       if (response.status === 401) {
         handleDisconnect();
+        throw new Error('Authentication failed. Please reconnect your Facebook account.');
       }
-      throw new Error('Failed to fetch campaign data');
+      throw new Error(`Failed to fetch campaign data: ${response.status}`);
     }
     
     return await response.json();
@@ -56,7 +86,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!hasFacebookToken) {
     return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
   }
 
@@ -68,10 +98,10 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
         <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {facebookUser.picture && (
+              {displayUser.picture && (
                 <img 
-                  src={facebookUser.picture} 
-                  alt={facebookUser.name}
+                  src={displayUser.picture} 
+                  alt={displayUser.name}
                   className="w-12 h-12 rounded-full border-2 border-[#508995]"
                 />
               )}
@@ -96,17 +126,21 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
         {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="text-red-800 font-medium">Error loading campaign data</div>
-            <div className="text-red-600 text-sm mt-1">{error.message}</div>
+            <div className="flex items-center space-x-3">
+              <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <div className="text-red-800 font-medium">Error loading campaign data</div>
+                <div className="text-red-600 text-sm mt-1">{error.message}</div>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Campaign Metrics Cards */}
         {isLoadingCampaigns ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-[#1A4752] border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-3 text-gray-700">Loading campaign data...</span>
-          </div>
+          <MetaLoadingSkeleton />
         ) : campaignData?.totals ? (
           <>
             {/* Metric Cards Grid */}
@@ -149,7 +183,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                 <div>
                   <h4 className="font-semibold">Meta Ads Account Active!</h4>
                   <p className="text-sm mt-1">
-                    Viewing {campaignData.campaigns?.length || 0} campaigns for {selectedAccount.name}
+                    Viewing {campaignData.campaigns?.length || 0} campaign{campaignData.campaigns?.length !== 1 ? 's' : ''} for {selectedAccount.name}
                     {period === 'CUSTOM' && customDates?.startDate && customDates?.endDate && (
                       <> ({customDates.startDate} to {customDates.endDate})</>
                     )}
@@ -169,7 +203,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
               No Campaign Data Available
             </h3>
             <p className="text-gray-600">
-              No campaign data found for the selected period. Try adjusting the date range.
+              No campaign data found for the selected period. Try adjusting the date range or check if there are active campaigns in this account.
             </p>
           </div>
         )}
@@ -183,10 +217,10 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
       <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            {facebookUser.picture && (
+            {displayUser.picture && (
               <img 
-                src={facebookUser.picture} 
-                alt={facebookUser.name}
+                src={displayUser.picture} 
+                alt={displayUser.name}
                 className="w-12 h-12 rounded-full border-2 border-[#508995]"
               />
             )}
@@ -195,7 +229,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                 Connected to Meta Ads
               </h2>
               <p className="text-[#A1BCD3]">
-                {facebookUser.name} • {facebookUser.email}
+                {displayUser.name} • {displayUser.email}
               </p>
             </div>
           </div>
