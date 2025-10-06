@@ -1,24 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
+import { useMetaApi } from "../hooks/useMetaApi";
 import MetaMetricCard from "../components/MetaMetricCard";
 import MetaCampaignsTable from "../components/MetaCampaignsTable";
 import MetaLoadingSkeleton from "../components/MetaLoadingSkeleton";
-import ProgressBar from "../components/ProgressBar";
-
-// At the top, update handleDisconnect
-const handleDisconnect = () => {
-  localStorage.removeItem('facebook_token');
-  window.location.href = '/dashboard'; // Force reload to update auth state
-};
-
-// Update the disconnect button to use local handleDisconnect
-<button
-  onClick={handleDisconnect}
-  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
->
-  Disconnect
-</button>
 
 const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
@@ -30,13 +16,10 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     isAuthenticated 
   } = useFacebookAuth();
 
+  // Check if Facebook token exists in localStorage as fallback
   const hasFacebookToken = isAuthenticated || localStorage.getItem('facebook_token');
-  
-  const [campaignData, setCampaignData] = useState(null);
-  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
-  const [error, setError] = useState(null);
-  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0, isComplete: false });
 
+  // Get display user - prefer original user from localStorage, fallback to Facebook user
   const getDisplayUser = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -55,109 +38,44 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
 
   const displayUser = getDisplayUser();
 
-  // Fetch campaigns with streaming
-  const fetchCampaignsStream = useCallback(async () => {
-    if (!selectedAccount) return;
-    
+  // API call function for campaigns
+  const campaignApiCall = useCallback(async (accountId, period, customDates) => {
     const token = facebookToken || localStorage.getItem('facebook_token');
-    if (!token) {
-      setError(new Error('No Facebook token available'));
-      return;
-    }
-
-    setIsLoadingCampaigns(true);
-    setError(null);
-    setLoadProgress({ loaded: 0, total: 0, isComplete: false });
-
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/campaigns/stream?period=${period}`;
     
+    if (!token) {
+      throw new Error('No Facebook token available');
+    }
+
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${accountId}/campaigns`;
+    
+    // Add date parameters if custom period is being used
     if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+      url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
     }
-
-    try {
-      const response = await fetch(url, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'text/event-stream'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        handleDisconnect();
+        throw new Error('Authentication failed. Please reconnect your Facebook account.');
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.substring(6));
-              
-              switch (data.type) {
-                case 'init':
-                  setLoadProgress({ loaded: 0, total: data.total, isComplete: false });
-                  break;
-                
-                case 'progress':
-                  setCampaignData({
-                    campaigns: data.campaigns,
-                    totals: data.totals
-                  });
-                  setLoadProgress({ 
-                    loaded: data.loaded, 
-                    total: data.total, 
-                    isComplete: false 
-                  });
-                  setIsLoadingCampaigns(false); // Show data while loading continues
-                  break;
-                
-                case 'complete':
-                  setCampaignData({
-                    campaigns: data.campaigns,
-                    totals: data.totals
-                  });
-                  setLoadProgress({ 
-                    loaded: data.campaigns.length, 
-                    total: data.campaigns.length, 
-                    isComplete: true 
-                  });
-                  
-                  // Hide completion message after 3 seconds
-                  setTimeout(() => {
-                    setLoadProgress(prev => ({ ...prev, isComplete: false }));
-                  }, 3000);
-                  break;
-                
-                case 'error':
-                  throw new Error(data.message);
-              }
-            } catch (parseError) {
-              console.error('Error parsing SSE data:', parseError);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching campaigns:', err);
-      setError(err);
-      setIsLoadingCampaigns(false);
+      throw new Error(`Failed to fetch campaign data: ${response.status}`);
     }
-  }, [selectedAccount, period, customDates, facebookToken]);
+    
+    return await response.json();
+  }, [facebookToken, handleDisconnect]);
 
-  useEffect(() => {
-    if (selectedAccount && hasFacebookToken) {
-      fetchCampaignsStream();
-    }
-  }, [selectedAccount, period, customDates, fetchCampaignsStream, hasFacebookToken]);
+  // Use the caching hook
+  const { data: campaignData, loading: isLoadingCampaigns, error } = useMetaApi(
+    selectedAccount?.id,
+    period,
+    customDates,
+    'campaigns',
+    campaignApiCall
+  );
 
   if (isLoading) {
     return (
@@ -172,36 +90,37 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
   }
 
+  // Display selected account details if available
   if (selectedAccount) {
     return (
       <div className="space-y-6">
-        {/* User Info Header */}
+        {/* User Info Header with Selected Account */}
         <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-          <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {(facebookUser?.picture || displayUser.picture) && (
+            {(facebookUser?.picture || displayUser.picture) && (
                 <img 
-                  src={facebookUser?.picture || displayUser.picture} 
-                  alt={displayUser.name}
-                  className="w-12 h-12 rounded-full border-2 border-[#508995] object-cover"
+                src={facebookUser?.picture || displayUser.picture} 
+                alt={displayUser.name}
+                className="w-12 h-12 rounded-full border-2 border-[#508995] object-cover"
                 />
-              )}
-              <div>
+            )}
+            <div>
                 <h2 className="text-xl font-bold text-white">
-                  {selectedAccount.name}
+                {selectedAccount.name}
                 </h2>
                 <p className="text-[#A1BCD3]">
-                  {selectedAccount.account_id} | {selectedAccount.currency}
+                {selectedAccount.account_id} | {selectedAccount.currency}
                 </p>
-              </div>
+            </div>
             </div>
             <button
-              onClick={handleDisconnect}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+            onClick={handleDisconnect}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
             >
-              Disconnect
+            Disconnect
             </button>
-          </div>
+        </div>
         </div>
 
         {/* Error Display */}
@@ -219,20 +138,12 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
           </div>
         )}
 
-        {/* Progress Bar - Show when loading or just completed */}
-        {(loadProgress.loaded > 0 && loadProgress.loaded < loadProgress.total) || loadProgress.isComplete ? (
-          <ProgressBar 
-            loaded={loadProgress.loaded} 
-            total={loadProgress.total}
-            isComplete={loadProgress.isComplete}
-          />
-        ) : null}
-
-        {/* Campaign Data */}
-        {isLoadingCampaigns && !campaignData ? (
+        {/* Campaign Metrics Cards */}
+        {isLoadingCampaigns ? (
           <MetaLoadingSkeleton />
         ) : campaignData?.totals ? (
           <>
+            {/* Metric Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <MetaMetricCard
                 title="Total Spend"
@@ -257,10 +168,29 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
               />
             </div>
 
+            {/* Campaigns Table */}
             <MetaCampaignsTable 
               campaigns={campaignData.campaigns || []}
               currency={selectedAccount.currency}
             />
+
+            {/* Success Info */}
+            <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <h4 className="font-semibold">Meta Ads Account Active!</h4>
+                  <p className="text-sm mt-1">
+                    Viewing {campaignData.campaigns?.length || 0} campaign{campaignData.campaigns?.length !== 1 ? 's' : ''} for {selectedAccount.name}
+                    {period === 'CUSTOM' && customDates?.startDate && customDates?.endDate && (
+                      <> ({customDates.startDate} to {customDates.endDate})</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
           </>
         ) : (
           <div className="bg-white rounded-lg p-8 text-center">
@@ -273,7 +203,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
               No Campaign Data Available
             </h3>
             <p className="text-gray-600">
-              No campaign data found for the selected period.
+              No campaign data found for the selected period. Try adjusting the date range or check if there are active campaigns in this account.
             </p>
           </div>
         )}
@@ -281,32 +211,36 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     );
   }
 
-  // Default view when no account selected
+  // Default view when no account is selected but authenticated
   return (
     <div className="space-y-6">
-      <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
+        <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4">
             {(facebookUser?.picture || displayUser.picture) && (
-              <img 
+                <img 
                 src={facebookUser?.picture || displayUser.picture} 
                 alt={displayUser.name}
                 className="w-12 h-12 rounded-full border-2 border-[#508995] object-cover"
-              />
+                />
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">Connected to Meta Ads</h2>
-              <p className="text-[#A1BCD3]">{displayUser.name} • {displayUser.email}</p>
+                <h2 className="text-xl font-bold text-white">
+                Connected to Meta Ads
+                </h2>
+                <p className="text-[#A1BCD3]">
+                {displayUser.name} • {displayUser.email}
+                </p>
             </div>
-          </div>
-          <button
+            </div>
+            <button
             onClick={handleDisconnect}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
-          >
+            >
             Disconnect
-          </button>
+            </button>
         </div>
-      </div>
+        </div>
 
       <div className="bg-blue-500/20 border border-blue-500 text-blue-300 px-6 py-4 rounded-lg">
         <div className="flex items-center space-x-3">
