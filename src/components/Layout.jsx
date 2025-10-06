@@ -518,6 +518,7 @@ export default function Layout({ user, onLogout }) {
           <GoogleAds 
             activeCampaign={campaigns[activeCampaignIdx]} 
             period={period}
+            customDates={customDates}  // ADD THIS LINE
           />
         );
       case "Google Analytics":

@@ -9,7 +9,7 @@ import CampaignProgressChart from "../components/CampaignProgressChart";
 import CampaignPerformanceDetails from "../components/CampaignPerformanceDetails";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-export default function GoogleAds({ activeCampaign, period }) {
+export default function GoogleAds({ activeCampaign, period, customDates }) {
 
   // Convert frontend period → API period
   const convertPeriodForAPI = (period) => {
@@ -18,6 +18,7 @@ export default function GoogleAds({ activeCampaign, period }) {
       LAST_30_DAYS: "LAST_30_DAYS",
       LAST_3_MONTHS: "LAST_90_DAYS",
       LAST_1_YEAR: "LAST_365_DAYS",
+      CUSTOM: "CUSTOM",
     };
     return periodMap[period] || period;
   };
@@ -26,14 +27,18 @@ export default function GoogleAds({ activeCampaign, period }) {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`,
-      {
-        headers: token
-          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-          : { "Content-Type": "application/json" },
-      }
-    );
+    // Build URL with custom date parameters if needed
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, {
+      headers: token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" },
+    });
 
     if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
     const json = await res.json();
@@ -50,9 +55,14 @@ export default function GoogleAds({ activeCampaign, period }) {
     };
   };
 
+  // Create cache key that includes custom dates
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+    : period;
+
   const { data: metrics, loading } = useApiWithCache(
     activeCampaign?.id,
-    period,
+    cacheKey,
     "key-stats",
     keyStatsApiCall
   );
@@ -99,14 +109,10 @@ export default function GoogleAds({ activeCampaign, period }) {
     );
   }
 
-      return (
+  return (
     <div className="space-y-4 lg:space-y-6">
       {/* Campaign Key Metrics Section - 12-column grid system */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Campaign Key Metrics
-        </h2> */}
-        
         {/* Primary Metrics Row - 4 columns on xl, 2 on sm, 1 on mobile */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="col-span-1">
@@ -174,58 +180,66 @@ export default function GoogleAds({ activeCampaign, period }) {
 
       {/* Campaign Performance Overview Section - 3-column grid */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Campaign Performance Overview
-        </h2> */}
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           <div className="lg:col-span-2 min-h-[300px]">
-            <CampaignMetrics activeCampaign={activeCampaign} period={period} />
+            <CampaignMetrics 
+              activeCampaign={activeCampaign} 
+              period={period}
+              customDates={customDates}
+            />
           </div>
           <div className="lg:col-span-1 min-h-[300px]">
-            <DevicePieChart activeCampaign={activeCampaign} period={period} />
+            <DevicePieChart 
+              activeCampaign={activeCampaign} 
+              period={period}
+              customDates={customDates}
+            />
           </div>
         </div>
       </section>
 
       {/* Performance Over Time Section - Full width */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Performance Over Time
-        </h2> */}
-        
         <div className="grid grid-cols-1">
           <div className="col-span-1 min-h-[350px]">
-            <LineChartComp activeCampaign={activeCampaign} period={period} />
+            <LineChartComp 
+              activeCampaign={activeCampaign} 
+              period={period}
+              customDates={customDates}
+            />
           </div>
         </div>
       </section>
 
       {/* Campaign Progress & Performance Details Section - 3-column grid */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Campaign Progress & Performance Details
-        </h2> */}
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           <div className="lg:col-span-1 min-h-[300px]">
-            <CampaignProgressChart activeCampaign={activeCampaign} period={period} />
+            <CampaignProgressChart 
+              activeCampaign={activeCampaign} 
+              period={period}
+              customDates={customDates}
+            />
           </div>
           <div className="lg:col-span-2 min-h-[300px]">
-            <CampaignPerformanceDetails activeCampaign={activeCampaign} period={period} />
+            <CampaignPerformanceDetails 
+              activeCampaign={activeCampaign} 
+              period={period}
+              customDates={customDates}
+            />
           </div>
         </div>
       </section>
 
       {/* Keywords Analysis Section - Full width */}
       <section className="space-y-4">
-        {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Keywords Analysis
-        </h2> */}
-        
         <div className="grid grid-cols-1">
           <div className="col-span-1">
-            <KeywordTable activeCampaign={activeCampaign} period={period} />
+            <KeywordTable 
+              activeCampaign={activeCampaign} 
+              period={period}
+              customDates={customDates}
+            />
           </div>
         </div>
       </section>
@@ -238,6 +252,7 @@ export default function GoogleAds({ activeCampaign, period }) {
               chatType="ads"
               activeCampaign={activeCampaign}
               period={period}
+              customDates={customDates}
             />
           </div>
         </div>
