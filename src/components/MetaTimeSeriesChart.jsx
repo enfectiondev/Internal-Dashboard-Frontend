@@ -32,10 +32,11 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
 
   useEffect(() => {
     if (selectedCampaigns && selectedCampaigns.length > 0) {
+      // Reset to first campaign and fetch new data
       setSelectedCampaignIds([selectedCampaigns[0].campaign_id]);
       fetchTimeSeriesData();
     }
-  }, [selectedCampaigns]);
+  }, [selectedCampaigns, period, customDates]); // Added period and customDates as dependencies
 
   const fetchTimeSeriesData = async () => {
     setIsLoading(true);
@@ -141,6 +142,28 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
     return colors[index % colors.length];
   };
 
+  // Get valid lines to render - only render lines for campaigns that exist in selectedCampaigns
+  const getValidLines = () => {
+    const lines = [];
+    selectedCampaignIds.forEach((campaignId, campaignIndex) => {
+      const campaign = selectedCampaigns.find(c => c.campaign_id === campaignId);
+      if (!campaign) return; // Skip if campaign not found
+      
+      selectedMetrics.forEach((metric, metricIndex) => {
+        const metricOption = METRIC_OPTIONS.find(m => m.value === metric);
+        if (!metricOption) return; // Skip if metric not found
+        
+        lines.push({
+          key: getLineKey(campaign.campaign_name, metric),
+          dataKey: getLineKey(campaign.campaign_name, metric),
+          stroke: getLineColor(campaignIndex * selectedMetrics.length + metricIndex),
+          name: `${campaign.campaign_name} - ${metricOption.label}`
+        });
+      });
+    });
+    return lines;
+  };
+
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg p-6 flex items-center justify-center h-96">
@@ -231,21 +254,18 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
             />
-            {selectedCampaignIds.map((campaignId, campaignIndex) => {
-              const campaign = selectedCampaigns.find(c => c.campaign_id === campaignId);
-              return selectedMetrics.map((metric, metricIndex) => (
-                <Line
-                  key={getLineKey(campaign.campaign_name, metric)}
-                  type="monotone"
-                  dataKey={getLineKey(campaign.campaign_name, metric)}
-                  stroke={getLineColor(campaignIndex * selectedMetrics.length + metricIndex)}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                  name={`${campaign.campaign_name} - ${METRIC_OPTIONS.find(m => m.value === metric)?.label}`}
-                />
-              ));
-            })}
+            {getValidLines().map(line => (
+              <Line
+                key={line.key}
+                type="monotone"
+                dataKey={line.dataKey}
+                stroke={line.stroke}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+                name={line.name}
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       ) : (

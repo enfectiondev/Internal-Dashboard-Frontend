@@ -22,7 +22,7 @@ function MetaDemographicsChart({ selectedCampaigns, period, customDates, faceboo
     if (selectedCampaigns && selectedCampaigns.length > 0) {
       fetchDemographicsData();
     }
-  }, [selectedCampaigns]);
+  }, [selectedCampaigns, period, customDates]); // Added period and customDates as dependencies
 
   const fetchDemographicsData = async () => {
     setIsLoading(true);

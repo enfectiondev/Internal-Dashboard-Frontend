@@ -23,7 +23,7 @@ function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookT
     if (selectedCampaigns && selectedCampaigns.length > 0) {
       fetchPlacementsData();
     }
-  }, [selectedCampaigns]);
+  }, [selectedCampaigns, period, customDates]); // Added period and customDates as dependencies
 
   const fetchPlacementsData = async () => {
     setIsLoading(true);
