@@ -49,7 +49,7 @@ function CampaignPerformanceDetails({ activeCampaign, period, customDates }) {
     };
     return periodMap[period] || period;
   };
-  
+
   const campaignDetailsApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
     const headers = { "Content-Type": "application/json" };
@@ -83,8 +83,9 @@ function CampaignPerformanceDetails({ activeCampaign, period, customDates }) {
     }));
   };
 
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+  const shouldBypassCache = period === 'CUSTOM';
+  const cacheKey = shouldBypassCache 
+    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
     : period;
 
   const { data, loading, error } = useApiWithCache(

@@ -82,8 +82,9 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
   };
 
   // Create a cache key that includes custom dates for proper cache differentiation
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+  const shouldBypassCache = period === 'CUSTOM';
+  const cacheKey = shouldBypassCache 
+    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
     : period;
 
   const { data: campaignData, loading, error } = useApiWithCache(

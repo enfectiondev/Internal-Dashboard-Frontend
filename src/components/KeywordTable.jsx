@@ -50,8 +50,9 @@ function KeywordTable({ activeCampaign, period, customDates }) {
     };
   };
 
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+  const shouldBypassCache = period === 'CUSTOM';
+  const cacheKey = shouldBypassCache 
+    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
     : period;
 
   const { data: keywordsData, loading, error } = useApiWithCache(

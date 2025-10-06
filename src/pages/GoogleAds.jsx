@@ -57,8 +57,9 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
   };
 
   // Create cache key that includes custom dates
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+  const shouldBypassCache = period === 'CUSTOM';
+  const cacheKey = shouldBypassCache 
+    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
     : period;
 
   const { data: metrics, loading } = useApiWithCache(

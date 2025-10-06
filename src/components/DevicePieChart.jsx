@@ -80,8 +80,9 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
     ];
   };
 
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+  const shouldBypassCache = period === 'CUSTOM';
+  const cacheKey = shouldBypassCache 
+    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
     : period;
 
   const { data: chartDataList, loading, error } = useApiWithCache(

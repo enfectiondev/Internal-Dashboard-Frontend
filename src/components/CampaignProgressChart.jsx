@@ -100,8 +100,9 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS", customD
     })).sort((a, b) => b.total - a.total);
   };
 
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+  const shouldBypassCache = period === 'CUSTOM';
+  const cacheKey = shouldBypassCache 
+    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
     : period;
 
   const { data, loading, error } = useApiWithCache(
