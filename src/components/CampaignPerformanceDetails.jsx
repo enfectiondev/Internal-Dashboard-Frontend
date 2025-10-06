@@ -1,3 +1,8 @@
+
+
+// ============================================
+// 3. CampaignPerformanceDetails.js
+// ============================================
 import React, { useState } from "react";
 import {
   BarChart,
@@ -9,7 +14,6 @@ import {
 } from "recharts";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-// Custom Tooltip
 const CustomBarTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -30,7 +34,7 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function CampaignPerformanceDetails({ activeCampaign, period }) {
+function CampaignPerformanceDetails({ activeCampaign, period, customDates }) {
   const [showCtr, setShowCtr] = useState(true);
   const [showCost, setShowCost] = useState(true);
   const [showConversions, setShowConversions] = useState(true);
@@ -40,7 +44,8 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
@@ -51,10 +56,14 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const convertedPeriod = convertPeriodForAPI(period);
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`,
-      { headers }
-    );
+    
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, { headers });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     const json = await res.json();
@@ -73,14 +82,17 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
     }));
   };
 
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+    : period;
+
   const { data, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    period,
-    'campaign-details', // Different endpoint name
+    cacheKey,
+    'campaign-details',
     campaignDetailsApiCall
   );
 
-  // Filter out campaigns with no usable data (based on toggles)
   const filteredData = (data || []).filter((c) => {
     const ctr = showCtr ? c.ctr : 0;
     const cost = showCost ? c.cost : 0;
@@ -88,7 +100,6 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
     return ctr > 0 || cost > 0 || conversions > 0;
   });
 
-  // Check if metrics have any non-zero values at all
   const hasCtrData = (data || []).some((c) => c.ctr > 0);
   const hasCostData = (data || []).some((c) => c.cost > 0);
   const hasConversionsData = (data || []).some((c) => c.conversions > 0);
@@ -192,9 +203,8 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
             <XAxis
               dataKey="name"
               interval={0}
-              height={90} // extra space for diagonal multi-line labels
+              height={90}
               tick={({ x, y, payload }) => {
-                // Split by spaces and further break long words (>10 chars)
                 const words = payload.value
                   .split(" ")
                   .flatMap((word) =>

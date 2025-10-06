@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Download } from "lucide-react";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-function KeywordTable({ activeCampaign, period }) {
+function KeywordTable({ activeCampaign, period, customDates }) {
   const [showAll, setShowAll] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -11,7 +11,8 @@ function KeywordTable({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
@@ -20,14 +21,17 @@ function KeywordTable({ activeCampaign, period }) {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`,
-      {
-        headers: token
-          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-          : { "Content-Type": "application/json" },
-      }
-    );
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, {
+      headers: token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" },
+    });
 
     if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
     const json = await res.json();
@@ -45,9 +49,13 @@ function KeywordTable({ activeCampaign, period }) {
     };
   };
 
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+    : period;
+
   const { data: keywordsData, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    period,
+    cacheKey,
     'keywords',
     keywordsApiCall
   );
@@ -61,9 +69,8 @@ function KeywordTable({ activeCampaign, period }) {
     try {
       setDownloading(true);
       
-      // Convert cached data to CSV format
       const csvData = keywordsData.raw.map(k => [
-        `"${k.text}"`, // Wrap keyword in quotes to handle commas
+        `"${k.text}"`,
         k.clicks,
         k.impressions,
         k.cpc.toFixed(2),
@@ -71,14 +78,12 @@ function KeywordTable({ activeCampaign, period }) {
         k.cost.toFixed(2)
       ]);
 
-      // Create CSV content
       const headers = ['Keyword', 'Clicks', 'Impressions', 'CPC', 'CTR (%)', 'Cost'];
       const csvContent = [
         headers.join(','),
         ...csvData.map(row => row.join(','))
       ].join('\n');
 
-      // Create and download file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       
@@ -104,13 +109,11 @@ function KeywordTable({ activeCampaign, period }) {
   const shouldShowViewMore = (keywordsData?.formatted?.length || 0) > 4;
 
   if (loading && !keywordsData) return <p>Loading keywords...</p>;
-
   if (!keywordsData?.formatted?.length) return <p>No keywords data available.</p>;
 
   return (
     <div className="w-full bg-white rounded-2xl p-2 shadow-sm">
       <div className="bg-white overflow-hidden rounded-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-gray-50 rounded-t-2xl">
           <h2 className="text-lg font-semibold text-gray-900">
             Top Performing Keywords
@@ -129,7 +132,6 @@ function KeywordTable({ activeCampaign, period }) {
           </button>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] table-fixed">
             <thead className="bg-gray-100">
@@ -162,7 +164,6 @@ function KeywordTable({ activeCampaign, period }) {
           </div>
         </div>
 
-        {/* View More Button */}
         {shouldShowViewMore && (
           <div className="px-6 py-4 bg-white border-t border-gray-200 flex justify-center rounded-b-2xl">
             <button

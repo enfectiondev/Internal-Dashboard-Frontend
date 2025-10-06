@@ -1,26 +1,24 @@
-import React, { useState } from "react";
+import React from "react";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
-  // Blue/Gray color scheme
+function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS", customDates }) {
   const colors = {
-    enabled: "#1a4752ff",    // Dark blue
-    paused: "#64748b",     // Slate gray
-    removed: "#cbd5e1"     // Light gray
+    enabled: "#1a4752ff",
+    paused: "#64748b",
+    removed: "#cbd5e1"
   };
 
-  // Convert period for API
   const convertPeriodForAPI = (period) => {
     const periodMap = {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
 
-  // Map campaign type
   const mapCampaignType = (type) => {
     const typeMap = {
       'SEARCH': 'Search',
@@ -45,10 +43,13 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const response = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`,
-      { headers }
-    );
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -60,11 +61,8 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
     else if (Array.isArray(json)) campaigns = json;
     else if (json.data && !Array.isArray(json.data)) campaigns = [json.data];
 
-    if (campaigns.length === 0) {
-      return [];
-    }
+    if (campaigns.length === 0) return [];
 
-    // Group campaigns by type and status
     const typeMap = {};
     campaigns.forEach(c => {
       const rawType = c.type_info?.name || c.type?.name || c.type || c.campaign_type || c.advertising_channel_type || 'UNKNOWN';
@@ -92,7 +90,6 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
       }
     });
 
-    // Convert to array format
     return Object.keys(typeMap).map(type => ({
       type: type,
       enabled: typeMap[type].enabled,
@@ -102,10 +99,14 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
     })).sort((a, b) => b.total - a.total);
   };
 
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+    : period;
+
   const { data, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    period,
-    'campaign-progress', // Different endpoint name
+    cacheKey,
+    'campaign-progress',
     campaignProgressApiCall
   );
 
@@ -161,9 +162,7 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
         <hr className="mt-3" />
       </div>
 
-      {/* Two Row Layout - Progress Bars on Top, Summary Cards on Bottom */}
       <div className="flex flex-col h-96">
-        {/* First Row - Progress Bars Section (65% of height) */}
         <div className="flex-1" style={{ flexBasis: '65%' }}>
           <div className="h-full overflow-y-auto space-y-3 pr-2">
             {data.map((item, index) => {
@@ -173,7 +172,6 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
 
               return (
                 <div key={index} className="space-y-2">
-                  {/* Type Header */}
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium text-gray-800 text-sm sm:text-base truncate pr-2">{item.type}</h4>
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
@@ -181,9 +179,7 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
                     </span>
                   </div>
 
-                  {/* Progress Bar */}
                   <div className="w-full bg-gray-100 rounded h-7 sm:h-8 flex overflow-hidden border border-gray-200">
-                    {/* Enabled Section */}
                     {item.enabled > 0 && (
                       <div 
                         className="h-full flex items-center justify-center text-white text-xs font-medium transition-all duration-300 hover:brightness-110"
@@ -197,7 +193,6 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
                       </div>
                     )}
 
-                    {/* Paused Section */}
                     {item.paused > 0 && (
                       <div 
                         className="h-full flex items-center justify-center text-white text-xs font-medium transition-all duration-300 hover:brightness-110"
@@ -211,7 +206,6 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
                       </div>
                     )}
 
-                    {/* Removed Section */}
                     {item.removed > 0 && (
                       <div 
                         className="h-full flex items-center justify-center text-gray-700 text-xs font-medium transition-all duration-300 hover:brightness-95"
@@ -226,17 +220,10 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
                     )}
                   </div>
 
-                  {/* Status Details */}
                   <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-gray-600">
-                    {item.enabled > 0 && (
-                      <span>Enabled: {item.enabled}</span>
-                    )}
-                    {item.paused > 0 && (
-                      <span>Paused: {item.paused}</span>
-                    )}
-                    {item.removed > 0 && (
-                      <span>Removed: {item.removed}</span>
-                    )}
+                    {item.enabled > 0 && <span>Enabled: {item.enabled}</span>}
+                    {item.paused > 0 && <span>Paused: {item.paused}</span>}
+                    {item.removed > 0 && <span>Removed: {item.removed}</span>}
                   </div>
                 </div>
               );
@@ -244,7 +231,6 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
           </div>
         </div>
 
-        {/* Second Row - Summary Cards in 2x2 Grid (35% of height) */}
         <div className="mt-4" style={{ flexBasis: '35%' }}>
           <div className="grid grid-cols-2 gap-3 h-full">
             <div className="bg-white text-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col items-start justify-center">
