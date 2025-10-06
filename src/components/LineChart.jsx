@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
+// Custom Tooltip
 const CustomLineTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -29,7 +30,7 @@ const CustomLineTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function LineChartComp({ activeCampaign, period, customDates }) {
+function LineChartComp({ activeCampaign, period }) {
   const [showClicks, setShowClicks] = useState(true);
   const [showCost, setShowCost] = useState(true);
   const [showImpressions, setShowImpressions] = useState(true);
@@ -39,41 +40,31 @@ function LineChartComp({ activeCampaign, period, customDates }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS',
-      'CUSTOM': 'CUSTOM'
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
     return periodMap[period] || period;
   };
 
-  const timelineApiCall = async (customerId, cacheKeyOrPeriod) => {
+  const timelineApiCall = async (customerId, period) => {
     const token = localStorage.getItem("token");
-    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
-    const convertedPeriod = convertPeriodForAPI(actualPeriod);
+    const convertedPeriod = convertPeriodForAPI(period);
 
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`;
-    
-    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
-    }
-
-    const response = await fetch(url, {
-      headers: token
-        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-        : { "Content-Type": "application/json" },
-    });
+    const response = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`,
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      }
+    );
 
     if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
     return await response.json();
   };
 
-  const shouldBypassCache = period === 'CUSTOM';
-  const cacheKey = shouldBypassCache 
-    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
-    : period;
-
   const { data: timelineData, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    cacheKey,
+    period,
     'time-performance',
     timelineApiCall
   );
@@ -84,6 +75,7 @@ function LineChartComp({ activeCampaign, period, customDates }) {
   };
 
   if (loading && !timelineData) return <p>Loading timeline data...</p>;
+
   if (error) return <p>Error loading timeline data: {error.message}</p>;
   if (!timelineData?.length) return <p>No timeline data available.</p>;
 
@@ -92,6 +84,7 @@ function LineChartComp({ activeCampaign, period, customDates }) {
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-gray-900">Performance Over Time</h3>
 
+        {/* Custom Clickable Legend */}
         <div className="flex items-center text-xs">
           <div
             className="flex items-center mr-4 select-none"

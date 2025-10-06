@@ -84,8 +84,6 @@ export default function Layout({ user, onLogout }) {
       setPeriod("CUSTOM");
       setIsDropdownOpen(false);
       setShowCustomDatePicker(false);
-      // Force re-render by updating a timestamp or trigger
-      setCustomDates(prev => ({ ...prev })); // This triggers child components to refetch
     }
   };
 

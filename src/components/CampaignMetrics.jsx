@@ -47,14 +47,12 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const campaignsApiCall = async (customerId, cacheKeyOrPeriod) => {
+  const campaignsApiCall = async (customerId, period) => {
     const token = localStorage.getItem("token");
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    // Extract actual period from cache key
-    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
-    const convertedPeriod = convertPeriodForAPI(actualPeriod);
+    const convertedPeriod = convertPeriodForAPI(period);
     
     // Build URL with custom date parameters if period is CUSTOM
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
@@ -82,9 +80,8 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
   };
 
   // Create a cache key that includes custom dates for proper cache differentiation
-  const shouldBypassCache = period === 'CUSTOM';
-  const cacheKey = shouldBypassCache 
-    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
     : period;
 
   const { data: campaignData, loading, error } = useApiWithCache(

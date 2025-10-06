@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Download } from "lucide-react";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-function KeywordTable({ activeCampaign, period, customDates }) {
+function KeywordTable({ activeCampaign, period }) {
   const [showAll, setShowAll] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -11,28 +11,23 @@ function KeywordTable({ activeCampaign, period, customDates }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS',
-      'CUSTOM': 'CUSTOM'
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
     return periodMap[period] || period;
   };
 
-  const keywordsApiCall = async (customerId, cacheKeyOrPeriod) => {
+  const keywordsApiCall = async (customerId, period) => {
     const token = localStorage.getItem("token");
-    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
-    const convertedPeriod = convertPeriodForAPI(actualPeriod);
+    const convertedPeriod = convertPeriodForAPI(period);
 
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`;
-    
-    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
-    }
-
-    const res = await fetch(url, {
-      headers: token
-        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-        : { "Content-Type": "application/json" },
-    });
+    const res = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`,
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      }
+    );
 
     if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
     const json = await res.json();
@@ -50,14 +45,9 @@ function KeywordTable({ activeCampaign, period, customDates }) {
     };
   };
 
-  const shouldBypassCache = period === 'CUSTOM';
-  const cacheKey = shouldBypassCache 
-    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
-    : period;
-
   const { data: keywordsData, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    cacheKey,
+    period,
     'keywords',
     keywordsApiCall
   );
@@ -71,8 +61,9 @@ function KeywordTable({ activeCampaign, period, customDates }) {
     try {
       setDownloading(true);
       
+      // Convert cached data to CSV format
       const csvData = keywordsData.raw.map(k => [
-        `"${k.text}"`,
+        `"${k.text}"`, // Wrap keyword in quotes to handle commas
         k.clicks,
         k.impressions,
         k.cpc.toFixed(2),
@@ -80,12 +71,14 @@ function KeywordTable({ activeCampaign, period, customDates }) {
         k.cost.toFixed(2)
       ]);
 
+      // Create CSV content
       const headers = ['Keyword', 'Clicks', 'Impressions', 'CPC', 'CTR (%)', 'Cost'];
       const csvContent = [
         headers.join(','),
         ...csvData.map(row => row.join(','))
       ].join('\n');
 
+      // Create and download file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       
@@ -111,11 +104,13 @@ function KeywordTable({ activeCampaign, period, customDates }) {
   const shouldShowViewMore = (keywordsData?.formatted?.length || 0) > 4;
 
   if (loading && !keywordsData) return <p>Loading keywords...</p>;
+
   if (!keywordsData?.formatted?.length) return <p>No keywords data available.</p>;
 
   return (
     <div className="w-full bg-white rounded-2xl p-2 shadow-sm">
       <div className="bg-white overflow-hidden rounded-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-gray-50 rounded-t-2xl">
           <h2 className="text-lg font-semibold text-gray-900">
             Top Performing Keywords
@@ -134,6 +129,7 @@ function KeywordTable({ activeCampaign, period, customDates }) {
           </button>
         </div>
 
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] table-fixed">
             <thead className="bg-gray-100">
@@ -166,6 +162,7 @@ function KeywordTable({ activeCampaign, period, customDates }) {
           </div>
         </div>
 
+        {/* View More Button */}
         {shouldShowViewMore && (
           <div className="px-6 py-4 bg-white border-t border-gray-200 flex justify-center rounded-b-2xl">
             <button

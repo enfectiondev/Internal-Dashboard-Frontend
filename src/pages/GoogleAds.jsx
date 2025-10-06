@@ -23,10 +23,9 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const keyStatsApiCall = async (customerId, cacheKeyOrPeriod) => {
+  const keyStatsApiCall = async (customerId, period) => {
     const token = localStorage.getItem("token");
-    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
-    const convertedPeriod = convertPeriodForAPI(actualPeriod);
+    const convertedPeriod = convertPeriodForAPI(period);
 
     // Build URL with custom date parameters if needed
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
@@ -57,9 +56,8 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
   };
 
   // Create cache key that includes custom dates
-  const shouldBypassCache = period === 'CUSTOM';
-  const cacheKey = shouldBypassCache 
-    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
     : period;
 
   const { data: metrics, loading } = useApiWithCache(

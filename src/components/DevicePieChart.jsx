@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-function DevicePieChart({ activeCampaign, period, customDates }) {
+function DevicePieChart({ activeCampaign, period }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSlice, setActiveSlice] = useState(null);
 
@@ -27,28 +27,23 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS',
-      'CUSTOM': 'CUSTOM'
+      'LAST_1_YEAR': 'LAST_365_DAYS'
     };
     return periodMap[period] || period;
   };
 
-  const deviceApiCall = async (customerId, cacheKeyOrPeriod) => {
+  const deviceApiCall = async (customerId, period) => {
     const token = localStorage.getItem("token");
-    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
-    const convertedPeriod = convertPeriodForAPI(actualPeriod);
+    const convertedPeriod = convertPeriodForAPI(period);
 
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${convertedPeriod}`;
-    
-    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
-    }
-
-    const res = await fetch(url, {
-      headers: token
-        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-        : { "Content-Type": "application/json" },
-    });
+    const res = await fetch(
+      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${convertedPeriod}`,
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      }
+    );
 
     if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
     const devices = await res.json();
@@ -80,18 +75,14 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
     ];
   };
 
-  const shouldBypassCache = period === 'CUSTOM';
-  const cacheKey = shouldBypassCache 
-    ? `CUSTOM-${Date.now()}` // Use timestamp to always bypass cache
-    : period;
-
   const { data: chartDataList, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    cacheKey,
+    period,
     'device-performance',
     deviceApiCall
   );
 
+  // Calculate dynamic radius based on text length
   const getCurrentText = () => {
     return chartDataList?.[currentIndex]?.name || "";
   };
@@ -101,15 +92,17 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
     const baseInnerRadius = 30;
     const baseOuterRadius = 80;
     
+    // Estimate text width (rough calculation: 7px per character)
     const estimatedTextWidth = text.length * 7;
     const minRequiredRadius = estimatedTextWidth / 2;
     
+    // Ensure inner radius is large enough for text with some padding
     const dynamicInnerRadius = Math.max(baseInnerRadius, minRequiredRadius + 10);
     const dynamicOuterRadius = Math.max(baseOuterRadius, dynamicInnerRadius + 40);
     
     return {
-      innerRadius: Math.min(dynamicInnerRadius, 60),
-      outerRadius: Math.min(dynamicOuterRadius, 100)
+      innerRadius: Math.min(dynamicInnerRadius, 60), // Cap at 60 to keep chart visible
+      outerRadius: Math.min(dynamicOuterRadius, 100)  // Cap at 100 to fit container
     };
   };
 
@@ -124,10 +117,12 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
       prev === (chartDataList?.length || 1) - 1 ? 0 : prev + 1
     );
 
+  // Custom label component that handles text wrapping
   const renderCenterLabel = ({ cx, cy }) => {
     const text = getCurrentText();
     const maxCharsPerLine = 12;
     
+    // Split text into multiple lines if too long
     const words = text.split(' ');
     const lines = [];
     let currentLine = '';
@@ -142,6 +137,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
     });
     if (currentLine) lines.push(currentLine);
     
+    // If still too long, truncate
     const finalLines = lines.map(line => 
       line.length > maxCharsPerLine ? line.substring(0, maxCharsPerLine - 3) + '...' : line
     );
@@ -190,6 +186,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
             
             return (
               <>
+                {/* Page Indicators - Above pie chart */}
                 {totalSections > 1 && (
                   <div className="flex justify-center mb-4 space-x-2">
                     {Array.from({ length: totalSections }, (_, index) => (
@@ -208,6 +205,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
                 )}
 
                 <div className="flex justify-between items-center">
+                  {/* Left Arrow - Only show if there are multiple sections and not at first item */}
                   <div className="w-12 flex justify-center">
                     {totalSections > 1 && currentIndex > 0 ? (
                       <button 
@@ -218,7 +216,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
                         <IoMdArrowDropleft size={50} color="#1A4752" />
                       </button>
                     ) : (
-                      <div className="w-12"></div>
+                      <div className="w-12"></div> // Empty space to maintain centering
                     )}
                   </div>
 
@@ -258,6 +256,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
                     </ResponsiveContainer>
                   </div>
 
+                  {/* Right Arrow - Only show if there are multiple sections and not at last item */}
                   <div className="w-12 flex justify-center">
                     {totalSections > 1 && currentIndex < maxIndex ? (
                       <button 
@@ -268,7 +267,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
                         <IoMdArrowDropright size={50} color="#1A4752" />
                       </button>
                     ) : (
-                      <div className="w-12"></div>
+                      <div className="w-12"></div> // Empty space to maintain centering
                     )}
                   </div>
                 </div>
@@ -276,6 +275,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
             );
           })()}
 
+          {/* Clickable Legend */}
           <div className="flex flex-wrap justify-center mt-2 text-xs">
             {(chartDataList[currentIndex]?.data || []).map((item, index) => (
               <div
