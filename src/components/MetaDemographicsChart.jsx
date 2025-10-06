@@ -18,24 +18,36 @@ function MetaDemographicsChart({ selectedCampaigns, period, customDates, faceboo
     setError(null);
 
     try {
-      const token = facebookToken || (typeof window !== 'undefined' ? window.localStorage?.getItem('facebook_token') : null);
+      const token = facebookToken || localStorage.getItem('facebook_token');
       
       if (!token) {
         throw new Error('No Facebook token available');
       }
       
-      const campaignIds = selectedCampaigns.map(c => c.campaign_id).join(',');
+      const campaignIds = selectedCampaigns.map(c => c.campaign_id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/demographics?campaign_ids=${campaignIds}`;
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/demographics`;
       
+      // Build query params for date filters
+      const params = new URLSearchParams();
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+        params.append('start_date', customDates.startDate);
+        params.append('end_date', customDates.endDate);
       } else {
-        url += `&period=${period || '90d'}`;
+        params.append('period', period || '90d');
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
       }
 
       const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ campaign_ids: campaignIds })
       });
 
       if (!response.ok) {
