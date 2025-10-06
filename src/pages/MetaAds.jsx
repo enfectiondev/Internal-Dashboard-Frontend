@@ -22,21 +22,17 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
   const [showStats, setShowStats] = useState(false);
   const [selectedCampaignsForStats, setSelectedCampaignsForStats] = useState([]);
 
-  // Check if Facebook token exists as fallback
-  const storedToken = typeof window !== 'undefined' ? window.localStorage?.getItem('facebook_token') : null;
-  const hasFacebookToken = isAuthenticated || !!storedToken;
-  const activeToken = facebookToken || storedToken;
+  // Check if Facebook token exists in localStorage as fallback
+  const hasFacebookToken = isAuthenticated || localStorage.getItem('facebook_token');
 
-  // Get display user - prefer original user, fallback to Facebook user
+  // Get display user - prefer original user from localStorage, fallback to Facebook user
   const getDisplayUser = () => {
-    if (typeof window !== 'undefined') {
-      const storedUser = window.localStorage?.getItem("user");
-      if (storedUser) {
-        try {
-          return JSON.parse(storedUser);
-        } catch (err) {
-          console.error("Error parsing stored user:", err);
-        }
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser);
+      } catch (err) {
+        console.error("Error parsing stored user:", err);
       }
     }
     return facebookUser || { 
@@ -50,7 +46,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
 
   // API call function for campaigns
   const campaignApiCall = useCallback(async (accountId, period, customDates) => {
-    const token = facebookToken;
+    const token = facebookToken || localStorage.getItem('facebook_token');
     
     if (!token) {
       throw new Error('No Facebook token available');
@@ -91,6 +87,9 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     setSelectedCampaignsForStats(campaigns);
     setShowStats(true);
   };
+
+  // Get the active token for passing to chart components
+  const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
   if (isLoading) {
     return (
@@ -199,13 +198,13 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                     selectedCampaigns={selectedCampaignsForStats}
                     period={period}
                     customDates={customDates}
-                    facebookToken={facebookToken}
+                    facebookToken={activeToken}
                   />
                   <MetaDemographicsChart
                     selectedCampaigns={selectedCampaignsForStats}
                     period={period}
                     customDates={customDates}
-                    facebookToken={facebookToken}
+                    facebookToken={activeToken}
                     currency={selectedAccount.currency}
                   />
                 </div>
@@ -215,7 +214,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                   selectedCampaigns={selectedCampaignsForStats}
                   period={period}
                   customDates={customDates}
-                  facebookToken={facebookToken}
+                  facebookToken={activeToken}
                   currency={selectedAccount.currency}
                 />
               </div>
