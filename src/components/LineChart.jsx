@@ -45,9 +45,10 @@ function LineChartComp({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const timelineApiCall = async (customerId, period) => {
+  const timelineApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
-    const convertedPeriod = convertPeriodForAPI(period);
+    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
 
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`;
     

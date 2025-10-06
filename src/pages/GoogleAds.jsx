@@ -23,9 +23,10 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const keyStatsApiCall = async (customerId, period) => {
+  const keyStatsApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
-    const convertedPeriod = convertPeriodForAPI(period);
+    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
 
     // Build URL with custom date parameters if needed
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;

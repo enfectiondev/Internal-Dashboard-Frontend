@@ -49,13 +49,14 @@ function CampaignPerformanceDetails({ activeCampaign, period, customDates }) {
     };
     return periodMap[period] || period;
   };
-
-  const campaignDetailsApiCall = async (customerId, period) => {
+  
+  const campaignDetailsApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const convertedPeriod = convertPeriodForAPI(period);
+    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
     
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
     

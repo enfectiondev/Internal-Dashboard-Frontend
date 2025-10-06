@@ -33,9 +33,10 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const deviceApiCall = async (customerId, period) => {
+  const deviceApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
-    const convertedPeriod = convertPeriodForAPI(period);
+    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
 
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${convertedPeriod}`;
     

@@ -47,12 +47,14 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const campaignsApiCall = async (customerId, period) => {
+  const campaignsApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const convertedPeriod = convertPeriodForAPI(period);
+    // Extract actual period from cache key
+    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
     
     // Build URL with custom date parameters if period is CUSTOM
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;

@@ -36,9 +36,10 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS", customD
     return typeMap[cleanType] || 'Other';
   };
 
-  const campaignProgressApiCall = async (customerId, period) => {
+  const campaignProgressApiCall = async (customerId, cacheKeyOrPeriod) => {
     const token = localStorage.getItem("token");
-    const convertedPeriod = convertPeriodForAPI(period);
+    const actualPeriod = cacheKeyOrPeriod.startsWith('CUSTOM-') ? 'CUSTOM' : cacheKeyOrPeriod;
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
 
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
