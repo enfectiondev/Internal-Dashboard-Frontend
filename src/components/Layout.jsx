@@ -687,7 +687,7 @@ export default function Layout({ user, onLogout }) {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center space-x-2 bg-[#6A6A6A] text-white p-1 md:p-2 rounded text-sm md:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 min-w-[80px]"
+                    className="flex items-center space-x-2 bg-[#196473] text-white p-1 md:p-2 rounded text-sm md:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 min-w-[80px]"
                   >
                     <span>{getCurrentPeriodLabel()}</span>
                     <svg 
@@ -701,7 +701,7 @@ export default function Layout({ user, onLogout }) {
                   </button>
                   
                 {isDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[280px] z-40">
+                  <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[280px] z-50">
                     {periodOptions.map((option) => (
                       <button
                         key={option.value}
