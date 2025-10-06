@@ -81,7 +81,9 @@ function MetaDemographicsChart({ selectedCampaigns, period, customDates, faceboo
     const ageGenderMap = new Map();
 
     demographicsData.forEach(campaign => {
-      const campaignName = selectedCampaigns.find(c => c.campaign_id === campaign.campaign_id)?.campaign_name || campaign.campaign_id;
+      // Find campaign name, with fallback to campaign_id if not found
+      const campaignObj = selectedCampaigns.find(c => c.campaign_id === campaign.campaign_id);
+      const campaignName = campaignObj?.campaign_name || campaign.campaign_id;
 
       campaign.demographics.forEach(demo => {
         const key = `${demo.age}_${demo.gender}`;
@@ -193,14 +195,20 @@ function MetaDemographicsChart({ selectedCampaigns, period, customDates, faceboo
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
             />
-            {selectedCampaigns.map((campaign, index) => (
-              <Bar
-                key={campaign.campaign_id}
-                dataKey={campaign.campaign_name}
-                fill={getBarColor(index)}
-                name={campaign.campaign_name}
-              />
-            ))}
+            {selectedCampaigns.map((campaign, index) => {
+              // Only render bar if campaign has data
+              const hasData = chartData.some(row => row[campaign.campaign_name] !== undefined);
+              if (!hasData) return null;
+              
+              return (
+                <Bar
+                  key={campaign.campaign_id}
+                  dataKey={campaign.campaign_name}
+                  fill={getBarColor(index)}
+                  name={campaign.campaign_name}
+                />
+              );
+            })}
           </BarChart>
         </ResponsiveContainer>
       ) : (

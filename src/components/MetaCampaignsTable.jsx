@@ -1,10 +1,18 @@
 import React, { useState } from "react";
 
-function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats }) {
+function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, selectedCampaignsForStats = [] }) {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showAll, setShowAll] = useState(false);
   
   const displayedCampaigns = showAll ? campaigns : campaigns.slice(0, 5);
+  
+  // Sync selectedRows with selectedCampaignsForStats when stats are showing
+  React.useEffect(() => {
+    if (selectedCampaignsForStats.length > 0) {
+      const statsIds = selectedCampaignsForStats.map(c => c.campaign_id);
+      setSelectedRows(new Set(statsIds));
+    }
+  }, [selectedCampaignsForStats]);
   
   const toggleRow = (campaignId) => {
     const newSelected = new Set(selectedRows);

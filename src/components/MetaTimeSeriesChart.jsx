@@ -112,7 +112,9 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
     timeseriesData.forEach(campaign => {
       if (!selectedCampaignIds.includes(campaign.campaign_id)) return;
 
-      const campaignName = selectedCampaigns.find(c => c.campaign_id === campaign.campaign_id)?.campaign_name || campaign.campaign_id;
+      // Find campaign name, with fallback to campaign_id if not found
+      const campaignObj = selectedCampaigns.find(c => c.campaign_id === campaign.campaign_id);
+      const campaignName = campaignObj?.campaign_name || campaign.campaign_id;
 
       campaign.timeseries.forEach(point => {
         if (!dateMap.has(point.date)) {

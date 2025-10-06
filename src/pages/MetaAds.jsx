@@ -187,12 +187,13 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
               campaigns={campaignData.campaigns || []}
               currency={selectedAccount.currency}
               onLoadStats={handleLoadStats}
+              selectedCampaignsForStats={selectedCampaignsForStats}
             />
 
             {/* Stats Visualization Section */}
             {showStats && selectedCampaignsForStats.length > 0 && (
               <div className="space-y-6">
-                {/* Time Series and Demographics Charts */}
+                {/* Time Series and Placements Charts - SWAPPED POSITIONS */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <MetaTimeSeriesChart
                     selectedCampaigns={selectedCampaignsForStats}
@@ -200,7 +201,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                     customDates={customDates}
                     facebookToken={activeToken}
                   />
-                  <MetaDemographicsChart
+                  <MetaPlacementsChart
                     selectedCampaigns={selectedCampaignsForStats}
                     period={period}
                     customDates={customDates}
@@ -209,8 +210,8 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                   />
                 </div>
 
-                {/* Placements Chart */}
-                <MetaPlacementsChart
+                {/* Demographics Chart - Now Full Width */}
+                <MetaDemographicsChart
                   selectedCampaigns={selectedCampaignsForStats}
                   period={period}
                   customDates={customDates}
