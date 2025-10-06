@@ -70,33 +70,33 @@ const InstagramAnalytics = ({ period }) => {
   return (
     <div className="space-y-6">
       {/* User Info Header */}
-      <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
+        <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4">
             {facebookUser.picture && (
-              <img 
+                <img 
                 src={facebookUser.picture} 
                 alt={facebookUser.name}
-                className="w-12 h-12 rounded-full border-2 border-[#508995]"
-              />
+                className="w-12 h-12 rounded-full border-2 border-[#508995] object-cover"
+                />
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                 Connected to Instagram Business
-              </h2>
-              <p className="text-[#A1BCD3]">
+                </h2>
+                <p className="text-[#A1BCD3]">
                 {facebookUser.name} • Connected via Facebook
-              </p>
+                </p>
             </div>
-          </div>
-          <button
+            </div>
+            <button
             onClick={handleDisconnect}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
-          >
+            >
             Disconnect
-          </button>
+            </button>
         </div>
-      </div>
+        </div>
 
       {/* Instagram Analytics Content */}
       {isLoadingData ? (

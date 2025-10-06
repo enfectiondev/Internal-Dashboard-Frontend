@@ -538,43 +538,51 @@ export default function Layout({ user, onLogout }) {
     <div className="min-h-screen bg-gradient-to-br from-[#0B4E5D] via-[#05242A] to-[#1E1E1E] text-white overflow-x-hidden">
       <header className="backdrop-blur-sm p-4 flex items-center justify-between border-b border-white relative z-[9999]">
         <h1 className="text-2xl md:text-4xl font-normal text-[#A1BCD3]">ANALYTICS DASHBOARD</h1>
-        <div className="flex items-center space-x-3">
-          <span className="text-sm md:text-base text-white">{user?.name}</span>
-          
-          <div className="relative z-[9999]" ref={profileDropdownRef}>
-            <div 
-              className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
-              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            >
-              <span className="text-teal-800 font-semibold text-sm md:text-base">
-                {user?.name
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()}
-              </span>
-            </div>
-
-            {isProfileDropdownOpen && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-[9999]">
-                <div className="py-2">
-                  <button
-                    onClick={() => handlePageNavigation('privacy')}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    Privacy Policy
-                  </button>
-                  <button
-                    onClick={() => handlePageNavigation('terms')}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    Terms of Service
-                  </button>
-                </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-sm md:text-base text-white">{user?.name}</span>
+            
+            <div className="relative z-[9999]" ref={profileDropdownRef}>
+              <div 
+                className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors overflow-hidden border-2 border-white"
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+              >
+                {user?.picture ? (
+                  <img 
+                    src={user.picture} 
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-teal-800 font-semibold text-sm md:text-base">
+                    {user?.name
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </span>
+                )}
               </div>
-            )}
+
+              {isProfileDropdownOpen && (
+                <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px] z-[9999]">
+                  <div className="py-2">
+                    <button
+                      onClick={() => handlePageNavigation('privacy')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Privacy Policy
+                    </button>
+                    <button
+                      onClick={() => handlePageNavigation('terms')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Terms of Service
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
       </header>
 
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-80px)] max-w-full">

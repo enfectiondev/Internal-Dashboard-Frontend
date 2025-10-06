@@ -96,31 +96,31 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
       <div className="space-y-6">
         {/* User Info Header with Selected Account */}
         <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
-          <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {displayUser.picture && (
+            {(facebookUser?.picture || displayUser.picture) && (
                 <img 
-                  src={displayUser.picture} 
-                  alt={displayUser.name}
-                  className="w-12 h-12 rounded-full border-2 border-[#508995]"
+                src={facebookUser?.picture || displayUser.picture} 
+                alt={displayUser.name}
+                className="w-12 h-12 rounded-full border-2 border-[#508995] object-cover"
                 />
-              )}
-              <div>
+            )}
+            <div>
                 <h2 className="text-xl font-bold text-white">
-                  {selectedAccount.name}
+                {selectedAccount.name}
                 </h2>
                 <p className="text-[#A1BCD3]">
-                  {selectedAccount.account_id} | {selectedAccount.currency}
+                {selectedAccount.account_id} | {selectedAccount.currency}
                 </p>
-              </div>
+            </div>
             </div>
             <button
-              onClick={handleDisconnect}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+            onClick={handleDisconnect}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
             >
-              Disconnect
+            Disconnect
             </button>
-          </div>
+        </div>
         </div>
 
         {/* Error Display */}
@@ -214,33 +214,33 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
   // Default view when no account is selected but authenticated
   return (
     <div className="space-y-6">
-      <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
+        <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            {displayUser.picture && (
-              <img 
-                src={displayUser.picture} 
+            <div className="flex items-center space-x-4">
+            {(facebookUser?.picture || displayUser.picture) && (
+                <img 
+                src={facebookUser?.picture || displayUser.picture} 
                 alt={displayUser.name}
-                className="w-12 h-12 rounded-full border-2 border-[#508995]"
-              />
+                className="w-12 h-12 rounded-full border-2 border-[#508995] object-cover"
+                />
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white">
                 Connected to Meta Ads
-              </h2>
-              <p className="text-[#A1BCD3]">
+                </h2>
+                <p className="text-[#A1BCD3]">
                 {displayUser.name} • {displayUser.email}
-              </p>
+                </p>
             </div>
-          </div>
-          <button
+            </div>
+            <button
             onClick={handleDisconnect}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
-          >
+            >
             Disconnect
-          </button>
+            </button>
         </div>
-      </div>
+        </div>
 
       <div className="bg-blue-500/20 border border-blue-500 text-blue-300 px-6 py-4 rounded-lg">
         <div className="flex items-center space-x-3">
