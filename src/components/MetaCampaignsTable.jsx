@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-function MetaCampaignsTable({ campaigns = [], currency = "MYR" }) {
+function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats }) {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showAll, setShowAll] = useState(false);
   
@@ -51,6 +51,11 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR" }) {
     a.href = url;
     a.download = 'meta_campaigns.csv';
     a.click();
+  };
+
+  const handleLoadStats = () => {
+    const selectedCampaigns = campaigns.filter(c => selectedRows.has(c.campaign_id));
+    onLoadStats(selectedCampaigns);
   };
   
   if (!campaigns || campaigns.length === 0) {
@@ -144,10 +149,19 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR" }) {
       )}
       
       {selectedRows.size > 0 && (
-        <div className="p-4 bg-blue-50 border-t border-blue-200">
+        <div className="p-4 bg-blue-50 border-t border-blue-200 flex justify-between items-center">
           <p className="text-sm text-blue-900">
             {selectedRows.size} campaign{selectedRows.size > 1 ? 's' : ''} selected
           </p>
+          <button
+            onClick={handleLoadStats}
+            className="flex items-center space-x-2 px-6 py-2 bg-[#1A4752] text-white rounded-lg hover:bg-[#0F3942] transition-colors font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Load Stats for Selected Campaigns</span>
+          </button>
         </div>
       )}
     </div>
