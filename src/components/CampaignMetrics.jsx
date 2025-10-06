@@ -31,7 +31,7 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function CampaignMetrics({ activeCampaign, period }) {
+function CampaignMetrics({ activeCampaign, period, customDates }) {
   const [showClicks, setShowClicks] = useState(true);
   const [showImpressions, setShowImpressions] = useState(true);
 
@@ -41,7 +41,8 @@ function CampaignMetrics({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
@@ -52,10 +53,15 @@ function CampaignMetrics({ activeCampaign, period }) {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const convertedPeriod = convertPeriodForAPI(period);
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`,
-      { headers }
-    );
+    
+    // Build URL with custom date parameters if period is CUSTOM
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, { headers });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     const json = await res.json();
@@ -73,10 +79,15 @@ function CampaignMetrics({ activeCampaign, period }) {
     }));
   };
 
+  // Create a cache key that includes custom dates for proper cache differentiation
+  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
+    ? `${period}-${customDates.startDate}-${customDates.endDate}`
+    : period;
+
   const { data: campaignData, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    period,
-    'campaigns-shared', // Same endpoint name
+    cacheKey,
+    'campaigns-shared',
     campaignsApiCall
   );
 
@@ -96,6 +107,14 @@ function CampaignMetrics({ activeCampaign, period }) {
     transition: "color 0.2s, text-decoration 0.2s",
   };
 
+  // Format period display text
+  const getPeriodDisplayText = () => {
+    if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      return `${customDates.startDate} to ${customDates.endDate}`;
+    }
+    return period.replace('LAST_', '').replace('_', ' ').toLowerCase();
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-300 h-full">
       <div className="mb-2">
@@ -104,7 +123,7 @@ function CampaignMetrics({ activeCampaign, period }) {
             Campaign Performance Metrics
             {activeCampaign?.name && (
               <span className="text-sm font-normal text-gray-600 block">
-                {activeCampaign.name} - {period.replace('LAST_', '').replace('_', ' ').toLowerCase()}
+                {activeCampaign.name} - {getPeriodDisplayText()}
               </span>
             )}
           </h3>
