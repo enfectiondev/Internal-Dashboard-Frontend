@@ -47,7 +47,7 @@ function MetaDemographicsChart({ selectedCampaigns, period, customDates, faceboo
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ campaign_ids: campaignIds })
+        body: JSON.stringify(campaignIds)
       });
 
       if (!response.ok) {
