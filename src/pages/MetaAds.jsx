@@ -6,6 +6,20 @@ import MetaCampaignsTable from "../components/MetaCampaignsTable";
 import MetaLoadingSkeleton from "../components/MetaLoadingSkeleton";
 import ProgressBar from "../components/ProgressBar";
 
+// At the top, update handleDisconnect
+const handleDisconnect = () => {
+  localStorage.removeItem('facebook_token');
+  window.location.href = '/dashboard'; // Force reload to update auth state
+};
+
+// Update the disconnect button to use local handleDisconnect
+<button
+  onClick={handleDisconnect}
+  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+>
+  Disconnect
+</button>
+
 const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
     facebookUser, 
