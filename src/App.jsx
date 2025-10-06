@@ -126,12 +126,23 @@ export default function App() {
   }, []);
 
   const handleLogout = () => {
+    // Clear all tokens and user data
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    localStorage.removeItem("facebook_token"); // Remove Facebook token on logout
+    localStorage.removeItem("facebook_token");
+    
+    // Clear any other potentially cached items
+    localStorage.removeItem('switch_to_facebook_tab');
+    localStorage.removeItem('switch_to_meta_ads_tab');
+    
+    // Reset user state
     setUser(null);
+    
+    // Important: Use window.location.href for a full page reload
+    // This ensures all state is cleared and useEffect runs fresh
+    window.location.href = "/login";
   };
-
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
