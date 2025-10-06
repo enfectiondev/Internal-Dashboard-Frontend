@@ -682,7 +682,7 @@ export default function Layout({ user, onLogout }) {
                 />
               </div>
             ) : (
-              <div className="flex items-center space-x-2 bg-[#6A6A6A] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white flex-shrink-0">
+              <div className="flex items-center space-x-2 bg-[#196473] px-3 md:px-4 py-1 md:py-2 rounded-3xl text-white flex-shrink-0">
                 <span className="text-sm md:text-base whitespace-nowrap">Period:</span>
                 <div className="relative" ref={dropdownRef}>
                   <button

@@ -1,0 +1,84 @@
+.
+├── .DS_Store
+├── .gitignore
+├── amplify.yml
+├── eslint.config.js
+├── index.html
+├── js.json
+├── js2.json
+├── package-lock.json
+├── package.json
+├── project_structure.txt
+├── public
+│   ├── images
+│   │   ├── ai.png
+│   │   └── logo.png
+│   └── vite.svg
+├── README.md
+├── src
+│   ├── .DS_Store
+│   ├── App.css
+│   ├── App.jsx
+│   ├── assets
+│   │   └── react.svg
+│   ├── components
+│   │   ├── AccountSelector.jsx
+│   │   ├── AIChatComponent.jsx
+│   │   ├── AnalyticsOvertime.jsx
+│   │   ├── AudienceInsightsCard.jsx
+│   │   ├── CampaignMetrics.jsx
+│   │   ├── CampaignPerformanceDetails.jsx
+│   │   ├── CampaignProgressChart.jsx
+│   │   ├── Card.jsx
+│   │   ├── CountrySelector.jsx
+│   │   ├── DateRangePicker.jsx
+│   │   ├── DevicePerformancePie.jsx
+│   │   ├── DevicePieChart.jsx
+│   │   ├── FacebookLogin.jsx
+│   │   ├── GeographicalDetailsCard.jsx
+│   │   ├── KeywordCards.jsx
+│   │   ├── KeywordTable.jsx
+│   │   ├── Layout.jsx
+│   │   ├── LineChart.jsx
+│   │   ├── MetaCampaignsTable.jsx
+│   │   ├── MetaLoadingSkeleton.jsx
+│   │   ├── MetaMetricCard.jsx
+│   │   ├── MetricCard.jsx
+│   │   ├── ProgressBar.jsx
+│   │   ├── ROIAnalytics.jsx
+│   │   ├── ScrollableTabs.jsx
+│   │   ├── SearchesOverTimeChart.jsx
+│   │   ├── SeedKeywordsInput.jsx
+│   │   ├── SuggestedKeywordsTable.jsx
+│   │   ├── SummaryPanel.jsx
+│   │   ├── TabComponents.jsx
+│   │   ├── TrafficBreakdownPie.jsx
+│   │   ├── TrafficPerfomanceBarChart.jsx
+│   │   └── UserEngagement.jsx
+│   ├── context
+│   │   ├── AuthContext.jsx
+│   │   └── CacheContext.jsx
+│   ├── hooks
+│   │   ├── useApiWithCache.jsx
+│   │   ├── useChatState.jsx
+│   │   ├── useFacebookAuth.jsx
+│   │   └── useMetaApi.jsx
+│   ├── index.css
+│   ├── main.jsx
+│   ├── pages
+│   │   ├── FacebookAnalytics.jsx
+│   │   ├── GoogleAds.jsx
+│   │   ├── GoogleAnalytics.jsx
+│   │   ├── InstagramAnalytics.jsx
+│   │   ├── IntentInsights.jsx
+│   │   ├── Login.jsx
+│   │   ├── MetaAds.jsx
+│   │   └── Reporting.jsx
+│   └── utils
+│       ├── api.js
+│       ├── chatService.js
+│       └── PDFReportGenerator.js
+├── tailwind.config.js
+└── vite.config.js
+
+10 directories, 72 files

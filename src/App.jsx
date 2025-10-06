@@ -128,8 +128,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    // Keep Facebook token separate - don't remove on main logout
-    // localStorage.removeItem("facebook_token"); // Only remove this if user specifically disconnects Facebook
+    localStorage.removeItem("facebook_token"); // Remove Facebook token on logout
     setUser(null);
   };
 
