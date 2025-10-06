@@ -19,6 +19,17 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
   const [selectedCampaignIds, setSelectedCampaignIds] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState(['spend', 'impressions']);
 
+  // Map frontend period values to backend expected values
+  const mapPeriodToBackend = (frontendPeriod) => {
+    const periodMap = {
+      'LAST_7_DAYS': '7d',
+      'LAST_30_DAYS': '30d',
+      'LAST_90_DAYS': '90d',
+      'LAST_365_DAYS': '365d'
+    };
+    return periodMap[frontendPeriod] || '90d';
+  };
+
   useEffect(() => {
     if (selectedCampaigns && selectedCampaigns.length > 0) {
       setSelectedCampaignIds([selectedCampaigns[0].campaign_id]);
@@ -47,7 +58,7 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
         params.append('start_date', customDates.startDate);
         params.append('end_date', customDates.endDate);
       } else {
-        params.append('period', period || '90d');
+        params.append('period', mapPeriodToBackend(period));
       }
       
       if (params.toString()) {
