@@ -108,7 +108,11 @@ function MetaAdSetsTable({ adsets = [], currency = "MYR", onLoadStats, selectedA
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Locations</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        </table>
+        {/* Separate the tbody into a scrollable container */}
+        <div className={`overflow-y-auto ${showAll ? 'max-h-96' : ''}`}>
+          <table className="w-full">
+            <tbody className="bg-white divide-y divide-gray-200">
             {displayedAdSets.map((adset) => (
               <tr 
                 key={adset.id}
@@ -143,8 +147,9 @@ function MetaAdSetsTable({ adsets = [], currency = "MYR", onLoadStats, selectedA
                 <td className="px-4 py-3 text-sm text-gray-900">{adset.locations.join(', ')}</td>
               </tr>
             ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
       
       {adsets.length > 5 && (

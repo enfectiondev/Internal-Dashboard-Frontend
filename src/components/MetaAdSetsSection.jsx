@@ -3,6 +3,7 @@ import MetaAdSetsTable from "../components/MetaAdSetsTable";
 import MetaAdSetsTimeSeriesChart from "../components/MetaAdSetsTimeSeriesChart";
 import MetaAdSetsDemographicsChart from "../components/MetaAdSetsDemographicsChart";
 import MetaAdSetsPlacementsChart from "../components/MetaAdSetsPlacementsChart";
+import MetaAdsSection from "../components/MetaAdsSection";
 
 function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookToken, currency }) {
   const [adSetsData, setAdSetsData] = useState([]);
@@ -184,6 +185,28 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
             No ad sets were found for the selected campaigns.
           </p>
         </div>
+      )}
+
+      {/* Add this at the very end, after Demographics Chart */}
+      {showStats && selectedAdSetsForStats.length > 0 && (
+        <>
+          <div className="border-t-4 border-[#508995] my-8"></div>
+          
+          <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4 mb-6">
+            <h3 className="text-xl font-bold text-white mb-1">Ads for Selected Ad Sets</h3>
+            <p className="text-[#A1BCD3] text-sm">
+              View and analyze ads from the {selectedAdSetsForStats.length} selected ad set{selectedAdSetsForStats.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          <MetaAdsSection
+            selectedAdSets={selectedAdSetsForStats}
+            period={period}
+            customDates={customDates}
+            facebookToken={facebookToken}
+            currency={currency}
+          />
+        </>
       )}
     </div>
   );
