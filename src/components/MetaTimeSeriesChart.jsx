@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const METRIC_OPTIONS = [
@@ -37,12 +37,6 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
       fetchTimeSeriesData();
     }
   }, [selectedCampaigns, period, customDates]);
-
-  // useEffect(() => {
-  //   if (onTotalsCalculated && totals) {
-  //     onTotalsCalculated(totals);
-  //   }
-  // }, [totals, onTotalsCalculated]);
 
   const fetchTimeSeriesData = async () => {
     setIsLoading(true);
@@ -141,11 +135,11 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
 
   const chartData = processChartData();
 
-  // Add this after processChartData function
-  const calculateTotals = () => {
+  // Calculate totals using useMemo
+  const totals = useMemo(() => {
     if (!timeseriesData || timeseriesData.length === 0) return null;
 
-    const totals = {
+    const calculated = {
       spend: 0,
       impressions: 0,
       clicks: 0,
@@ -160,19 +154,18 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
       if (!selectedCampaignIds.includes(campaign.campaign_id)) return;
       
       campaign.timeseries.forEach(point => {
-        totals.spend += point.spend || 0;
-        totals.impressions += point.impressions || 0;
-        totals.clicks += point.clicks || 0;
-        totals.reach += point.reach || 0;
-        totals.conversions += point.conversions || 0;
+        calculated.spend += point.spend || 0;
+        calculated.impressions += point.impressions || 0;
+        calculated.clicks += point.clicks || 0;
+        calculated.reach += point.reach || 0;
+        calculated.conversions += point.conversions || 0;
       });
     });
 
-    return totals;
-  };
+    return calculated;
+  }, [timeseriesData, selectedCampaignIds]);
 
-  const totals = calculateTotals();
-
+  // Send totals to parent component
   useEffect(() => {
     if (onTotalsCalculated && totals) {
       onTotalsCalculated(totals);
