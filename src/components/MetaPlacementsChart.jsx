@@ -1,76 +1,76 @@
 import React, { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookToken, currency = "MYR" }) {
   const [placementsData, setPlacementsData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedMetric, setSelectedMetric] = useState('spend');
-  const [viewType, setViewType] = useState('bar'); // 'bar' or 'pie'
+  const [selectedMetric, setSelectedMetric] = useState("spend");
 
   // Map frontend period values to backend expected values
   const mapPeriodToBackend = (frontendPeriod) => {
     const periodMap = {
-      'LAST_7_DAYS': '7d',
-      'LAST_30_DAYS': '30d',
-      'LAST_90_DAYS': '90d',
-      'LAST_365_DAYS': '365d'
+      LAST_7_DAYS: "7d",
+      LAST_30_DAYS: "30d",
+      LAST_90_DAYS: "90d",
+      LAST_365_DAYS: "365d",
     };
-    return periodMap[frontendPeriod] || '90d';
+    return periodMap[frontendPeriod] || "90d";
   };
 
   useEffect(() => {
     if (selectedCampaigns && selectedCampaigns.length > 0) {
       fetchPlacementsData();
     }
-  }, [selectedCampaigns, period, customDates]); // Added period and customDates as dependencies
+  }, [selectedCampaigns, period, customDates]);
 
   const fetchPlacementsData = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const token = facebookToken || localStorage.getItem('facebook_token');
-      
-      if (!token) {
-        throw new Error('No Facebook token available');
-      }
-      
-      const campaignIds = selectedCampaigns.map(c => c.campaign_id);
-      
+      const token = facebookToken || localStorage.getItem("facebook_token");
+      if (!token) throw new Error("No Facebook token available");
+
+      const campaignIds = selectedCampaigns.map((c) => c.campaign_id);
+
       let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/placements`;
-      
-      // Build query params for date filters
       const params = new URLSearchParams();
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        params.append('start_date', customDates.startDate);
-        params.append('end_date', customDates.endDate);
+
+      if (period === "CUSTOM" && customDates?.startDate && customDates?.endDate) {
+        params.append("start_date", customDates.startDate);
+        params.append("end_date", customDates.endDate);
       } else {
-        params.append('period', mapPeriodToBackend(period));
+        params.append("period", mapPeriodToBackend(period));
       }
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
+
+      if (params.toString()) url += `?${params.toString()}`;
 
       const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(campaignIds)
+        body: JSON.stringify(campaignIds),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch placements data: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Failed to fetch placements data: ${response.status}`);
 
       const data = await response.json();
       setPlacementsData(data);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching placements:', err);
+      console.error("Error fetching placements:", err);
     } finally {
       setIsLoading(false);
     }
@@ -81,18 +81,16 @@ function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookT
 
     const platformMap = new Map();
 
-    placementsData.forEach(campaign => {
-      const campaignName = selectedCampaigns.find(c => c.campaign_id === campaign.campaign_id)?.campaign_name || campaign.campaign_id;
+    placementsData.forEach((campaign) => {
+      const campaignName =
+        selectedCampaigns.find((c) => c.campaign_id === campaign.campaign_id)?.campaign_name ||
+        campaign.campaign_id;
 
-      campaign.placements.forEach(placement => {
+      campaign.placements.forEach((placement) => {
         const key = placement.platform;
-        
         if (!platformMap.has(key)) {
-          platformMap.set(key, {
-            platform: key.charAt(0).toUpperCase() + key.slice(1)
-          });
+          platformMap.set(key, { platform: key.charAt(0).toUpperCase() + key.slice(1) });
         }
-
         const entry = platformMap.get(key);
         entry[campaignName] = placement[selectedMetric];
       });
@@ -101,49 +99,24 @@ function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookT
     return Array.from(platformMap.values());
   };
 
-  const processPieChartData = () => {
-    if (!placementsData || placementsData.length === 0) return [];
-
-    const platformTotals = {};
-
-    placementsData.forEach(campaign => {
-      campaign.placements.forEach(placement => {
-        const platform = placement.platform.charAt(0).toUpperCase() + placement.platform.slice(1);
-        
-        if (!platformTotals[platform]) {
-          platformTotals[platform] = 0;
-        }
-        platformTotals[platform] += placement[selectedMetric];
-      });
-    });
-
-    return Object.entries(platformTotals).map(([name, value]) => ({
-      name,
-      value
-    }));
-  };
-
   const barChartData = processBarChartData();
-  const pieChartData = processPieChartData();
+  const COLORS = ["#1A4752", "#508995", "#22C55E", "#F59E0B", "#8B5CF6", "#EF4444"];
 
-  const COLORS = ['#1A4752', '#508995', '#22C55E', '#F59E0B', '#8B5CF6', '#EF4444'];
-
-  const getBarColor = (index) => {
-    return COLORS[index % COLORS.length];
-  };
+  const getBarColor = (index) => COLORS[index % COLORS.length];
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-900">{payload[0].payload.platform || payload[0].name}</p>
+          <p className="font-semibold text-gray-900">
+            {payload[0].payload.platform || payload[0].name}
+          </p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm text-gray-700">
               <span style={{ color: entry.color }}>{entry.name}: </span>
-              {selectedMetric === 'spend' 
+              {selectedMetric === "spend"
                 ? `${currency} ${Number(entry.value).toFixed(2)}`
-                : Number(entry.value).toLocaleString()
-              }
+                : Number(entry.value).toLocaleString()}
             </p>
           ))}
         </div>
@@ -177,42 +150,20 @@ function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookT
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Platform Placements</h3>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setViewType('bar')}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-              viewType === 'bar'
-                ? 'bg-[#1A4752] text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Bar Chart
-          </button>
-          <button
-            onClick={() => setViewType('pie')}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-              viewType === 'pie'
-                ? 'bg-[#1A4752] text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Pie Chart
-          </button>
-        </div>
       </div>
 
       {/* Metric Selection */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Metric</label>
         <div className="flex flex-wrap gap-2">
-          {['spend', 'impressions', 'reach', 'results'].map(metric => (
+          {["spend", "impressions", "reach"].map((metric) => (
             <button
               key={metric}
               onClick={() => setSelectedMetric(metric)}
               className={`px-3 py-1 rounded-full text-sm font-medium transition-colors capitalize ${
                 selectedMetric === metric
-                  ? 'bg-[#508995] text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? "bg-[#508995] text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
             >
               {metric}
@@ -221,67 +172,49 @@ function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookT
         </div>
       </div>
 
-      {/* Chart */}
-      {viewType === 'bar' ? (
-        barChartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={barChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis 
-                dataKey="platform" 
-                stroke="#6B7280"
-                style={{ fontSize: '12px' }}
+      {/* Horizontal Bar Chart */}
+      {barChartData.length > 0 ? (
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart
+            layout="vertical"
+            data={barChartData}
+            margin={{ top: 20, right: 30, left: 60, bottom: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis
+              type="number"
+              stroke="#6B7280"
+              style={{ fontSize: "12px" }}
+              tickFormatter={(value) =>
+                selectedMetric === "spend"
+                  ? `${currency} ${Number(value).toFixed(2)}`
+                  : Number(value).toLocaleString()
+              }
+            />
+            <YAxis
+              type="category"
+              dataKey="platform"
+              stroke="#6B7280"
+              style={{ fontSize: "12px" }}
+              width={100}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ paddingTop: "20px" }} />
+            {selectedCampaigns.map((campaign, index) => (
+              <Bar
+                key={campaign.campaign_id}
+                dataKey={campaign.campaign_name}
+                fill={getBarColor(index)}
+                name={campaign.campaign_name}
+                barSize={20}
               />
-              <YAxis 
-                stroke="#6B7280"
-                style={{ fontSize: '12px' }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-              />
-              {selectedCampaigns.map((campaign, index) => (
-                <Bar
-                  key={campaign.campaign_id}
-                  dataKey={campaign.campaign_name}
-                  fill={getBarColor(index)}
-                  name={campaign.campaign_name}
-                />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p>No placements data available for the selected campaigns.</p>
-          </div>
-        )
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
       ) : (
-        pieChartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={400}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p>No placements data available for the selected campaigns.</p>
-          </div>
-        )
+        <div className="text-center py-12 text-gray-500">
+          <p>No placements data available for the selected campaigns.</p>
+        </div>
       )}
     </div>
   );
