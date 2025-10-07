@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import MetaAdSetsTable from "../components/MetaAdSetsTable";
 import MetaAdSetsTimeSeriesChart from "../components/MetaAdSetsTimeSeriesChart";
 import MetaAdSetsDemographicsChart from "../components/MetaAdSetsDemographicsChart";
@@ -11,17 +11,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
   const [showStats, setShowStats] = useState(false);
   const [selectedAdSetsForStats, setSelectedAdSetsForStats] = useState([]);
 
-  // Map frontend period values to backend expected values
-  const mapPeriodToBackend = (frontendPeriod) => {
-    const periodMap = {
-      'LAST_7_DAYS': '7d',
-      'LAST_30_DAYS': '30d',
-      'LAST_90_DAYS': '90d',
-      'LAST_365_DAYS': '365d'
-    };
-    return periodMap[frontendPeriod] || '90d';
-  };
-
+  // Fetch ad sets only when campaigns change (NOT when period changes)
   useEffect(() => {
     if (selectedCampaigns && selectedCampaigns.length > 0) {
       fetchAdSets();
@@ -30,7 +20,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       setShowStats(false);
       setSelectedAdSetsForStats([]);
     }
-  }, [selectedCampaigns, period, customDates]);
+  }, [selectedCampaigns]); // Removed period and customDates from dependencies
 
   const fetchAdSets = async () => {
     setIsLoadingAdSets(true);
@@ -45,20 +35,8 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
 
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
-      
-      // Build query params for date filters
-      const params = new URLSearchParams();
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        params.append('start_date', customDates.startDate);
-        params.append('end_date', customDates.endDate);
-      } else {
-        params.append('period', mapPeriodToBackend(period));
-      }
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
+      // Fetch all ad sets without date filtering
+      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -203,7 +181,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
             No Ad Sets Found
           </h3>
           <p className="text-gray-600">
-            No ad sets were found for the selected campaigns in the current time period.
+            No ad sets were found for the selected campaigns.
           </p>
         </div>
       )}
