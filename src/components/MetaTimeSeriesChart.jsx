@@ -12,7 +12,8 @@ const METRIC_OPTIONS = [
   { value: 'cpm', label: 'CPM', color: '#06B6D4' }
 ];
 
-function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookToken }) {
+function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookToken, onTotalsCalculated }) {
+
   const [timeseriesData, setTimeseriesData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -37,6 +38,12 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
       fetchTimeSeriesData();
     }
   }, [selectedCampaigns, period, customDates]); // Added period and customDates as dependencies
+
+  useEffect(() => {
+    if (onTotalsCalculated && totals) {
+      onTotalsCalculated(totals);
+    }
+  }, [totals, onTotalsCalculated]);
 
   const fetchTimeSeriesData = async () => {
     setIsLoading(true);
@@ -135,6 +142,37 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
 
   const chartData = processChartData();
 
+  // Add this after processChartData function
+  const calculateTotals = () => {
+    if (!timeseriesData || timeseriesData.length === 0) return null;
+
+    const totals = {
+      spend: 0,
+      impressions: 0,
+      clicks: 0,
+      reach: 0,
+      conversions: 0,
+      ctr: 0,
+      cpc: 0,
+      cpm: 0
+    };
+
+    timeseriesData.forEach(campaign => {
+      if (!selectedCampaignIds.includes(campaign.campaign_id)) return;
+      
+      campaign.timeseries.forEach(point => {
+        totals.spend += point.spend || 0;
+        totals.impressions += point.impressions || 0;
+        totals.clicks += point.clicks || 0;
+        totals.reach += point.reach || 0;
+        totals.conversions += point.conversions || 0;
+      });
+    });
+
+    return totals;
+  };
+
+  const totals = calculateTotals();
   const getLineKey = (campaignName, metric) => `${campaignName}_${metric}`;
 
   const getLineColor = (index) => {

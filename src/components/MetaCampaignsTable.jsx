@@ -4,7 +4,7 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showAll, setShowAll] = useState(false);
   
-  const displayedCampaigns = campaigns;
+  const displayedCampaigns = showAll ? campaigns : campaigns.slice(0, 5);
   
   // Sync selectedRows with selectedCampaignsForStats when stats are showing
   React.useEffect(() => {

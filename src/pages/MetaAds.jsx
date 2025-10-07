@@ -9,6 +9,7 @@ import MetaTimeSeriesChart from "../components/MetaTimeSeriesChart";
 import MetaDemographicsChart from "../components/MetaDemographicsChart";
 import MetaPlacementsChart from "../components/MetaPlacementsChart";
 import MetaAdSetsSection from "../components/MetaAdSetsSection";
+import MetaTimeSeriesMetrics from "../components/MetaTimeSeriesMetrics";
 
 const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
@@ -22,6 +23,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
 
   const [showStats, setShowStats] = useState(false);
   const [selectedCampaignsForStats, setSelectedCampaignsForStats] = useState([]);
+  const [timeSeriesTopals, setTimeSeriesTopals] = useState(null);
 
   // Check if Facebook token exists in localStorage as fallback
   const hasFacebookToken = isAuthenticated || localStorage.getItem('facebook_token');
@@ -194,24 +196,38 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
             {/* Stats Visualization Section */}
             {showStats && selectedCampaignsForStats.length > 0 && (
               <div className="space-y-6">
-                {/* Time Series and Placements Charts - SWAPPED POSITIONS */}
+                {/* Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left Column - Time Series (Full Height) */}
                   <MetaTimeSeriesChart
                     selectedCampaigns={selectedCampaignsForStats}
                     period={period}
                     customDates={customDates}
                     facebookToken={activeToken}
+                    onTotalsCalculated={setTimeSeriesTopals}
                   />
-                  <MetaPlacementsChart
-                    selectedCampaigns={selectedCampaignsForStats}
-                    period={period}
-                    customDates={customDates}
-                    facebookToken={activeToken}
-                    currency={selectedAccount.currency}
-                  />
+                  
+                  {/* Right Column - Metrics Cards + Placements */}
+                  <div className="space-y-6">
+                    {/* Metrics Cards */}
+                    <MetaTimeSeriesMetrics 
+                      totals={timeSeriesTopals}
+                      currency={selectedAccount.currency}
+                      isLoading={!timeSeriesTopals}
+                    />
+                    
+                    {/* Placements Chart */}
+                    <MetaPlacementsChart
+                      selectedCampaigns={selectedCampaignsForStats}
+                      period={period}
+                      customDates={customDates}
+                      facebookToken={activeToken}
+                      currency={selectedAccount.currency}
+                    />
+                  </div>
                 </div>
 
-                {/* Demographics Chart - Now Full Width */}
+                {/* Demographics Chart - Full Width */}
                 <MetaDemographicsChart
                   selectedCampaigns={selectedCampaignsForStats}
                   period={period}
