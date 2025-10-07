@@ -4,7 +4,7 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showAll, setShowAll] = useState(false);
   
-  const displayedCampaigns = showAll ? campaigns : campaigns.slice(0, 5);
+  const displayedCampaigns = campaigns;
   
   // Sync selectedRows with selectedCampaignsForStats when stats are showing
   React.useEffect(() => {
@@ -111,7 +111,11 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
               <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Reach</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        </table>
+        {/* Separate the tbody into a scrollable container */}
+        <div className={`overflow-y-auto ${showAll ? 'max-h-96' : ''}`}>
+          <table className="w-full">
+            <tbody className="bg-white divide-y divide-gray-200">
             {displayedCampaigns.map((campaign) => (
               <tr 
                 key={campaign.campaign_id}
@@ -143,6 +147,7 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
             ))}
           </tbody>
         </table>
+       </div>
       </div>
       
       {campaigns.length > 5 && (
