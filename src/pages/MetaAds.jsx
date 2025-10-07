@@ -8,6 +8,7 @@ import MetaLoadingSkeleton from "../components/MetaLoadingSkeleton";
 import MetaTimeSeriesChart from "../components/MetaTimeSeriesChart";
 import MetaDemographicsChart from "../components/MetaDemographicsChart";
 import MetaPlacementsChart from "../components/MetaPlacementsChart";
+import MetaAdSetsSection from "../components/MetaAdSetsSection";
 
 const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
@@ -219,6 +220,28 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
                   currency={selectedAccount.currency}
                 />
               </div>
+            )}
+
+            {/* Ad Sets Section - Only show when campaigns stats are loaded */}
+            {showStats && selectedCampaignsForStats.length > 0 && (
+              <>
+                <div className="border-t-4 border-[#508995] my-8"></div>
+                
+                <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4 mb-6">
+                  <h3 className="text-xl font-bold text-white mb-1">Ad Sets for Selected Campaigns</h3>
+                  <p className="text-[#A1BCD3] text-sm">
+                    View and analyze ad sets from the {selectedCampaignsForStats.length} selected campaign{selectedCampaignsForStats.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                <MetaAdSetsSection
+                  selectedCampaigns={selectedCampaignsForStats}
+                  period={period}
+                  customDates={customDates}
+                  facebookToken={activeToken}
+                  currency={selectedAccount.currency}
+                />
+              </>
             )}
 
             {/* Success Info */}
