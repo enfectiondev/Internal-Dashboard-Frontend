@@ -33,17 +33,16 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
 
   useEffect(() => {
     if (selectedCampaigns && selectedCampaigns.length > 0) {
-      // Reset to first campaign and fetch new data
       setSelectedCampaignIds([selectedCampaigns[0].campaign_id]);
       fetchTimeSeriesData();
     }
-  }, [selectedCampaigns, period, customDates]); // Added period and customDates as dependencies
+  }, [selectedCampaigns, period, customDates]);
 
-  useEffect(() => {
-    if (onTotalsCalculated && totals) {
-      onTotalsCalculated(totals);
-    }
-  }, [totals, onTotalsCalculated]);
+  // useEffect(() => {
+  //   if (onTotalsCalculated && totals) {
+  //     onTotalsCalculated(totals);
+  //   }
+  // }, [totals, onTotalsCalculated]);
 
   const fetchTimeSeriesData = async () => {
     setIsLoading(true);
@@ -173,6 +172,13 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
   };
 
   const totals = calculateTotals();
+
+  useEffect(() => {
+    if (onTotalsCalculated && totals) {
+      onTotalsCalculated(totals);
+    }
+  }, [totals, onTotalsCalculated]);
+ 
   const getLineKey = (campaignName, metric) => `${campaignName}_${metric}`;
 
   const getLineColor = (index) => {
