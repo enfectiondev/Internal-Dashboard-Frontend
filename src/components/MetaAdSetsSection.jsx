@@ -1,44 +1,52 @@
 import React, { useState, useEffect } from "react";
 import MetaAdSetsTable from "../components/MetaAdSetsTable";
-import MetaAdSetsTimeSeriesChart from "../components/MetaAdSetsTimeSeriesChart";
-import MetaAdSetsDemographicsChart from "../components/MetaAdSetsDemographicsChart";
-import MetaAdSetsPlacementsChart from "../components/MetaAdSetsPlacementsChart";
-import MetaAdsSection from "../components/MetaAdsSection";
 
-function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookToken, currency }) {
+function MetaAdSetsSectionDebug({ selectedCampaigns, period, customDates, facebookToken, currency }) {
   const [adSetsData, setAdSetsData] = useState([]);
   const [isLoadingAdSets, setIsLoadingAdSets] = useState(false);
   const [error, setError] = useState(null);
-  const [showStats, setShowStats] = useState(false);
-  const [selectedAdSetsForStats, setSelectedAdSetsForStats] = useState([]);
-  const [rateLimitWarning, setRateLimitWarning] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
+    console.log("=== MetaAdSetsSection Debug ===");
+    console.log("selectedCampaigns:", selectedCampaigns);
+    console.log("facebookToken:", facebookToken ? `${facebookToken.substring(0, 15)}...` : "MISSING");
+    console.log("localStorage token:", localStorage.getItem('facebook_token') ? "EXISTS" : "MISSING");
+    
     if (selectedCampaigns && selectedCampaigns.length > 0) {
       fetchAdSets();
     } else {
       setAdSetsData([]);
-      setShowStats(false);
-      setSelectedAdSetsForStats([]);
     }
   }, [selectedCampaigns]);
 
   const fetchAdSets = async () => {
+    console.log("\n=== STARTING AD SETS FETCH ===");
     setIsLoadingAdSets(true);
     setError(null);
-    setRateLimitWarning(false);
+    setDebugInfo(null);
 
     try {
       const token = facebookToken || localStorage.getItem('facebook_token');
+      console.log("Using token:", token ? `${token.substring(0, 15)}...` : "NONE");
       
       if (!token) {
         throw new Error('No Facebook token available');
       }
 
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
-      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
+      console.log("Campaign IDs:", campaignIds);
+      
+      // Try SIMPLE endpoint first
+      const simpleUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets/simple`;
+      
+      console.log("Request URL:", simpleUrl);
+      console.log("Request Body:", JSON.stringify(campaignIds));
+      console.log("Request Time:", new Date().toISOString());
 
-      const response = await fetch(url, {
+      const startTime = performance.now();
+      
+      const response = await fetch(simpleUrl, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -47,203 +55,195 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
         body: JSON.stringify(campaignIds)
       });
 
+      const endTime = performance.now();
+      const responseTime = endTime - startTime;
+
+      console.log("Response Status:", response.status);
+      console.log("Response Time:", `${responseTime.toFixed(2)}ms`);
+      console.log("Response Headers:", Object.fromEntries(response.headers.entries()));
+
+      const responseText = await response.text();
+      console.log("Raw Response:", responseText);
+
       if (!response.ok) {
-        const errorText = await response.text();
-        
-        // Check if it's a rate limit error
-        if (response.status === 429 || errorText.toLowerCase().includes('rate limit')) {
-          setRateLimitWarning(true);
-          throw new Error('Rate limit reached. Please wait 30 seconds and try again.');
-        }
-        
-        throw new Error(`Failed to fetch ad sets: ${response.status}`);
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
       }
 
-      const data = await response.json();
-      setAdSetsData(data);
+      const data = JSON.parse(responseText);
+      console.log("Parsed Data:", data);
+      
+      const adsets = data.adsets || [];
+      console.log("Ad Sets Count:", adsets.length);
+      console.log("Ad Sets:", adsets);
+      
+      setAdSetsData(adsets);
+      setDebugInfo({
+        success: true,
+        responseTime,
+        count: adsets.length,
+        timestamp: new Date().toISOString()
+      });
       
     } catch (err) {
+      console.error('❌ ERROR:', err);
+      console.error('Error Stack:', err.stack);
       setError(err.message);
+      setDebugInfo({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString()
+      });
     } finally {
       setIsLoadingAdSets(false);
+      console.log("=== AD SETS FETCH COMPLETE ===\n");
     }
   };
 
-  const handleLoadStats = (adsets) => {
-    setSelectedAdSetsForStats(adsets);
-    setShowStats(true);
+  const runDiagnostic = async () => {
+    console.log("\n=== RUNNING DIAGNOSTIC ===");
+    
+    try {
+      const token = facebookToken || localStorage.getItem('facebook_token');
+      const campaignIds = selectedCampaigns.map(c => c.campaign_id);
+      
+      const diagnosticUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets/debug`;
+      
+      const response = await fetch(diagnosticUrl, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(campaignIds)
+      });
+
+      const result = await response.json();
+      console.log("Diagnostic Result:", result);
+      alert("Diagnostic complete! Check console for details.");
+      
+    } catch (err) {
+      console.error('Diagnostic error:', err);
+      alert(`Diagnostic failed: ${err.message}`);
+    }
   };
 
   if (!selectedCampaigns || selectedCampaigns.length === 0) {
     return (
-      <div className="bg-blue-500/20 border border-blue-500 text-blue-300 px-6 py-4 rounded-lg">
-        <div className="flex items-center space-x-3">
-          <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          <div>
-            <h4 className="font-semibold">Select Campaigns First</h4>
-            <p className="text-sm mt-1">
-              Please select campaigns from the table above and click "Load Stats" to view ad sets.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoadingAdSets) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-6 h-6 border-2 border-[#1A4752] border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-gray-700">Loading ad sets...</span>
-        </div>
-        <p className="text-sm text-gray-500 text-center max-w-md">
-          This may take a few moments due to Facebook API rate limiting. Thank you for your patience.
-        </p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center space-x-3">
-          <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="flex-1">
-            <div className="text-red-800 font-medium">Error loading ad sets</div>
-            <div className="text-red-600 text-sm mt-1">{error}</div>
-            
-            {rateLimitWarning && (
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <div className="flex items-start space-x-2">
-                  <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-yellow-800">Rate Limit Information</h4>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      Facebook's API has rate limits to prevent excessive requests. Please wait 30-60 seconds before retrying.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <button 
-              onClick={fetchAdSets}
-              disabled={rateLimitWarning}
-              className={`mt-3 px-4 py-2 rounded text-sm font-medium transition-colors ${
-                rateLimitWarning 
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                  : 'bg-red-600 text-white hover:bg-red-700'
-              }`}
-            >
-              {rateLimitWarning ? 'Please wait...' : 'Retry'}
-            </button>
-          </div>
-        </div>
+      <div className="bg-blue-50 border border-blue-300 text-blue-800 px-6 py-4 rounded-lg">
+        <p>Select campaigns from the table above and click "Load Stats"</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Ad Sets Table */}
-      <MetaAdSetsTable
-        adsets={adSetsData}
-        currency={currency}
-        onLoadStats={handleLoadStats}
-        selectedAdSetsForStats={selectedAdSetsForStats}
-      />
-
-      {/* Stats Visualization Section */}
-      {showStats && selectedAdSetsForStats.length > 0 && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MetaAdSetsTimeSeriesChart
-              selectedAdSets={selectedAdSetsForStats}
-              period={period}
-              customDates={customDates}
-              facebookToken={facebookToken}
-            />
-            <MetaAdSetsPlacementsChart
-              selectedAdSets={selectedAdSetsForStats}
-              period={period}
-              customDates={customDates}
-              facebookToken={facebookToken}
-              currency={currency}
-            />
+      {/* Debug Info Panel */}
+      <div className="bg-gray-900 text-green-400 p-4 rounded font-mono text-xs">
+        <div className="flex justify-between items-center mb-2">
+          <strong className="text-white">Debug Console</strong>
+          <button
+            onClick={runDiagnostic}
+            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+          >
+            Run Diagnostic
+          </button>
+        </div>
+        <div>Selected Campaigns: {selectedCampaigns.length}</div>
+        <div>Campaign IDs: {selectedCampaigns.map(c => c.campaign_id).join(', ')}</div>
+        <div>Token Available: {(facebookToken || localStorage.getItem('facebook_token')) ? 'YES' : 'NO'}</div>
+        <div>Ad Sets Loaded: {adSetsData.length}</div>
+        {debugInfo && (
+          <div className="mt-2 pt-2 border-t border-gray-700">
+            <div>Last Fetch: {debugInfo.timestamp}</div>
+            <div>Status: {debugInfo.success ? '✅ SUCCESS' : '❌ FAILED'}</div>
+            {debugInfo.responseTime && <div>Response Time: {debugInfo.responseTime.toFixed(2)}ms</div>}
+            {debugInfo.error && <div className="text-red-400">Error: {debugInfo.error}</div>}
           </div>
+        )}
+      </div>
 
-          <MetaAdSetsDemographicsChart
-            selectedAdSets={selectedAdSetsForStats}
-            period={period}
-            customDates={customDates}
-            facebookToken={facebookToken}
-            currency={currency}
-          />
+      {/* Loading State */}
+      {isLoadingAdSets && (
+        <div className="bg-white rounded-lg p-8 text-center">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 font-medium">Loading ad sets...</p>
+          <p className="text-gray-500 text-sm mt-2">Check browser console for details</p>
         </div>
       )}
 
-      {!showStats && adSetsData.length > 0 && (
-        <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
-          <div className="flex items-center space-x-3">
-            <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6">
+          <div className="flex items-start space-x-3">
+            <svg className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <div>
-              <h4 className="font-semibold">Ad Sets Loaded!</h4>
-              <p className="text-sm mt-1">
-                Found {adSetsData.length} ad set{adSetsData.length !== 1 ? 's' : ''} for the selected campaign{selectedCampaigns.length !== 1 ? 's' : ''}. Select ad sets and click "Load Stats" to view detailed analytics.
-              </p>
+            <div className="flex-1">
+              <h3 className="text-red-900 font-bold text-lg">Error Loading Ad Sets</h3>
+              <p className="text-red-700 mt-2">{error}</p>
+              <div className="mt-4 flex space-x-3">
+                <button
+                  onClick={fetchAdSets}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={runDiagnostic}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                >
+                  Run Diagnostic
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {!showStats && adSetsData.length === 0 && (
-        <div className="bg-white rounded-lg p-8 text-center">
-          <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+      {/* Success State */}
+      {!isLoadingAdSets && !error && adSetsData.length > 0 && (
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
+            <span className="text-green-800 font-medium">
+              Successfully loaded {adSetsData.length} ad set{adSetsData.length !== 1 ? 's' : ''}!
+            </span>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Ad Sets Found
-          </h3>
-          <p className="text-gray-600">
-            No ad sets were found for the selected campaigns.
-          </p>
         </div>
       )}
 
-      {/* Ads Section */}
-      {showStats && selectedAdSetsForStats.length > 0 && (
-        <>
-          <div className="border-t-4 border-[#508995] my-8"></div>
-          
-          <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4 mb-6">
-            <h3 className="text-xl font-bold text-white mb-1">Ads for Selected Ad Sets</h3>
-            <p className="text-[#A1BCD3] text-sm">
-              View and analyze ads from the {selectedAdSetsForStats.length} selected ad set{selectedAdSetsForStats.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+      {/* Ad Sets Table */}
+      {adSetsData.length > 0 && (
+        <MetaAdSetsTable
+          adsets={adSetsData}
+          currency={currency}
+          onLoadStats={() => {}}
+          selectedAdSetsForStats={[]}
+        />
+      )}
 
-          <MetaAdsSection
-            selectedAdSets={selectedAdSetsForStats}
-            period={period}
-            customDates={customDates}
-            facebookToken={facebookToken}
-            currency={currency}
-          />
-        </>
+      {/* No Data State */}
+      {!isLoadingAdSets && !error && adSetsData.length === 0 && (
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 text-center">
+          <svg className="w-12 h-12 text-yellow-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <h3 className="text-yellow-900 font-bold text-lg mb-2">No Ad Sets Found</h3>
+          <p className="text-yellow-800">
+            The selected campaigns don't have any ad sets, or you don't have permission to view them.
+          </p>
+          <button
+            onClick={runDiagnostic}
+            className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 font-medium"
+          >
+            Run Diagnostic
+          </button>
+        </div>
       )}
     </div>
   );
 }
 
-export default MetaAdSetsSection;
+export default MetaAdSetsSectionDebug;
