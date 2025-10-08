@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-function MetaadDemographicsChart({ selectedad, period, customDates, facebookToken, currency = "MYR" }) {
+function MetaAdsDemographicsChart({ selectedAds, period, customDates, facebookToken, currency = "MYR" }) {
   const [demographicsData, setDemographicsData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState('spend');
 
-  // Map frontend period values to backend expected values
   const mapPeriodToBackend = (frontendPeriod) => {
     const periodMap = {
       'LAST_7_DAYS': '7d',
@@ -19,10 +18,10 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
   };
 
   useEffect(() => {
-    if (selectedad && selectedad.length > 0) {
+    if (selectedAds && selectedAds.length > 0) {
       fetchDemographicsData();
     }
-  }, [selectedad, period, customDates]);
+  }, [selectedAds, period, customDates]);
 
   const fetchDemographicsData = async () => {
     setIsLoading(true);
@@ -35,11 +34,10 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
         throw new Error('No Facebook token available');
       }
       
-      const adsetIds = selectedad.map(a => a.id);
+      const adIds = selectedAds.map(a => a.id);
       
       let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ads/demographics`;
       
-      // Build query params for date filters
       const params = new URLSearchParams();
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
         params.append('start_date', customDates.startDate);
@@ -58,7 +56,7 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(adsetIds)
+        body: JSON.stringify(adIds)
       });
 
       if (!response.ok) {
@@ -69,7 +67,7 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
       setDemographicsData(data);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching ad sets demographics:', err);
+      console.error('Error fetching ads demographics:', err);
     } finally {
       setIsLoading(false);
     }
@@ -80,12 +78,11 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
 
     const ageGenderMap = new Map();
 
-    demographicsData.forEach(adset => {
-      // Find ad set name, with fallback to adset_id if not found
-      const adsetObj = selectedad.find(a => a.id === adset.adset_id);
-      const adsetName = adsetObj?.name || adset.adset_id;
+    demographicsData.forEach(ad => {
+      const adObj = selectedAds.find(a => a.id === ad.ad_id);
+      const adName = adObj?.name || ad.ad_id;
 
-      adset.demographics.forEach(demo => {
+      ad.demographics.forEach(demo => {
         const key = `${demo.age}_${demo.gender}`;
         
         if (!ageGenderMap.has(key)) {
@@ -97,7 +94,7 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
         }
 
         const entry = ageGenderMap.get(key);
-        entry[adsetName] = demo[selectedMetric];
+        entry[adName] = demo[selectedMetric];
       });
     });
 
@@ -139,9 +136,8 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ad Set Demographics Breakdown</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ad Demographics Breakdown</h3>
 
-      {/* Metric Selection */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Metric</label>
         <div className="flex flex-wrap gap-2">
@@ -161,7 +157,6 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
         </div>
       </div>
 
-      {/* Chart */}
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={chartData}>
@@ -195,17 +190,16 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
             />
-            {selectedad.map((adset, index) => {
-              // Only render bar if ad set has data
-              const hasData = chartData.some(row => row[adset.name] !== undefined);
+            {selectedAds.map((ad, index) => {
+              const hasData = chartData.some(row => row[ad.name] !== undefined);
               if (!hasData) return null;
               
               return (
                 <Bar
-                  key={adset.id}
-                  dataKey={adset.name}
+                  key={ad.id}
+                  dataKey={ad.name}
                   fill={getBarColor(index)}
-                  name={adset.name}
+                  name={ad.name}
                 />
               );
             })}
@@ -213,11 +207,11 @@ function MetaadDemographicsChart({ selectedad, period, customDates, facebookToke
         </ResponsiveContainer>
       ) : (
         <div className="text-center py-12 text-gray-500">
-          <p>No demographics data available for the selected ad sets.</p>
+          <p>No demographics data available for the selected ads.</p>
         </div>
       )}
     </div>
   );
 }
 
-export default MetaadDemographicsChart;
+export default MetaAdsDemographicsChart;

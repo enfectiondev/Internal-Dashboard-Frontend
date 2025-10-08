@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToken, currency = "MYR" }) {
+function MetaAdsPlacementsChart({ selectedAds, period, customDates, facebookToken, currency = "MYR" }) {
   const [placementsData, setPlacementsData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -20,7 +20,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
   };
 
   useEffect(() => {
-    if (selectedads && selectedads.length > 0) {
+    if (selectedAds && selectedAds.length > 0) {
       fetchPlacementsData();
     }
   }, [selectedads, period, customDates]);
@@ -36,7 +36,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
         throw new Error('No Facebook token available');
       }
       
-      const adIds = selectedads.map(a => a.id);
+      const adIds = selectedAds.map(a => a.id);
       
       let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ads/placements`;
       
@@ -82,7 +82,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
     const platformMap = new Map();
 
     placementsData.forEach(ad => {
-      const adObj = selectedads.find(a => a.id === ad.ad_id);
+      const adObj = selectedAds.find(a => a.id === ad.ad_id);
       const adName = adObj?.name || ad.ad_id;
 
       ad.placements.forEach(placement => {
@@ -177,7 +177,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Ad Set Platform Placements</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Ad Platform Placements</h3>
         <div className="flex gap-2">
           <button
             onClick={() => setViewType('bar')}
@@ -241,7 +241,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
               />
-              {selectedads.map((ad, index) => (
+              {selectedAds.map((ad, index) => (
                 <Bar
                   key={ad.id}
                   dataKey={ad.name}
@@ -253,7 +253,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
           </ResponsiveContainer>
         ) : (
           <div className="text-center py-12 text-gray-500">
-            <p>No placements data available for the selected ad sets.</p>
+            <p>No placements data available for the selected ads.</p>
           </div>
         )
       ) : (
@@ -280,7 +280,7 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
           </ResponsiveContainer>
         ) : (
           <div className="text-center py-12 text-gray-500">
-            <p>No placements data available for the selected ad sets.</p>
+            <p>No placements data available for the selected ads.</p>
           </div>
         )
       )}
@@ -288,4 +288,4 @@ function MetaadsPlacementsChart({ selectedads, period, customDates, facebookToke
   );
 }
 
-export default MetaadsPlacementsChart;
+export default MetaAdsPlacementsChart;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const METRIC_OPTIONS = [
@@ -12,14 +12,13 @@ const METRIC_OPTIONS = [
   { value: 'cpm', label: 'CPM', color: '#06B6D4' }
 ];
 
-function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToken }) {
+function MetaAdsTimeSeriesChart({ selectedAds, period, customDates, facebookToken, onTotalsCalculated }) {
   const [timeseriesData, setTimeseriesData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedadIds, setSelectedadIds] = useState([]);
+  const [selectedAdIds, setSelectedAdIds] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState(['spend', 'impressions']);
 
-  // Map frontend period values to backend expected values
   const mapPeriodToBackend = (frontendPeriod) => {
     const periodMap = {
       'LAST_7_DAYS': '7d',
@@ -31,12 +30,11 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
   };
 
   useEffect(() => {
-    if (selectedads && selectedads.length > 0) {
-      // Reset to first ad set and fetch new data
-      setSelectedadIds([selectedads[0].id]);
+    if (selectedAds && selectedAds.length > 0) {
+      setSelectedAdIds([selectedAds[0].id]);
       fetchTimeSeriesData();
     }
-  }, [selectedads, period, customDates]);
+  }, [selectedAds, period, customDates]);
 
   const fetchTimeSeriesData = async () => {
     setIsLoading(true);
@@ -49,11 +47,10 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
         throw new Error('No Facebook token available');
       }
       
-      const adIds = selectedads.map(a => a.id);
+      const adIds = selectedAds.map(a => a.id);
       
       let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ads/timeseries`;
       
-      // Build query params for date filters
       const params = new URLSearchParams();
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
         params.append('start_date', customDates.startDate);
@@ -83,14 +80,14 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
       setTimeseriesData(data);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching ad sets timeseries:', err);
+      console.error('Error fetching ads timeseries:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const togglead = (adId) => {
-    setSelectedadIds(prev => 
+  const toggleAd = (adId) => {
+    setSelectedAdIds(prev => 
       prev.includes(adId) 
         ? prev.filter(id => id !== adId)
         : [...prev, adId]
@@ -111,10 +108,9 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
     const dateMap = new Map();
 
     timeseriesData.forEach(ad => {
-      if (!selectedadIds.includes(ad.ad_id)) return;
+      if (!selectedAdIds.includes(ad.ad_id)) return;
 
-      // Find ad set name, with fallback to ad_id if not found
-      const adObj = selectedads.find(a => a.id === ad.ad_id);
+      const adObj = selectedAds.find(a => a.id === ad.ad_id);
       const adName = adObj?.name || ad.ad_id;
 
       ad.timeseries.forEach(point => {
@@ -135,6 +131,41 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
 
   const chartData = processChartData();
 
+  const totals = useMemo(() => {
+    if (!timeseriesData || timeseriesData.length === 0) return null;
+
+    const calculated = {
+      spend: 0,
+      impressions: 0,
+      clicks: 0,
+      reach: 0,
+      conversions: 0,
+      ctr: 0,
+      cpc: 0,
+      cpm: 0
+    };
+
+    timeseriesData.forEach(ad => {
+      if (!selectedAdIds.includes(ad.ad_id)) return;
+      
+      ad.timeseries.forEach(point => {
+        calculated.spend += point.spend || 0;
+        calculated.impressions += point.impressions || 0;
+        calculated.clicks += point.clicks || 0;
+        calculated.reach += point.reach || 0;
+        calculated.conversions += point.conversions || 0;
+      });
+    });
+
+    return calculated;
+  }, [timeseriesData, selectedAdIds]);
+
+  useEffect(() => {
+    if (onTotalsCalculated && totals) {
+      onTotalsCalculated(totals);
+    }
+  }, [totals, onTotalsCalculated]);
+
   const getLineKey = (adName, metric) => `${adName}_${metric}`;
 
   const getLineColor = (index) => {
@@ -142,16 +173,15 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
     return colors[index % colors.length];
   };
 
-  // Get valid lines to render - only render lines for ad sets that exist in selectedads
   const getValidLines = () => {
     const lines = [];
-    selectedadIds.forEach((adId, adIndex) => {
-      const ad = selectedads.find(a => a.id === adId);
-      if (!ad) return; // Skip if ad set not found
+    selectedAdIds.forEach((adId, adIndex) => {
+      const ad = selectedAds.find(a => a.id === adId);
+      if (!ad) return;
       
       selectedMetrics.forEach((metric, metricIndex) => {
         const metricOption = METRIC_OPTIONS.find(m => m.value === metric);
-        if (!metricOption) return; // Skip if metric not found
+        if (!metricOption) return;
         
         lines.push({
           key: getLineKey(ad.name, metric),
@@ -187,18 +217,17 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ad Set Time Series</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ad Time Series</h3>
 
-      {/* Ad Set Selection */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Select Ad Sets</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Select Ads</label>
         <div className="flex flex-wrap gap-2">
-          {selectedads.map(ad => (
+          {selectedAds.map(ad => (
             <button
               key={ad.id}
-              onClick={() => togglead(ad.id)}
+              onClick={() => toggleAd(ad.id)}
               className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                selectedadIds.includes(ad.id)
+                selectedAdIds.includes(ad.id)
                   ? 'bg-[#1A4752] text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
@@ -209,7 +238,6 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
         </div>
       </div>
 
-      {/* Metric Selection */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Metrics</label>
         <div className="flex flex-wrap gap-2">
@@ -229,7 +257,6 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
         </div>
       </div>
 
-      {/* Chart */}
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={chartData}>
@@ -270,11 +297,11 @@ function MetaadsTimeSeriesChart({ selectedads, period, customDates, facebookToke
         </ResponsiveContainer>
       ) : (
         <div className="text-center py-12 text-gray-500">
-          <p>No data available for the selected ad sets and period.</p>
+          <p>No data available for the selected ads and period.</p>
         </div>
       )}
     </div>
   );
 }
 
-export default MetaadsTimeSeriesChart;
+export default MetaAdsTimeSeriesChart;
