@@ -90,66 +90,65 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
       </div>
       
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={selectedRows.size === displayedCampaigns.length && displayedCampaigns.length > 0}
-                  onChange={toggleAll}
-                  className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
-                />
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Campaign Name</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Spend</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Impressions</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Clicks</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">CPC</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">CTR</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Reach</th>
-            </tr>
-          </thead>
-        </table>
-        {/* Separate the tbody into a scrollable container */}
-        <div className={`overflow-y-auto ${showAll ? 'max-h-96' : ''}`}>
+        {/* Single scrollable container */}
+        <div className={`${showAll ? 'max-h-[500px] overflow-y-auto' : ''}`}>
           <table className="w-full">
-            <tbody className="bg-white divide-y divide-gray-200">
-            {displayedCampaigns.map((campaign) => (
-              <tr 
-                key={campaign.campaign_id}
-                className={`hover:bg-gray-50 transition-colors ${selectedRows.has(campaign.campaign_id) ? 'bg-blue-50' : ''}`}
-              >
-                <td className="px-4 py-3">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left w-12">
                   <input
                     type="checkbox"
-                    checked={selectedRows.has(campaign.campaign_id)}
-                    onChange={() => toggleRow(campaign.campaign_id)}
+                    checked={selectedRows.size === displayedCampaigns.length && displayedCampaigns.length > 0}
+                    onChange={toggleAll}
                     className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
                   />
-                </td>
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">{campaign.campaign_name}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    campaign.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {campaign.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">{currency} {campaign.spend.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">{campaign.impressions.toLocaleString()}</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">{campaign.clicks.toLocaleString()}</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">{currency} {campaign.cpc.toFixed(2)}</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">{campaign.ctr.toFixed(2)}%</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">{campaign.reach.toLocaleString()}</td>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Campaign Name</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-24">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">Spend</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">Impressions</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-24">Clicks</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-28">CPC</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-24">CTR</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-28">Reach</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-       </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {displayedCampaigns.map((campaign) => (
+                <tr 
+                  key={campaign.campaign_id}
+                  className={`hover:bg-gray-50 transition-colors ${selectedRows.has(campaign.campaign_id) ? 'bg-blue-50' : ''}`}
+                >
+                  <td className="px-4 py-3 w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(campaign.campaign_id)}
+                      onChange={() => toggleRow(campaign.campaign_id)}
+                      className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{campaign.campaign_name}</td>
+                  <td className="px-4 py-3 w-24">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      campaign.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {campaign.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">{currency} {campaign.spend.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">{campaign.impressions.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-24">{campaign.clicks.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-28">{currency} {campaign.cpc.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-24">{campaign.ctr.toFixed(2)}%</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-28">{campaign.reach.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       
+      {/* Rest of the component stays the same */}
       {campaigns.length > 5 && (
         <div className="p-4 border-t border-gray-200 text-center">
           <button

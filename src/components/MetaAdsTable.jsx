@@ -84,35 +84,32 @@ function MetaAdsTable({ ads = [], currency = "MYR", onLoadStats, selectedAdsForS
       </div>
       
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={selectedRows.size === displayedAds.length && displayedAds.length > 0}
-                  onChange={toggleAll}
-                  className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
-                />
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Preview</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Ad Name</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Creative Body</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Created</th>
-            </tr>
-          </thead>
-        </table>
-        {/* Scrollable tbody */}
-        <div className={`overflow-y-auto ${showAll ? 'max-h-96' : ''}`}>
+        <div className={`${showAll ? 'max-h-[500px] overflow-y-auto' : ''}`}>
           <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left w-12">
+                  <input
+                    type="checkbox"
+                    checked={selectedRows.size === displayedAds.length && displayedAds.length > 0}
+                    onChange={toggleAll}
+                    className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
+                  />
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-24">Preview</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Ad Name</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-24">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider max-w-md">Creative Body</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-32">Created</th>
+              </tr>
+            </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {displayedAds.map((ad) => (
                 <tr 
                   key={ad.id}
                   className={`hover:bg-gray-50 transition-colors ${selectedRows.has(ad.id) ? 'bg-blue-50' : ''}`}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 w-12">
                     <input
                       type="checkbox"
                       checked={selectedRows.has(ad.id)}
@@ -120,7 +117,7 @@ function MetaAdsTable({ ads = [], currency = "MYR", onLoadStats, selectedAdsForS
                       className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 w-24">
                     {ad.creative?.thumbnail_url && (
                       <img 
                         src={ad.creative.thumbnail_url} 
@@ -130,17 +127,17 @@ function MetaAdsTable({ ads = [], currency = "MYR", onLoadStats, selectedAdsForS
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{ad.name}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 w-24">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                       ad.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                     }`}>
                       {ad.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
+                  <td className="px-4 py-3 text-sm text-gray-900 max-w-md truncate">
                     {ad.creative?.body || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
+                  <td className="px-4 py-3 text-sm text-gray-900 w-32">
                     {new Date(ad.created_time).toLocaleDateString()}
                   </td>
                 </tr>
