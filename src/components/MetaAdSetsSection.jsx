@@ -11,17 +11,12 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
   const [error, setError] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [selectedAdSetsForStats, setSelectedAdSetsForStats] = useState([]);
+  const [rateLimitWarning, setRateLimitWarning] = useState(false);
 
-  // Fetch ad sets only when campaigns change (NOT when period changes)
   useEffect(() => {
-    console.log("MetaAdSetsSection useEffect triggered");
-    console.log("selectedCampaigns:", selectedCampaigns);
-    
     if (selectedCampaigns && selectedCampaigns.length > 0) {
-      console.log(`Fetching ad sets for ${selectedCampaigns.length} campaigns`);
       fetchAdSets();
     } else {
-      console.log("No campaigns selected, clearing ad sets");
       setAdSetsData([]);
       setShowStats(false);
       setSelectedAdSetsForStats([]);
@@ -31,6 +26,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
   const fetchAdSets = async () => {
     setIsLoadingAdSets(true);
     setError(null);
+    setRateLimitWarning(false);
 
     try {
       const token = facebookToken || localStorage.getItem('facebook_token');
@@ -40,12 +36,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       }
 
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
-      console.log("Campaign IDs to fetch:", campaignIds);
-      
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
-
-      console.log("Making request to:", url);
-      console.log("Request body:", JSON.stringify(campaignIds));
 
       const response = await fetch(url, {
         method: 'POST',
@@ -56,26 +47,22 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
         body: JSON.stringify(campaignIds)
       });
 
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Error response:", errorText);
-        throw new Error(`Failed to fetch ad sets: ${response.status} - ${errorText}`);
+        
+        // Check if it's a rate limit error
+        if (response.status === 429 || errorText.toLowerCase().includes('rate limit')) {
+          setRateLimitWarning(true);
+          throw new Error('Rate limit reached. Please wait 30 seconds and try again.');
+        }
+        
+        throw new Error(`Failed to fetch ad sets: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Ad sets received:", data);
-      console.log("Number of ad sets:", data.length);
-      
       setAdSetsData(data);
       
-      if (data.length === 0) {
-        console.warn("No ad sets found for selected campaigns");
-      }
-      
     } catch (err) {
-      console.error('Error in fetchAdSets:', err);
       setError(err.message);
     } finally {
       setIsLoadingAdSets(false);
@@ -83,7 +70,6 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
   };
 
   const handleLoadStats = (adsets) => {
-    console.log("Loading stats for ad sets:", adsets);
     setSelectedAdSetsForStats(adsets);
     setShowStats(true);
   };
@@ -108,11 +94,14 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
 
   if (isLoadingAdSets) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="flex items-center space-x-3 mb-4">
           <div className="w-6 h-6 border-2 border-[#1A4752] border-t-transparent rounded-full animate-spin"></div>
           <span className="text-gray-700">Loading ad sets...</span>
         </div>
+        <p className="text-sm text-gray-500 text-center max-w-md">
+          This may take a few moments due to Facebook API rate limiting. Thank you for your patience.
+        </p>
       </div>
     );
   }
@@ -124,14 +113,36 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
           <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div>
+          <div className="flex-1">
             <div className="text-red-800 font-medium">Error loading ad sets</div>
             <div className="text-red-600 text-sm mt-1">{error}</div>
+            
+            {rateLimitWarning && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <div className="flex items-start space-x-2">
+                  <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-yellow-800">Rate Limit Information</h4>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      Facebook's API has rate limits to prevent excessive requests. Please wait 30-60 seconds before retrying.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <button 
               onClick={fetchAdSets}
-              className="mt-2 px-4 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+              disabled={rateLimitWarning}
+              className={`mt-3 px-4 py-2 rounded text-sm font-medium transition-colors ${
+                rateLimitWarning 
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  : 'bg-red-600 text-white hover:bg-red-700'
+              }`}
             >
-              Retry
+              {rateLimitWarning ? 'Please wait...' : 'Retry'}
             </button>
           </div>
         </div>
@@ -152,7 +163,6 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       {/* Stats Visualization Section */}
       {showStats && selectedAdSetsForStats.length > 0 && (
         <div className="space-y-6">
-          {/* Time Series and Placements Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <MetaAdSetsTimeSeriesChart
               selectedAdSets={selectedAdSetsForStats}
@@ -169,7 +179,6 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
             />
           </div>
 
-          {/* Demographics Chart - Full Width */}
           <MetaAdSetsDemographicsChart
             selectedAdSets={selectedAdSetsForStats}
             period={period}
@@ -180,7 +189,6 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
         </div>
       )}
 
-      {/* Info message when ad sets loaded but no stats shown */}
       {!showStats && adSetsData.length > 0 && (
         <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
           <div className="flex items-center space-x-3">
@@ -197,7 +205,6 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
         </div>
       )}
 
-      {/* No ad sets message */}
       {!showStats && adSetsData.length === 0 && (
         <div className="bg-white rounded-lg p-8 text-center">
           <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -208,11 +215,8 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             No Ad Sets Found
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600">
             No ad sets were found for the selected campaigns.
-          </p>
-          <p className="text-sm text-gray-500">
-            Selected campaigns: {selectedCampaigns.map(c => c.campaign_name).join(', ')}
           </p>
         </div>
       )}
