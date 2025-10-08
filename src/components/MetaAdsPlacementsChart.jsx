@@ -23,7 +23,7 @@ function MetaAdsPlacementsChart({ selectedAds, period, customDates, facebookToke
     if (selectedAds && selectedAds.length > 0) {
       fetchPlacementsData();
     }
-  }, [selectedads, period, customDates]);
+  }, [selectedAds, period, customDates]);
 
   const fetchPlacementsData = async () => {
     setIsLoading(true);
