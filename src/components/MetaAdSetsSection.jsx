@@ -14,14 +14,19 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
 
   // Fetch ad sets only when campaigns change (NOT when period changes)
   useEffect(() => {
+    console.log("MetaAdSetsSection useEffect triggered");
+    console.log("selectedCampaigns:", selectedCampaigns);
+    
     if (selectedCampaigns && selectedCampaigns.length > 0) {
+      console.log(`Fetching ad sets for ${selectedCampaigns.length} campaigns`);
       fetchAdSets();
     } else {
+      console.log("No campaigns selected, clearing ad sets");
       setAdSetsData([]);
       setShowStats(false);
       setSelectedAdSetsForStats([]);
     }
-  }, [selectedCampaigns]); // Removed period and customDates from dependencies
+  }, [selectedCampaigns]);
 
   const fetchAdSets = async () => {
     setIsLoadingAdSets(true);
@@ -35,9 +40,12 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       }
 
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
+      console.log("Campaign IDs to fetch:", campaignIds);
       
-      // Fetch all ad sets without date filtering
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
+
+      console.log("Making request to:", url);
+      console.log("Request body:", JSON.stringify(campaignIds));
 
       const response = await fetch(url, {
         method: 'POST',
@@ -48,21 +56,34 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
         body: JSON.stringify(campaignIds)
       });
 
+      console.log("Response status:", response.status);
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch ad sets: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`Failed to fetch ad sets: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log("Ad sets received:", data);
+      console.log("Number of ad sets:", data.length);
+      
       setAdSetsData(data);
+      
+      if (data.length === 0) {
+        console.warn("No ad sets found for selected campaigns");
+      }
+      
     } catch (err) {
+      console.error('Error in fetchAdSets:', err);
       setError(err.message);
-      console.error('Error fetching ad sets:', err);
     } finally {
       setIsLoadingAdSets(false);
     }
   };
 
   const handleLoadStats = (adsets) => {
+    console.log("Loading stats for ad sets:", adsets);
     setSelectedAdSetsForStats(adsets);
     setShowStats(true);
   };
@@ -106,6 +127,12 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
           <div>
             <div className="text-red-800 font-medium">Error loading ad sets</div>
             <div className="text-red-600 text-sm mt-1">{error}</div>
+            <button 
+              onClick={fetchAdSets}
+              className="mt-2 px-4 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -181,13 +208,16 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             No Ad Sets Found
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-4">
             No ad sets were found for the selected campaigns.
+          </p>
+          <p className="text-sm text-gray-500">
+            Selected campaigns: {selectedCampaigns.map(c => c.campaign_name).join(', ')}
           </p>
         </div>
       )}
 
-      {/* Add this at the very end, after Demographics Chart */}
+      {/* Ads Section */}
       {showStats && selectedAdSetsForStats.length > 0 && (
         <>
           <div className="border-t-4 border-[#508995] my-8"></div>
