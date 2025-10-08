@@ -4,7 +4,8 @@ function MetaAdSetsTable({ adsets = [], currency = "MYR", onLoadStats, selectedA
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showAll, setShowAll] = useState(false);
   
-  const displayedAdSets = showAll ? adsets : adsets.slice(0, 5);
+  // Always display all adsets, no slicing
+  const displayedAdSets = adsets;
   
   // Sync selectedRows with selectedAdSetsForStats when stats are showing
   React.useEffect(() => {
@@ -88,65 +89,63 @@ function MetaAdSetsTable({ adsets = [], currency = "MYR", onLoadStats, selectedA
       </div>
       
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={selectedRows.size === displayedAdSets.length && displayedAdSets.length > 0}
-                  onChange={toggleAll}
-                  className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
-                />
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Ad Set Name</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Optimization Goal</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Daily Budget</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Lifetime Budget</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Budget Remaining</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Locations</th>
-            </tr>
-          </thead>
-        </table>
-        {/* Separate the tbody into a scrollable container */}
-        <div className={`overflow-y-auto ${showAll ? 'max-h-96' : ''}`}>
+        {/* Single table with controlled scrolling */}
+        <div className={`${showAll ? 'max-h-[500px] overflow-y-auto' : ''}`}>
           <table className="w-full">
-            <tbody className="bg-white divide-y divide-gray-200">
-            {displayedAdSets.map((adset) => (
-              <tr 
-                key={adset.id}
-                className={`hover:bg-gray-50 transition-colors ${selectedRows.has(adset.id) ? 'bg-blue-50' : ''}`}
-              >
-                <td className="px-4 py-3">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left w-12">
                   <input
                     type="checkbox"
-                    checked={selectedRows.has(adset.id)}
-                    onChange={() => toggleRow(adset.id)}
+                    checked={selectedRows.size === displayedAdSets.length && displayedAdSets.length > 0}
+                    onChange={toggleAll}
                     className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
                   />
-                </td>
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">{adset.name}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    adset.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {adset.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900">{adset.optimization_goal}</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">
-                  {adset.daily_budget > 0 ? `${currency} ${adset.daily_budget.toLocaleString(undefined, {minimumFractionDigits: 2})}` : '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">
-                  {adset.lifetime_budget > 0 ? `${currency} ${adset.lifetime_budget.toLocaleString(undefined, {minimumFractionDigits: 2})}` : '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-right text-gray-900">
-                  {currency} {adset.budget_remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900">{adset.locations.join(', ')}</td>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Ad Set Name</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-24">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-40">Optimization Goal</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">Daily Budget</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">Lifetime Budget</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">Budget Remaining</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Locations</th>
               </tr>
-            ))}
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {displayedAdSets.map((adset) => (
+                <tr 
+                  key={adset.id}
+                  className={`hover:bg-gray-50 transition-colors ${selectedRows.has(adset.id) ? 'bg-blue-50' : ''}`}
+                >
+                  <td className="px-4 py-3 w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(adset.id)}
+                      onChange={() => toggleRow(adset.id)}
+                      className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{adset.name}</td>
+                  <td className="px-4 py-3 w-24">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      adset.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {adset.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 w-40">{adset.optimization_goal}</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">
+                    {adset.daily_budget > 0 ? `${currency} ${adset.daily_budget.toLocaleString(undefined, {minimumFractionDigits: 2})}` : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">
+                    {adset.lifetime_budget > 0 ? `${currency} ${adset.lifetime_budget.toLocaleString(undefined, {minimumFractionDigits: 2})}` : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">
+                    {currency} {adset.budget_remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{adset.locations.join(', ')}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
