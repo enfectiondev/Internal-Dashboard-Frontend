@@ -94,6 +94,48 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
   // Get the active token for passing to chart components
   const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
+
+
+
+  const fetchAdSets = async () => {
+    setIsLoadingAdSets(true);
+    setError(null);
+
+    try {
+      const token = facebookToken || localStorage.getItem('facebook_token');
+      
+      if (!token) {
+        throw new Error('No Facebook token available');
+      }
+
+      const campaignIds = selectedCampaigns.map(c => c.campaign_id);
+      console.log('Fetching ad sets for campaign IDs:', campaignIds); // DEBUG
+      
+      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+          },
+        body: JSON.stringify(campaignIds)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ad sets: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Received ad sets data:', data); // DEBUG
+      setAdSetsData(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching ad sets:', err);
+    } finally {
+      setIsLoadingAdSets(false);
+    }
+  };
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
