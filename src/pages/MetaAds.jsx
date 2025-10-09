@@ -71,12 +71,12 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     setAccountSummaryError(null);
 
     try {
+      // Try new endpoint first, fallback to old endpoint
       let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/insights/summary`;
       
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
         url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
       } else if (period) {
-        // Convert LAST_30_DAYS to 30d format
         const periodMap = {
           'LAST_7_DAYS': '7d',
           'LAST_30_DAYS': '30d',
@@ -91,10 +91,33 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
         headers: { Authorization: `Bearer ${activeToken}` }
       });
       
-      if (!response.ok) throw new Error(`Failed to fetch account summary: ${response.status}`);
-      
-      const data = await response.json();
-      setAccountSummary(data);
+      if (!response.ok) {
+        // Fallback: Use old endpoint with insights
+        console.warn("Summary endpoint not available, using insights endpoint as fallback");
+        const fallbackUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/insights${url.includes('?') ? url.substring(url.indexOf('?')) : ''}`;
+        const fallbackResponse = await fetch(fallbackUrl, {
+          headers: { Authorization: `Bearer ${activeToken}` }
+        });
+        
+        if (!fallbackResponse.ok) throw new Error(`Failed to fetch account data: ${fallbackResponse.status}`);
+        
+        const fallbackData = await fallbackResponse.json();
+        // Transform old format to new format
+        setAccountSummary({
+          total_spend: fallbackData.spend || 0,
+          total_impressions: fallbackData.impressions || 0,
+          total_clicks: fallbackData.clicks || 0,
+          total_conversions: fallbackData.conversions || 0,
+          total_reach: fallbackData.reach || 0,
+          avg_cpc: fallbackData.cpc || 0,
+          avg_cpm: fallbackData.cpm || 0,
+          avg_ctr: fallbackData.ctr || 0,
+          avg_frequency: fallbackData.frequency || 0
+        });
+      } else {
+        const data = await response.json();
+        setAccountSummary(data);
+      }
     } catch (err) {
       console.error("Error fetching account summary:", err);
       setAccountSummaryError(err.message);
@@ -149,9 +172,24 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     }
   }, [selectedAccount?.id, period, customDates, activeToken, pagination.limit]);
 
-  // Initial load
+  // Initial load and period changes
   useEffect(() => {
     if (selectedAccount?.id && activeToken) {
+      // Clear existing campaigns when period changes to show clean loading state
+      setCampaigns([]);
+      setPagination({
+        total: 0,
+        offset: 0,
+        limit: 5,
+        has_more: false,
+        current_page: 1,
+        total_pages: 0
+      });
+      
+      // Hide stats when period changes
+      setShowStats(false);
+      setSelectedCampaignsForStats([]);
+      
       fetchAccountSummary();
       fetchCampaigns(0, false); // Reset to first page
     }
@@ -231,7 +269,15 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
 
         {/* Account Summary Metric Cards */}
         {loadingAccountSummary ? (
-          <MetaLoadingSkeleton />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-gray-300 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+                <div className="h-10 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
         ) : accountSummary ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetaMetricCard
@@ -263,7 +309,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
-              {pagination.total > 0 && (
+              {pagination.total > 0 && !loadingCampaigns && (
                 <p className="text-sm text-gray-600 mt-1">
                   Showing {campaigns.length} of {pagination.total} campaigns
                 </p>
@@ -272,9 +318,27 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
           </div>
 
           {loadingCampaigns && campaigns.length === 0 ? (
+            <div className="p-8">
+              {/* Loading Skeleton */}
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="animate-pulse flex items-center space-x-4">
+                    <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-gray-600 mt-4 text-center text-sm">Loading campaigns...</p>
+            </div>
+          ) : campaignsError ? (
             <div className="p-8 text-center">
-              <div className="w-8 h-8 border-2 border-gray-300 border-t-[#1A4752] rounded-full animate-spin mx-auto"></div>
-              <p className="text-gray-600 mt-3">Loading campaigns...</p>
+              <div className="text-red-600 mb-2">Error loading campaigns</div>
+              <div className="text-sm text-gray-600">{campaignsError}</div>
             </div>
           ) : campaigns.length > 0 ? (
             <>
