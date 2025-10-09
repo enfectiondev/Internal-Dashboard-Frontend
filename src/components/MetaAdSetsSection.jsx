@@ -12,7 +12,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
   const [showStats, setShowStats] = useState(false);
   const [selectedAdSetsForStats, setSelectedAdSetsForStats] = useState([]);
 
-  // Fetch ad sets only when campaigns change (NOT when period changes)
+  // Fetch ad sets when campaigns change
   useEffect(() => {
     console.log("MetaAdSetsSection useEffect triggered");
     console.log("selectedCampaigns:", selectedCampaigns);
@@ -26,7 +26,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       setShowStats(false);
       setSelectedAdSetsForStats([]);
     }
-  }, [selectedCampaigns]);
+  }, [selectedCampaigns]); // Only trigger when campaigns change
 
   const fetchAdSets = async () => {
     setIsLoadingAdSets(true);
@@ -40,12 +40,11 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       }
 
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
-      console.log("Campaign IDs to fetch:", campaignIds);
+      console.log("Campaign IDs to fetch ad sets for:", campaignIds);
       
       const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
 
       console.log("Making request to:", url);
-      console.log("Request body:", JSON.stringify(campaignIds));
 
       const response = await fetch(url, {
         method: 'POST',
@@ -61,12 +60,11 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Error response:", errorText);
-        throw new Error(`Failed to fetch ad sets: ${response.status} - ${errorText}`);
+        throw new Error(`Failed to fetch ad sets: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Ad sets received:", data);
-      console.log("Number of ad sets:", data.length);
+      console.log("Ad sets received:", data.length);
       
       setAdSetsData(data);
       
@@ -83,7 +81,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
   };
 
   const handleLoadStats = (adsets) => {
-    console.log("Loading stats for ad sets:", adsets);
+    console.log("Loading stats for", adsets.length, "ad sets");
     setSelectedAdSetsForStats(adsets);
     setShowStats(true);
   };
@@ -108,10 +106,15 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
 
   if (isLoadingAdSets) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="flex items-center space-x-3">
-          <div className="w-6 h-6 border-2 border-[#1A4752] border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-gray-700">Loading ad sets...</span>
+      <div className="bg-white rounded-lg shadow-sm p-12">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="w-12 h-12 border-4 border-[#1A4752] border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-center">
+            <p className="text-lg font-medium text-gray-700">Loading Ad Sets...</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Fetching ad sets for {selectedCampaigns.length} campaign{selectedCampaigns.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -119,21 +122,45 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center space-x-3">
-          <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="flex items-start space-x-3">
+          <svg className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div>
-            <div className="text-red-800 font-medium">Error loading ad sets</div>
-            <div className="text-red-600 text-sm mt-1">{error}</div>
+          <div className="flex-1">
+            <div className="text-red-800 font-semibold text-lg">Error Loading Ad Sets</div>
+            <div className="text-red-600 text-sm mt-2">{error}</div>
             <button 
               onClick={fetchAdSets}
-              className="mt-2 px-4 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+              className="mt-4 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
             >
-              Retry
+              Try Again
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (adSetsData.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+        <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          No Ad Sets Found
+        </h3>
+        <p className="text-gray-600 mb-4">
+          No ad sets were found for the selected campaigns.
+        </p>
+        <div className="bg-gray-50 rounded-lg p-4 mt-4">
+          <p className="text-sm text-gray-700 font-medium mb-2">Selected Campaigns:</p>
+          <p className="text-sm text-gray-600">
+            {selectedCampaigns.map(c => c.campaign_name).join(', ')}
+          </p>
         </div>
       </div>
     );
@@ -152,6 +179,16 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       {/* Stats Visualization Section */}
       {showStats && selectedAdSetsForStats.length > 0 && (
         <div className="space-y-6">
+          {/* Header for stats section */}
+          <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4">
+            <h3 className="text-lg font-bold text-white mb-1">
+              Ad Set Performance Analytics
+            </h3>
+            <p className="text-[#A1BCD3] text-sm">
+              Viewing detailed analytics for {selectedAdSetsForStats.length} selected ad set{selectedAdSetsForStats.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+
           {/* Time Series and Placements Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <MetaAdSetsTimeSeriesChart
@@ -188,32 +225,13 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <div>
-              <h4 className="font-semibold">Ad Sets Loaded!</h4>
+              <h4 className="font-semibold">Ad Sets Loaded Successfully!</h4>
               <p className="text-sm mt-1">
-                Found {adSetsData.length} ad set{adSetsData.length !== 1 ? 's' : ''} for the selected campaign{selectedCampaigns.length !== 1 ? 's' : ''}. Select ad sets and click "Load Stats" to view detailed analytics.
+                Found {adSetsData.length} ad set{adSetsData.length !== 1 ? 's' : ''} for the selected campaign{selectedCampaigns.length !== 1 ? 's' : ''}. 
+                Select ad sets from the table and click "Load Stats" to view detailed performance analytics.
               </p>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* No ad sets message */}
-      {!showStats && adSetsData.length === 0 && (
-        <div className="bg-white rounded-lg p-8 text-center">
-          <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Ad Sets Found
-          </h3>
-          <p className="text-gray-600 mb-4">
-            No ad sets were found for the selected campaigns.
-          </p>
-          <p className="text-sm text-gray-500">
-            Selected campaigns: {selectedCampaigns.map(c => c.campaign_name).join(', ')}
-          </p>
         </div>
       )}
 
@@ -225,7 +243,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
           <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4 mb-6">
             <h3 className="text-xl font-bold text-white mb-1">Ads for Selected Ad Sets</h3>
             <p className="text-[#A1BCD3] text-sm">
-              View and analyze ads from the {selectedAdSetsForStats.length} selected ad set{selectedAdSetsForStats.length !== 1 ? 's' : ''}
+              View and analyze individual ads from the {selectedAdSetsForStats.length} selected ad set{selectedAdSetsForStats.length !== 1 ? 's' : ''}
             </p>
           </div>
 
