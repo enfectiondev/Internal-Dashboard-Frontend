@@ -273,6 +273,7 @@ export default function Layout({ user, onLogout }) {
       const shouldSwitchToInstagram = localStorage.getItem('switch_to_instagram_tab');
       if (shouldSwitchToInstagram === 'true') {
         setActiveTab('Instagram');
+        setPeriod('LAST_30_DAYS');
         localStorage.removeItem('switch_to_instagram_tab');
       }
     }, []);

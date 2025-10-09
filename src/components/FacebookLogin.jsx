@@ -2,9 +2,8 @@ import React from "react";
 
 const FacebookLogin = ({ onFacebookLogin, sourceTab = 'facebook' }) => {
   const handleFacebookAuth = () => {
-    // Store source tab in localStorage before redirecting
-    localStorage.setItem('facebook_auth_source', sourceTab);
-    const authUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com/auth/facebook/login";
+    // Redirect directly to backend with source_tab parameter
+    const authUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/auth/facebook/login?source_tab=${sourceTab}`;
     window.location.href = authUrl;
   };
 

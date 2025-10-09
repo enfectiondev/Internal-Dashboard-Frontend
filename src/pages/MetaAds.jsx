@@ -215,7 +215,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
   }
 
   if (!hasFacebookToken) {
-    return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
+    return <FacebookLogin onFacebookLogin={handleFacebookLogin} sourceTab="meta_ads" />;
   }
 
   if (selectedAccount) {
