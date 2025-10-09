@@ -270,12 +270,22 @@ export default function Layout({ user, onLogout }) {
   }, []);
 
   useEffect(() => {
-    const shouldSwitchToFacebook = localStorage.getItem('switch_to_facebook_tab');
-    if (shouldSwitchToFacebook === 'true') {
-      setActiveTab('Facebook');
-      localStorage.removeItem('switch_to_facebook_tab');
-    }
-  }, []);
+      const shouldSwitchToInstagram = localStorage.getItem('switch_to_instagram_tab');
+      if (shouldSwitchToInstagram === 'true') {
+        setActiveTab('Instagram');
+        localStorage.removeItem('switch_to_instagram_tab');
+      }
+    }, []);
+
+    // Update the existing Facebook switch effect
+    useEffect(() => {
+      const shouldSwitchToFacebook = localStorage.getItem('switch_to_facebook_tab');
+      if (shouldSwitchToFacebook === 'true') {
+        setActiveTab('Facebook');
+        setPeriod('LAST_30_DAYS'); // Set to 30 days like Meta Ads
+        localStorage.removeItem('switch_to_facebook_tab');
+      }
+    }, []);
 
   useEffect(() => {
     const shouldSwitchToMetaAds = localStorage.getItem('switch_to_meta_ads_tab');
@@ -381,65 +391,65 @@ export default function Layout({ user, onLogout }) {
   };
 
   const getCurrentData = () => {
-    if (activeTab === "Google Ads Campaigns") {
-      return {
-        items: campaigns,
-        loading: loadingCampaigns,
-        activeIndex: activeCampaignIdx,
-        setActiveIndex: setActiveCampaignIdx,
-        type: 'campaigns'
-      };
-    } else if (activeTab === "Google Analytics") {
-      return {
-        items: properties,
-        loading: loadingProperties,
-        activeIndex: activePropertyIdx,
-        setActiveIndex: setActivePropertyIdx,
-        type: 'properties'
-      };
-    } else if (activeTab === "Facebook") {
-      return {
-        items: [],
-        loading: false,
-        activeIndex: 0,
-        setActiveIndex: () => {},
-        type: 'facebook'
-      };
-    } else if (activeTab === "Instagram") {
-      return {
-        items: [],
-        loading: false,
-        activeIndex: 0,
-        setActiveIndex: () => {},
-        type: 'instagram'
-      };
-    } else if (activeTab === "Meta Ads") {
-      return {
-        items: metaAdsAccounts,
-        loading: loadingMetaAds,
-        activeIndex: activeMetaAdsIdx,
-        setActiveIndex: setActiveMetaAdsIdx,
-        type: 'metaads'
-      };
-    } else if (activeTab === "Intent Insights") {
-      return {
-        items: [],
-        loading: false,
-        activeIndex: 0,
-        setActiveIndex: () => {},
-        type: 'insights'
-      };
-    } else if (activeTab === "Reporting") {
-      return {
-        items: [],
-        loading: false,
-        activeIndex: 0,
-        setActiveIndex: () => {},
-        type: 'reporting'
-      };
-    }
-    return { items: [], loading: false, activeIndex: 0, setActiveIndex: () => {}, type: 'unknown' };
-  };
+      if (activeTab === "Google Ads Campaigns") {
+        return {
+          items: campaigns,
+          loading: loadingCampaigns,
+          activeIndex: activeCampaignIdx,
+          setActiveIndex: setActiveCampaignIdx,
+          type: 'campaigns'
+        };
+      } else if (activeTab === "Google Analytics") {
+        return {
+          items: properties,
+          loading: loadingProperties,
+          activeIndex: activePropertyIdx,
+          setActiveIndex: setActivePropertyIdx,
+          type: 'properties'
+        };
+      } else if (activeTab === "Facebook") {
+        return {
+          items: facebookAccounts,
+          loading: loadingFacebook,
+          activeIndex: activeFacebookIdx,
+          setActiveIndex: setActiveFacebookIdx,
+          type: 'facebook'
+        };
+      } else if (activeTab === "Instagram") {
+        return {
+          items: [],
+          loading: false,
+          activeIndex: 0,
+          setActiveIndex: () => {},
+          type: 'instagram'
+        };
+      } else if (activeTab === "Meta Ads") {
+        return {
+          items: metaAdsAccounts,
+          loading: loadingMetaAds,
+          activeIndex: activeMetaAdsIdx,
+          setActiveIndex: setActiveMetaAdsIdx,
+          type: 'metaads'
+        };
+      } else if (activeTab === "Intent Insights") {
+        return {
+          items: [],
+          loading: false,
+          activeIndex: 0,
+          setActiveIndex: () => {},
+          type: 'insights'
+        };
+      } else if (activeTab === "Reporting") {
+        return {
+          items: [],
+          loading: false,
+          activeIndex: 0,
+          setActiveIndex: () => {},
+          type: 'reporting'
+        };
+      }
+      return { items: [], loading: false, activeIndex: 0, setActiveIndex: () => {}, type: 'unknown' };
+    };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);

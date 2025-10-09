@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
 import { useFacebookPages, useFacebookInsights, useFacebookPosts } from "../hooks/useFacebookCache";
-import FacebookPageSelector from "../components/FacebookPageSelector";
 import FacebookMetricCards from "../components/FacebookMetricCards";
 import FacebookPostsTable from "../components/FacebookPostsTable";
 import FacebookEngagementChart from "../components/FacebookEngagementChart";
@@ -77,7 +76,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
   }
 
   if (!isAuthenticated) {
-    return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
+    return <FacebookLogin onFacebookLogin={handleFacebookLogin} sourceTab="facebook" />;
   }
 
   if (error) {
@@ -128,15 +127,6 @@ const FacebookAnalytics = ({ period, customDates }) => {
           </button>
         </div>
       </div>
-
-      {/* Page Selector */}
-      {pages.length > 0 && (
-        <FacebookPageSelector
-          pages={pages}
-          selectedPage={selectedPage}
-          onPageSelect={handlePageSelect}
-        />
-      )}
 
       {/* No Pages Message */}
       {pages.length === 0 && !loadingPages && (

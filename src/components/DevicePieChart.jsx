@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { IoMdArrowDropleft, IoMdArrowDropright } from "react-icons/io";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-const colors = ["#1A4752", "#2B889C", "#A0C6CE", "#58C3DB"];
+const colors = ["#1A4752", "#508995", "#9AB4BA", "#B5B5B5"];
 
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
@@ -82,31 +82,24 @@ function DevicePieChart({ activeCampaign, period }) {
     deviceApiCall
   );
 
-  // Calculate dynamic radius based on text length
-  const getCurrentText = () => {
-    return chartDataList?.[currentIndex]?.name || "";
-  };
-
-  const calculateRadius = () => {
-    const text = getCurrentText();
-    const baseInnerRadius = 30;
-    const baseOuterRadius = 80;
+  // Calculate majority device and its percentage
+  const getMajorityDevice = () => {
+    const currentData = chartDataList?.[currentIndex]?.data || [];
+    if (currentData.length === 0) return { name: '', value: 0, percentage: 0 };
     
-    // Estimate text width (rough calculation: 7px per character)
-    const estimatedTextWidth = text.length * 7;
-    const minRequiredRadius = estimatedTextWidth / 2;
+    const total = currentData.reduce((sum, item) => sum + item.value, 0);
+    const maxItem = currentData.reduce((max, item) => 
+      item.value > max.value ? item : max
+    , { value: 0, name: '' });
     
-    // Ensure inner radius is large enough for text with some padding
-    const dynamicInnerRadius = Math.max(baseInnerRadius, minRequiredRadius + 10);
-    const dynamicOuterRadius = Math.max(baseOuterRadius, dynamicInnerRadius + 40);
+    const percentage = total > 0 ? ((maxItem.value / total) * 100).toFixed(1) : 0;
     
     return {
-      innerRadius: Math.min(dynamicInnerRadius, 60), // Cap at 60 to keep chart visible
-      outerRadius: Math.min(dynamicOuterRadius, 100)  // Cap at 100 to fit container
+      name: maxItem.name,
+      value: maxItem.value,
+      percentage: percentage
     };
   };
-
-  const { innerRadius, outerRadius } = calculateRadius();
 
   const handlePrev = () =>
     setCurrentIndex((prev) =>
@@ -117,15 +110,15 @@ function DevicePieChart({ activeCampaign, period }) {
       prev === (chartDataList?.length || 1) - 1 ? 0 : prev + 1
     );
 
-  // Custom label component that handles text wrapping
+  // Custom label component that shows majority device and percentage
   const renderCenterLabel = ({ cx, cy }) => {
-    const text = getCurrentText();
-    const maxCharsPerLine = 12;
+    const majority = getMajorityDevice();
     
-    // Split text into multiple lines if too long
-    const words = text.split(' ');
+    // Split name into words for wrapping
+    const words = majority.name.split(' ');
     const lines = [];
     let currentLine = '';
+    const maxCharsPerLine = 10;
     
     words.forEach(word => {
       if ((currentLine + word).length <= maxCharsPerLine) {
@@ -139,43 +132,62 @@ function DevicePieChart({ activeCampaign, period }) {
     
     // If still too long, truncate
     const finalLines = lines.map(line => 
-      line.length > maxCharsPerLine ? line.substring(0, maxCharsPerLine - 3) + '...' : line
+      line.length > maxCharsPerLine ? line.substring(0, maxCharsPerLine - 2) + '..' : line
     );
+    
+    // Calculate vertical spacing based on number of lines
+    const nameHeight = finalLines.length * 14;
+    const startY = cy - (nameHeight / 2) - 5;
     
     return (
       <g>
+        {/* Device Name */}
         {finalLines.map((line, index) => (
           <text
-            key={index}
+            key={`name-${index}`}
             x={cx}
-            y={cy + (index - (finalLines.length - 1) / 2) * 14}
+            y={startY + (index * 14)}
             textAnchor="middle"
             dominantBaseline="middle"
-            className="font-semibold text-gray-700"
-            fontSize={12}
+            className="font-bold"
+            fontSize={13}
+            fill="#1A4752"
           >
             {line}
           </text>
         ))}
+        
+        {/* Percentage */}
+        <text
+          x={cx}
+          y={cy + (nameHeight / 2) + 5}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="font-semibold"
+          fontSize={16}
+          fill="#508995"
+        >
+          {majority.percentage}%
+        </text>
       </g>
     );
   };
 
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
-      <h3 className="font-semibold mb-4 text-gray-900">Device Performance</h3>
-      <hr className="mb-4" />
+      <h3 className="font-semibold mb-4 text-[#1A4752]">Device Performance</h3>
+      <hr className="mb-4 border-[#B5B5B5]" />
 
       {(loading && !chartDataList) ? (
-        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+        <div className="flex justify-center items-center h-64 text-[#508995] font-medium">
           Loading device performance...
         </div>
       ) : error ? (
-        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+        <div className="flex justify-center items-center h-64 text-[#B5B5B5] font-medium">
           Error loading device data: {error.message}
         </div>
       ) : !chartDataList?.length ? (
-        <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+        <div className="flex justify-center items-center h-64 text-[#B5B5B5] font-medium">
           No device performance data available.
         </div>
       ) : (
@@ -195,7 +207,7 @@ function DevicePieChart({ activeCampaign, period }) {
                         className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
                           index === currentIndex 
                             ? 'bg-[#1A4752] scale-125' 
-                            : 'bg-gray-300 hover:bg-gray-400'
+                            : 'bg-[#B5B5B5] hover:bg-[#9AB4BA]'
                         }`}
                         onClick={() => setCurrentIndex(index)}
                         title={chartDataList[index]?.name || `Chart ${index + 1}`}
@@ -216,7 +228,7 @@ function DevicePieChart({ activeCampaign, period }) {
                         <IoMdArrowDropleft size={50} color="#1A4752" />
                       </button>
                     ) : (
-                      <div className="w-12"></div> // Empty space to maintain centering
+                      <div className="w-12"></div>
                     )}
                   </div>
 
@@ -229,9 +241,9 @@ function DevicePieChart({ activeCampaign, period }) {
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          innerRadius={innerRadius}
+                          innerRadius={55}
                           outerRadius={({ name }) =>
-                            activeSlice === name ? outerRadius + 8 : outerRadius 
+                            activeSlice === name ? 93 : 85
                           }
                           labelLine={false}
                           label={renderCenterLabel}
@@ -267,7 +279,7 @@ function DevicePieChart({ activeCampaign, period }) {
                         <IoMdArrowDropright size={50} color="#1A4752" />
                       </button>
                     ) : (
-                      <div className="w-12"></div> // Empty space to maintain centering
+                      <div className="w-12"></div>
                     )}
                   </div>
                 </div>
@@ -280,14 +292,13 @@ function DevicePieChart({ activeCampaign, period }) {
             {(chartDataList[currentIndex]?.data || []).map((item, index) => (
               <div
                 key={index}
-                className="flex items-center mr-3 mb-1 select-none"
-                style={{ cursor: "pointer" }}
+                className="flex items-center mr-3 mb-1 select-none cursor-pointer"
                 onClick={() =>
                   setActiveSlice(activeSlice === item.name ? null : item.name)
                 }
               >
                 <div
-                  className="w-3 h-3 mr-1"
+                  className="w-3 h-3 mr-1 rounded-sm"
                   style={{
                     backgroundColor: item.color,
                     opacity:
