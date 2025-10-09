@@ -112,14 +112,14 @@ function FacebookMetricCards({ insights, isLoading, page }) {
   ];
 
 const colorClasses = {
-    blue: "border-black bg-black text-[#0f4653]",
-    red: "border-black bg-black text-[#0f4653]",
-    purple: "border-black bg-black text-[#0f4653]",
-    indigo: "border-black bg-black text-[#0f4653]",
-    green: "border-black bg-black text-[#0f4653]",
-    yellow: "border-black bg-black text-[#0f4653]",
-    pink: "border-black bg-black text-[#0f4653]",
-    teal: "border-black bg-black text-[#0f4653]"
+    blue: "border-black text-[#0f4653]",
+    red: "border-black text-[#0f4653]",
+    purple: "border-black text-[#0f4653]",
+    indigo: "border-black text-[#0f4653]",
+    green: "border-black text-[#0f4653]",
+    yellow: "border-black text-[#0f4653]",
+    pink: "border-black text-[#0f4653]",
+    teal: "border-black text-[#0f4653]"
 };
 
   return (
