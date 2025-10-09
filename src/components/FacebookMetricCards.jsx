@@ -111,16 +111,16 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     }
   ];
 
-  const colorClasses = {
-    blue: "border-blue-500 bg-blue-50 text-blue-600",
-    red: "border-red-500 bg-red-50 text-red-600",
-    purple: "border-purple-500 bg-purple-50 text-purple-600",
-    indigo: "border-indigo-500 bg-indigo-50 text-indigo-600",
-    green: "border-green-500 bg-green-50 text-green-600",
-    yellow: "border-yellow-500 bg-yellow-50 text-yellow-600",
-    pink: "border-pink-500 bg-pink-50 text-pink-600",
-    teal: "border-teal-500 bg-teal-50 text-teal-600"
-  };
+const colorClasses = {
+    blue: "border-black bg-black text-[#0f4653]",
+    red: "border-black bg-black text-[#0f4653]",
+    purple: "border-black bg-black text-[#0f4653]",
+    indigo: "border-black bg-black text-[#0f4653]",
+    green: "border-black bg-black text-[#0f4653]",
+    yellow: "border-black bg-black text-[#0f4653]",
+    pink: "border-black bg-black text-[#0f4653]",
+    teal: "border-black bg-black text-[#0f4653]"
+};
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
