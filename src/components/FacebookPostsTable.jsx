@@ -93,7 +93,7 @@ function FacebookPostsTable({ posts, isLoading }) {
       <div className="overflow-x-auto">
         <div className="max-h-[600px] overflow-y-auto">
           <table className="w-full">
-            <thead className="bg-[#9AB4BA]/20 border-b border-[#B5B5B5] sticky top-0 z-10">
+            <thead className="bg-white border-b-2 border-[#1A4752] sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#1A4752] uppercase tracking-wider w-24">
                   Preview

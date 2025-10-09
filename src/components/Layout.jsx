@@ -229,12 +229,12 @@ export default function Layout({ user, onLogout }) {
       setLoadingFacebook(true);
       try {
         const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/facebook/accounts",
+          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/pages",
           { headers: { Authorization: `Bearer ${facebookToken}` } }
         );
         
         if (!res.ok) {
-          console.error("Failed to fetch Facebook accounts:", res.status);
+          console.error("Failed to fetch Facebook pages:", res.status);
           if (res.status === 401) {
             localStorage.removeItem('facebook_token');
           }
@@ -243,23 +243,18 @@ export default function Layout({ user, onLogout }) {
         }
         
         const data = await res.json();
+        console.log("Facebook pages data:", data);
         
-        const formattedAccounts = [
-          ...(data.pages || []).map(page => ({
-            id: page.id,
-            name: page.name,
-            type: 'page'
-          })),
-          ...(data.ad_accounts || []).map(account => ({
-            id: account.id,
-            name: account.name,
-            type: 'ad_account'
-          }))
-        ];
+        const formattedPages = data.map(page => ({
+          id: page.id,
+          name: page.name,
+          category: page.category || 'Page',
+          type: 'page'
+        }));
         
-        setFacebookAccounts(formattedAccounts);
+        setFacebookAccounts(formattedPages);
       } catch (err) {
-        console.error("Error fetching Facebook accounts:", err);
+        console.error("Error fetching Facebook pages:", err);
         setFacebookAccounts([]);
       } finally {
         setLoadingFacebook(false);
@@ -621,7 +616,7 @@ export default function Layout({ user, onLogout }) {
                       <div className="font-bold text-lg md:text-xl">{item.name}</div>
                       <div className="text-xs md:text-sm opacity-75 mt-1">
                         {activeTab === "Google Analytics" ? `Property: ${item.id}` : 
-                        activeTab === "Facebook" ? `Page: ${item.id}` :
+                        activeTab === "Facebook" ? `${item.category || 'Page'}` :
                         activeTab === "Instagram" ? `Account: ${item.id}` : 
                         activeTab === "Meta Ads" ? `${item.account_id} | ${item.currency}` :
                         item.id}
