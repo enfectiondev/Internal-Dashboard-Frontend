@@ -1,12 +1,19 @@
 import React, { useState } from "react";
 
-function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, selectedCampaignsForStats = [] }) {
+function MetaCampaignsTable({ 
+  campaigns = [], 
+  currency = "MYR", 
+  onLoadStats, 
+  selectedCampaignsForStats = [],
+  showLoadMore = false,
+  onLoadMore,
+  isLoadingMore = false,
+  totalAvailable = 0,
+  currentlyShown = 0
+}) {
   const [selectedRows, setSelectedRows] = useState(new Set());
-  const [showAll, setShowAll] = useState(false);
   
-  const displayedCampaigns = showAll ? campaigns : campaigns.slice(0, 5);
-  
-  // Sync selectedRows with selectedCampaignsForStats when stats are showing
+  // Sync selectedRows with selectedCampaignsForStats
   React.useEffect(() => {
     if (selectedCampaignsForStats.length > 0) {
       const statsIds = selectedCampaignsForStats.map(c => c.campaign_id);
@@ -25,10 +32,10 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   };
   
   const toggleAll = () => {
-    if (selectedRows.size === displayedCampaigns.length) {
+    if (selectedRows.size === campaigns.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(displayedCampaigns.map(c => c.campaign_id)));
+      setSelectedRows(new Set(campaigns.map(c => c.campaign_id)));
     }
   };
   
@@ -76,8 +83,16 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   
   return (
     <div className="bg-white rounded-lg shadow-sm">
+      {/* Header */}
       <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
+          {totalAvailable > 0 && (
+            <p className="text-sm text-gray-500 mt-1">
+              Showing {currentlyShown} of {totalAvailable} campaigns
+            </p>
+          )}
+        </div>
         <button
           onClick={downloadCSV}
           className="flex items-center space-x-2 px-4 py-2 bg-[#1A4752] text-white rounded hover:bg-[#0F3942] transition-colors"
@@ -89,16 +104,16 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
         </button>
       </div>
       
+      {/* Table with scroll */}
       <div className="overflow-x-auto">
-        {/* Single scrollable container */}
-        <div className={`${showAll ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+        <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 text-left w-12">
                   <input
                     type="checkbox"
-                    checked={selectedRows.size === displayedCampaigns.length && displayedCampaigns.length > 0}
+                    checked={selectedRows.size === campaigns.length && campaigns.length > 0}
                     onChange={toggleAll}
                     className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
                   />
@@ -114,7 +129,7 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {displayedCampaigns.map((campaign) => (
+              {campaigns.map((campaign) => (
                 <tr 
                   key={campaign.campaign_id}
                   className={`hover:bg-gray-50 transition-colors ${selectedRows.has(campaign.campaign_id) ? 'bg-blue-50' : ''}`}
@@ -135,12 +150,24 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
                       {campaign.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">{currency} {campaign.spend.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">{campaign.impressions.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-24">{campaign.clicks.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-28">{currency} {campaign.cpc.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-24">{campaign.ctr.toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-28">{campaign.reach.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">
+                    {currency} {campaign.spend.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-32">
+                    {campaign.impressions.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-24">
+                    {campaign.clicks.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-28">
+                    {currency} {campaign.cpc.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-24">
+                    {campaign.ctr.toFixed(2)}%
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 w-28">
+                    {campaign.reach.toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -148,18 +175,35 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
         </div>
       </div>
       
-      {/* Rest of the component stays the same */}
-      {campaigns.length > 5 && (
-        <div className="p-4 border-t border-gray-200 text-center">
+      {/* Load More Button */}
+      {showLoadMore && (
+        <div className="p-4 border-t border-gray-200 text-center bg-gray-50">
           <button
-            onClick={() => setShowAll(!showAll)}
-            className="px-6 py-2 bg-[#508995] text-white rounded-lg hover:bg-[#3F7380] transition-colors font-medium"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="px-6 py-2 bg-[#508995] text-white rounded-lg hover:bg-[#3F7380] transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
           >
-            {showAll ? 'Show Less' : 'View More'}
+            {isLoadingMore ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Loading...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                <span>Load More Campaigns</span>
+              </>
+            )}
           </button>
+          <p className="text-xs text-gray-500 mt-2">
+            {currentlyShown} of {totalAvailable} campaigns loaded
+          </p>
         </div>
       )}
       
+      {/* Selection Actions */}
       {selectedRows.size > 0 && (
         <div className="p-4 bg-blue-50 border-t border-blue-200 flex justify-between items-center">
           <p className="text-sm text-blue-900">
@@ -180,4 +224,4 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   );
 }
 
-export default MetaCampaignsTable;
+export default MetaCampaignsTable
