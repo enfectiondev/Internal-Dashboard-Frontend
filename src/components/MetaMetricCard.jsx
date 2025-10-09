@@ -1,6 +1,16 @@
 import React from "react";
 
-function MetaMetricCard({ title, value, subtitle, currency = "", showNoData = false }) {
+function MetaMetricCard({ title, value, subtitle, currency = "", showNoData = false, isLoading = false }) {
+  if (isLoading) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-gray-300 animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+        <div className="h-10 bg-gray-200 rounded w-1/2 mb-2"></div>
+        <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+      </div>
+    );
+  }
+
   if (showNoData) {
     return (
       <div className="bg-gray-50 text-gray-400 p-4 rounded-lg shadow-sm border-l-4 border-gray-300 relative">

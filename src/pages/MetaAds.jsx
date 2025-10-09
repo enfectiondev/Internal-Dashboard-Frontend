@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
-import { useMetaApi } from "../hooks/useMetaApi";
 import MetaMetricCard from "../components/MetaMetricCard";
 import MetaCampaignsTable from "../components/MetaCampaignsTable";
 import MetaLoadingSkeleton from "../components/MetaLoadingSkeleton";
@@ -24,11 +23,27 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
   const [showStats, setShowStats] = useState(false);
   const [selectedCampaignsForStats, setSelectedCampaignsForStats] = useState([]);
   const [timeSeriesTopals, setTimeSeriesTopals] = useState(null);
+  
+  // Account summary stats (from account-level endpoint)
+  const [accountSummary, setAccountSummary] = useState(null);
+  const [loadingAccountSummary, setLoadingAccountSummary] = useState(false);
+  const [accountSummaryError, setAccountSummaryError] = useState(null);
+  
+  // Paginated campaigns
+  const [campaigns, setCampaigns] = useState([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [campaignsError, setCampaignsError] = useState(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    offset: 0,
+    limit: 5,
+    has_more: false,
+    current_page: 1,
+    total_pages: 0
+  });
 
-  // Check if Facebook token exists in localStorage as fallback
   const hasFacebookToken = isAuthenticated || localStorage.getItem('facebook_token');
 
-  // Get display user - prefer original user from localStorage, fallback to Facebook user
   const getDisplayUser = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -46,96 +61,112 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
   };
 
   const displayUser = getDisplayUser();
+  const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
-  // API call function for campaigns
-  const campaignApiCall = useCallback(async (accountId, period, customDates) => {
-    const token = facebookToken || localStorage.getItem('facebook_token');
-    
-    if (!token) {
-      throw new Error('No Facebook token available');
-    }
+  // Fetch account summary (for metric cards)
+  const fetchAccountSummary = useCallback(async () => {
+    if (!selectedAccount?.id || !activeToken) return;
 
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${accountId}/campaigns`;
-    
-    // Add date parameters if custom period is being used
-    if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
-    }
-    
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        handleDisconnect();
-        throw new Error('Authentication failed. Please reconnect your Facebook account.');
+    setLoadingAccountSummary(true);
+    setAccountSummaryError(null);
+
+    try {
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/insights/summary`;
+      
+      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+        url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+      } else if (period) {
+        // Convert LAST_30_DAYS to 30d format
+        const periodMap = {
+          'LAST_7_DAYS': '7d',
+          'LAST_30_DAYS': '30d',
+          'LAST_90_DAYS': '90d',
+          'LAST_365_DAYS': '365d'
+        };
+        const apiPeriod = periodMap[period] || '30d';
+        url += `?period=${apiPeriod}`;
       }
-      throw new Error(`Failed to fetch campaign data: ${response.status}`);
+      
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${activeToken}` }
+      });
+      
+      if (!response.ok) throw new Error(`Failed to fetch account summary: ${response.status}`);
+      
+      const data = await response.json();
+      setAccountSummary(data);
+    } catch (err) {
+      console.error("Error fetching account summary:", err);
+      setAccountSummaryError(err.message);
+    } finally {
+      setLoadingAccountSummary(false);
     }
-    
-    return await response.json();
-  }, [facebookToken, handleDisconnect]);
+  }, [selectedAccount?.id, period, customDates, activeToken]);
 
-  // Use the caching hook
-  const { data: campaignData, loading: isLoadingCampaigns, error } = useMetaApi(
-    selectedAccount?.id,
-    period,
-    customDates,
-    'campaigns',
-    campaignApiCall
-  );
+  // Fetch paginated campaigns
+  const fetchCampaigns = useCallback(async (offset = 0, append = false) => {
+    if (!selectedAccount?.id || !activeToken) return;
+
+    setLoadingCampaigns(true);
+    setCampaignsError(null);
+
+    try {
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/campaigns/paginated?limit=${pagination.limit}&offset=${offset}`;
+      
+      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+        url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+      } else if (period) {
+        const periodMap = {
+          'LAST_7_DAYS': '7d',
+          'LAST_30_DAYS': '30d',
+          'LAST_90_DAYS': '90d',
+          'LAST_365_DAYS': '365d'
+        };
+        const apiPeriod = periodMap[period] || '30d';
+        url += `&period=${apiPeriod}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${activeToken}` }
+      });
+      
+      if (!response.ok) throw new Error(`Failed to fetch campaigns: ${response.status}`);
+      
+      const data = await response.json();
+      
+      if (append) {
+        setCampaigns(prev => [...prev, ...data.campaigns]);
+      } else {
+        setCampaigns(data.campaigns);
+      }
+      
+      setPagination(data.pagination);
+    } catch (err) {
+      console.error("Error fetching campaigns:", err);
+      setCampaignsError(err.message);
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  }, [selectedAccount?.id, period, customDates, activeToken, pagination.limit]);
+
+  // Initial load
+  useEffect(() => {
+    if (selectedAccount?.id && activeToken) {
+      fetchAccountSummary();
+      fetchCampaigns(0, false); // Reset to first page
+    }
+  }, [selectedAccount?.id, period, customDates, activeToken]);
+
+  const handleLoadMore = () => {
+    const nextOffset = pagination.offset + pagination.limit;
+    fetchCampaigns(nextOffset, true); // Append to existing campaigns
+  };
 
   const handleLoadStats = (campaigns) => {
     setSelectedCampaignsForStats(campaigns);
     setShowStats(true);
   };
 
-  // Get the active token for passing to chart components
-  const activeToken = facebookToken || localStorage.getItem('facebook_token');
-
-
-
-
-  const fetchAdSets = async () => {
-    setIsLoadingAdSets(true);
-    setError(null);
-
-    try {
-      const token = facebookToken || localStorage.getItem('facebook_token');
-      
-      if (!token) {
-        throw new Error('No Facebook token available');
-      }
-
-      const campaignIds = selectedCampaigns.map(c => c.campaign_id);
-      console.log('Fetching ad sets for campaign IDs:', campaignIds); // DEBUG
-      
-      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-          },
-        body: JSON.stringify(campaignIds)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ad sets: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Received ad sets data:', data); // DEBUG
-      setAdSetsData(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching ad sets:', err);
-    } finally {
-      setIsLoadingAdSets(false);
-    }
-  };
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -149,11 +180,10 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     return <FacebookLogin onFacebookLogin={handleFacebookLogin} />;
   }
 
-  // Display selected account details if available
   if (selectedAccount) {
     return (
       <div className="space-y-6">
-        {/* User Info Header with Selected Account */}
+        {/* User Info Header */}
         <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -183,165 +213,189 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
         </div>
 
         {/* Error Display */}
-        {error && (
+        {(accountSummaryError || campaignsError) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center space-x-3">
               <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <div className="text-red-800 font-medium">Error loading campaign data</div>
-                <div className="text-red-600 text-sm mt-1">{error.message}</div>
+                <div className="text-red-800 font-medium">Error loading data</div>
+                <div className="text-red-600 text-sm mt-1">
+                  {accountSummaryError || campaignsError}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Campaign Metrics Cards */}
-        {isLoadingCampaigns ? (
+        {/* Account Summary Metric Cards */}
+        {loadingAccountSummary ? (
           <MetaLoadingSkeleton />
-        ) : campaignData?.totals ? (
-          <>
-            {/* Metric Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetaMetricCard
-                title="Total Spend"
-                value={campaignData.totals.total_spend}
-                currency={selectedAccount.currency}
-                subtitle="Campaign budget utilized"
-              />
-              <MetaMetricCard
-                title="Total Impressions"
-                value={campaignData.totals.total_impressions?.toLocaleString()}
-                subtitle="Total ad views"
-              />
-              <MetaMetricCard
-                title="Total Clicks"
-                value={campaignData.totals.total_clicks?.toLocaleString()}
-                subtitle="User engagement"
-              />
-              <MetaMetricCard
-                title="Total Reach"
-                value={campaignData.totals.total_reach?.toLocaleString()}
-                subtitle="Unique users reached"
-              />
-            </div>
-
-            {/* Campaigns Table */}
-            <MetaCampaignsTable 
-              campaigns={campaignData.campaigns || []}
+        ) : accountSummary ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetaMetricCard
+              title="Total Spend"
+              value={accountSummary.total_spend}
               currency={selectedAccount.currency}
-              onLoadStats={handleLoadStats}
-              selectedCampaignsForStats={selectedCampaignsForStats}
+              subtitle="Total ad spend"
             />
+            <MetaMetricCard
+              title="Total Impressions"
+              value={accountSummary.total_impressions?.toLocaleString()}
+              subtitle="Total ad views"
+            />
+            <MetaMetricCard
+              title="Total Clicks"
+              value={accountSummary.total_clicks?.toLocaleString()}
+              subtitle="User engagement"
+            />
+            <MetaMetricCard
+              title="Total Reach"
+              value={accountSummary.total_reach?.toLocaleString()}
+              subtitle="Unique users reached"
+            />
+          </div>
+        ) : null}
 
-            {/* Stats Visualization Section */}
-            {showStats && selectedCampaignsForStats.length > 0 && (
-              <div className="space-y-6">
-                {/* Two Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column - Time Series (Full Height) */}
-                  <MetaTimeSeriesChart
-                    selectedCampaigns={selectedCampaignsForStats}
-                    period={period}
-                    customDates={customDates}
-                    facebookToken={activeToken}
-                    onTotalsCalculated={setTimeSeriesTopals}
-                  />
-                  
-                  {/* Right Column - Metrics Cards + Placements */}
-                  <div className="space-y-6">
-                    {/* Metrics Cards */}
-                    <MetaTimeSeriesMetrics 
-                      totals={timeSeriesTopals}
-                      currency={selectedAccount.currency}
-                      isLoading={!timeSeriesTopals}
-                    />
-                    
-                    {/* Placements Chart */}
-                    <MetaPlacementsChart
-                      selectedCampaigns={selectedCampaignsForStats}
-                      period={period}
-                      customDates={customDates}
-                      facebookToken={activeToken}
-                      currency={selectedAccount.currency}
-                    />
-                  </div>
-                </div>
-
-                {/* Demographics Chart - Full Width */}
-                <MetaDemographicsChart
-                  selectedCampaigns={selectedCampaignsForStats}
-                  period={period}
-                  customDates={customDates}
-                  facebookToken={activeToken}
-                  currency={selectedAccount.currency}
-                />
-              </div>
-            )}
-
-            {/* Ad Sets Section - Only show when campaigns stats are loaded */}
-            {showStats && selectedCampaignsForStats.length > 0 && (
-              <>
-                <div className="border-t-4 border-[#508995] my-8"></div>
-                
-                <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4 mb-6">
-                  <h3 className="text-xl font-bold text-white mb-1">Ad Sets for Selected Campaigns</h3>
-                  <p className="text-[#A1BCD3] text-sm">
-                    View and analyze ad sets from the {selectedCampaignsForStats.length} selected campaign{selectedCampaignsForStats.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-
-                <MetaAdSetsSection
-                  selectedCampaigns={selectedCampaignsForStats}
-                  period={period}
-                  customDates={customDates}
-                  facebookToken={activeToken}
-                  currency={selectedAccount.currency}
-                />
-              </>
-            )}
-
-            {/* Success Info */}
-            {!showStats && (
-              <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <div>
-                    <h4 className="font-semibold">Meta Ads Account Active!</h4>
-                    <p className="text-sm mt-1">
-                      Viewing {campaignData.campaigns?.length || 0} campaign{campaignData.campaigns?.length !== 1 ? 's' : ''} for {selectedAccount.name}
-                      {period === 'CUSTOM' && customDates?.startDate && customDates?.endDate && (
-                        <> ({customDates.startDate} to {customDates.endDate})</>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="bg-white rounded-lg p-8 text-center">
-            <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+        {/* Campaigns Table with Pagination */}
+        <div className="bg-white rounded-lg shadow-sm">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
+              {pagination.total > 0 && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Showing {campaigns.length} of {pagination.total} campaigns
+                </p>
+              )}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No Campaign Data Available
-            </h3>
-            <p className="text-gray-600">
-              No campaign data found for the selected period. Try adjusting the date range or check if there are active campaigns in this account.
-            </p>
+          </div>
+
+          {loadingCampaigns && campaigns.length === 0 ? (
+            <div className="p-8 text-center">
+              <div className="w-8 h-8 border-2 border-gray-300 border-t-[#1A4752] rounded-full animate-spin mx-auto"></div>
+              <p className="text-gray-600 mt-3">Loading campaigns...</p>
+            </div>
+          ) : campaigns.length > 0 ? (
+            <>
+              <MetaCampaignsTable 
+                campaigns={campaigns}
+                currency={selectedAccount.currency}
+                onLoadStats={handleLoadStats}
+                selectedCampaignsForStats={selectedCampaignsForStats}
+              />
+
+              {/* Load More Button */}
+              {pagination.has_more && (
+                <div className="p-4 border-t border-gray-200 text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingCampaigns}
+                    className="px-6 py-2 bg-[#508995] text-white rounded-lg hover:bg-[#3F7380] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingCampaigns ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Loading...</span>
+                      </div>
+                    ) : (
+                      `Load More (${pagination.total - campaigns.length} remaining)`
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              No campaigns found for the selected period
+            </div>
+          )}
+        </div>
+
+        {/* Stats Visualization Section */}
+        {showStats && selectedCampaignsForStats.length > 0 && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <MetaTimeSeriesChart
+                selectedCampaigns={selectedCampaignsForStats}
+                period={period}
+                customDates={customDates}
+                facebookToken={activeToken}
+                onTotalsCalculated={setTimeSeriesTopals}
+              />
+              
+              <div className="space-y-6">
+                <MetaTimeSeriesMetrics 
+                  totals={timeSeriesTopals}
+                  currency={selectedAccount.currency}
+                  isLoading={!timeSeriesTopals}
+                />
+                
+                <MetaPlacementsChart
+                  selectedCampaigns={selectedCampaignsForStats}
+                  period={period}
+                  customDates={customDates}
+                  facebookToken={activeToken}
+                  currency={selectedAccount.currency}
+                />
+              </div>
+            </div>
+
+            <MetaDemographicsChart
+              selectedCampaigns={selectedCampaignsForStats}
+              period={period}
+              customDates={customDates}
+              facebookToken={activeToken}
+              currency={selectedAccount.currency}
+            />
+          </div>
+        )}
+
+        {/* Ad Sets Section */}
+        {showStats && selectedCampaignsForStats.length > 0 && (
+          <>
+            <div className="border-t-4 border-[#508995] my-8"></div>
+            
+            <div className="bg-[#1A6473]/30 border border-[#508995] rounded-lg p-4 mb-6">
+              <h3 className="text-xl font-bold text-white mb-1">Ad Sets for Selected Campaigns</h3>
+              <p className="text-[#A1BCD3] text-sm">
+                View and analyze ad sets from the {selectedCampaignsForStats.length} selected campaign{selectedCampaignsForStats.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            <MetaAdSetsSection
+              selectedCampaigns={selectedCampaignsForStats}
+              period={period}
+              customDates={customDates}
+              facebookToken={activeToken}
+              currency={selectedAccount.currency}
+            />
+          </>
+        )}
+
+        {/* Success Info */}
+        {!showStats && campaigns.length > 0 && (
+          <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h4 className="font-semibold">Meta Ads Account Active!</h4>
+                <p className="text-sm mt-1">
+                  Viewing {campaigns.length} of {pagination.total} campaigns for {selectedAccount.name}
+                  {period === 'CUSTOM' && customDates?.startDate && customDates?.endDate && (
+                    <> ({customDates.startDate} to {customDates.endDate})</>
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
     );
   }
 
-  // Default view when no account is selected but authenticated
   return (
     <div className="space-y-6">
       <div className="bg-[#1A6473] border border-[#508995] rounded-lg p-6">

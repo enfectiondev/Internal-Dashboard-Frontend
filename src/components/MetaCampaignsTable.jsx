@@ -2,9 +2,6 @@ import React, { useState } from "react";
 
 function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, selectedCampaignsForStats = [] }) {
   const [selectedRows, setSelectedRows] = useState(new Set());
-  const [showAll, setShowAll] = useState(false);
-  
-  const displayedCampaigns = showAll ? campaigns : campaigns.slice(0, 5);
   
   // Sync selectedRows with selectedCampaignsForStats when stats are showing
   React.useEffect(() => {
@@ -25,10 +22,10 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   };
   
   const toggleAll = () => {
-    if (selectedRows.size === displayedCampaigns.length) {
+    if (selectedRows.size === campaigns.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(displayedCampaigns.map(c => c.campaign_id)));
+      setSelectedRows(new Set(campaigns.map(c => c.campaign_id)));
     }
   };
   
@@ -75,30 +72,17 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
-        <button
-          onClick={downloadCSV}
-          className="flex items-center space-x-2 px-4 py-2 bg-[#1A4752] text-white rounded hover:bg-[#0F3942] transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          <span>Download</span>
-        </button>
-      </div>
-      
+    <div className="bg-white">
       <div className="overflow-x-auto">
-        {/* Single scrollable container */}
-        <div className={`${showAll ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+        {/* Scrollable table container */}
+        <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 text-left w-12">
                   <input
                     type="checkbox"
-                    checked={selectedRows.size === displayedCampaigns.length && displayedCampaigns.length > 0}
+                    checked={selectedRows.size === campaigns.length && campaigns.length > 0}
                     onChange={toggleAll}
                     className="w-4 h-4 text-[#1A4752] rounded focus:ring-[#1A4752]"
                   />
@@ -114,7 +98,7 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {displayedCampaigns.map((campaign) => (
+              {campaigns.map((campaign) => (
                 <tr 
                   key={campaign.campaign_id}
                   className={`hover:bg-gray-50 transition-colors ${selectedRows.has(campaign.campaign_id) ? 'bg-blue-50' : ''}`}
@@ -148,34 +132,35 @@ function MetaCampaignsTable({ campaigns = [], currency = "MYR", onLoadStats, sel
         </div>
       </div>
       
-      {/* Rest of the component stays the same */}
-      {campaigns.length > 5 && (
-        <div className="p-4 border-t border-gray-200 text-center">
-          <button
-            onClick={() => setShowAll(!showAll)}
-            className="px-6 py-2 bg-[#508995] text-white rounded-lg hover:bg-[#3F7380] transition-colors font-medium"
-          >
-            {showAll ? 'Show Less' : 'View More'}
-          </button>
-        </div>
-      )}
-      
-      {selectedRows.size > 0 && (
-        <div className="p-4 bg-blue-50 border-t border-blue-200 flex justify-between items-center">
-          <p className="text-sm text-blue-900">
-            {selectedRows.size} campaign{selectedRows.size > 1 ? 's' : ''} selected
-          </p>
-          <button
-            onClick={handleLoadStats}
-            className="flex items-center space-x-2 px-6 py-2 bg-[#1A4752] text-white rounded-lg hover:bg-[#0F3942] transition-colors font-medium"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span>Load Stats for Selected Campaigns</span>
-          </button>
-        </div>
-      )}
+      {/* Action buttons */}
+      <div className="p-4 border-t border-gray-200 flex justify-between items-center">
+        <button
+          onClick={downloadCSV}
+          className="flex items-center space-x-2 px-4 py-2 bg-[#1A4752] text-white rounded hover:bg-[#0F3942] transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Download CSV</span>
+        </button>
+        
+        {selectedRows.size > 0 && (
+          <div className="flex items-center space-x-4">
+            <p className="text-sm text-blue-900">
+              {selectedRows.size} campaign{selectedRows.size > 1 ? 's' : ''} selected
+            </p>
+            <button
+              onClick={handleLoadStats}
+              className="flex items-center space-x-2 px-6 py-2 bg-[#1A4752] text-white rounded-lg hover:bg-[#0F3942] transition-colors font-medium"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span>Load Stats for Selected Campaigns</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
