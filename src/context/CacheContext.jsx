@@ -13,7 +13,7 @@ export const useCache = () => {
 export const CacheProvider = ({ children }) => {
   const [cache, setCacheState] = useState({});
 
-  // Generic cache key generator that works for both customerIds and propertyIds
+  // Generic cache key generator
   const getCacheKey = (id, period, endpoint, type = 'ads') => {
     return `${type}_${id}_${period}_${endpoint}`;
   };
@@ -23,19 +23,16 @@ export const CacheProvider = ({ children }) => {
     const key = getCacheKey(id, period, endpoint, type);
     const data = cache[key] || null;
     
-    // Debug logging
     console.log(`[CACHE GET] Key: ${key}`);
     console.log(`[CACHE GET] Result:`, data ? 'HIT' : 'MISS');
-    console.log(`[CACHE GET] All cache keys:`, Object.keys(cache));
     
     return data;
   };
 
-  // NEW: Direct cache access by key
+  // Direct cache access by key
   const getRawCacheData = (key) => {
     const data = cache[key] || null;
-    console.log(`[RAW CACHE GET] Key: ${key}`);
-    console.log(`[RAW CACHE GET] Data:`, data);
+    console.log(`[RAW CACHE GET] Key: ${key}, Result: ${data ? 'HIT' : 'MISS'}`);
     return data;
   };
 
@@ -52,7 +49,6 @@ export const CacheProvider = ({ children }) => {
 
     if (shouldCache) {
       console.log(`[CACHE SET] Key: ${key}`);
-      console.log(`[CACHE SET] Data:`, data);
       
       setCacheState(prev => ({
         ...prev,
@@ -63,7 +59,7 @@ export const CacheProvider = ({ children }) => {
     }
   };
 
-  // Backward compatibility methods for Ads (customerIds)
+  // Backward compatibility methods for Ads
   const getFromCacheAds = (customerId, period, endpoint) => {
     return getFromCache(customerId, period, endpoint, 'ads');
   };
@@ -72,7 +68,7 @@ export const CacheProvider = ({ children }) => {
     return setCache(customerId, period, endpoint, data, 'ads');
   };
 
-  // New methods for Analytics (propertyIds)
+  // Methods for Analytics
   const getFromCacheAnalytics = (propertyId, period, endpoint) => {
     return getFromCache(propertyId, period, endpoint, 'analytics');
   };
@@ -81,65 +77,7 @@ export const CacheProvider = ({ children }) => {
     return setCache(propertyId, period, endpoint, data, 'analytics');
   };
 
-  const clearCache = () => {
-    console.log('[CACHE CLEAR] Clearing all cache');
-    setCacheState({});
-  };
-
-  const clearCacheForCustomer = (customerId) => {
-    console.log(`[CACHE CLEAR] Clearing cache for customer: ${customerId}`);
-    setCacheState(prev => {
-      const newCache = { ...prev };
-      Object.keys(newCache).forEach(key => {
-        if (key.startsWith(`ads_${customerId}_`)) {
-          console.log(`[CACHE CLEAR] Removing key: ${key}`);
-          delete newCache[key];
-        }
-      });
-      return newCache;
-    });
-  };
-
-  const clearCacheForProperty = (propertyId) => {
-    console.log(`[CACHE CLEAR] Clearing cache for property: ${propertyId}`);
-    setCacheState(prev => {
-      const newCache = { ...prev };
-      Object.keys(newCache).forEach(key => {
-        if (key.startsWith(`analytics_${propertyId}_`)) {
-          console.log(`[CACHE CLEAR] Removing key: ${key}`);
-          delete newCache[key];
-        }
-      });
-      return newCache;
-    });
-  };
-
-  const getCacheStats = () => {
-    const keys = Object.keys(cache);
-    const adsStats = {};
-    const analyticsStats = {};
-    
-    keys.forEach(key => {
-      const [type, id] = key.split('_');
-      if (type === 'ads') {
-        if (!adsStats[id]) adsStats[id] = 0;
-        adsStats[id]++;
-      } else if (type === 'analytics') {
-        if (!analyticsStats[id]) analyticsStats[id] = 0;
-        analyticsStats[id]++;
-      }
-    });
-    
-    return {
-      totalKeys: keys.length,
-      adsStats,
-      analyticsStats,
-      allKeys: keys
-    };
-  };
-
-
-  // Add Meta Ads cache methods
+  // Methods for Meta Ads
   const getFromCacheMeta = (accountId, period, endpoint) => {
     return getFromCache(accountId, period, endpoint, 'meta');
   };
@@ -148,35 +86,131 @@ export const CacheProvider = ({ children }) => {
     return setCache(accountId, period, endpoint, data, 'meta');
   };
 
-  const clearCacheForMetaAccount = (accountId) => {
-    console.log(`[CACHE CLEAR] Clearing cache for Meta account: ${accountId}`);
+  // Methods for Facebook
+  const getFromCacheFacebook = (pageId, period, endpoint) => {
+    return getFromCache(pageId, period, endpoint, 'facebook');
+  };
+
+  const setCacheFacebook = (pageId, period, endpoint, data) => {
+    return setCache(pageId, period, endpoint, data, 'facebook');
+  };
+
+  // Clear all cache
+  const clearCache = () => {
+    console.log('[CACHE CLEAR] Clearing all cache');
+    setCacheState({});
+  };
+
+  // Clear cache for specific customer
+  const clearCacheForCustomer = (customerId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for customer: ${customerId}`);
     setCacheState(prev => {
       const newCache = { ...prev };
       Object.keys(newCache).forEach(key => {
-        if (key.startsWith(`meta_${accountId}_`)) {
-          console.log(`[CACHE CLEAR] Removing key: ${key}`);
+        if (key.startsWith(`ads_${customerId}_`)) {
           delete newCache[key];
         }
       });
       return newCache;
     });
   };
-  // Update return value
+
+  // Clear cache for specific property
+  const clearCacheForProperty = (propertyId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for property: ${propertyId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`analytics_${propertyId}_`)) {
+          delete newCache[key];
+        }
+      });
+      return newCache;
+    });
+  };
+
+  // Clear cache for specific Meta account
+  const clearCacheForMetaAccount = (accountId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for Meta account: ${accountId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`meta_${accountId}_`)) {
+          delete newCache[key];
+        }
+      });
+      return newCache;
+    });
+  };
+
+  // Clear cache for specific Facebook page
+  const clearCacheForFacebookPage = (pageId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for Facebook page: ${pageId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`facebook_${pageId}_`)) {
+          delete newCache[key];
+        }
+      });
+      return newCache;
+    });
+  };
+
+  // Get cache statistics
+  const getCacheStats = () => {
+    const keys = Object.keys(cache);
+    const stats = {
+      ads: {},
+      analytics: {},
+      meta: {},
+      facebook: {}
+    };
+    
+    keys.forEach(key => {
+      const [type, id] = key.split('_');
+      if (stats[type]) {
+        if (!stats[type][id]) stats[type][id] = 0;
+        stats[type][id]++;
+      }
+    });
+    
+    return {
+      totalKeys: keys.length,
+      ...stats,
+      allKeys: keys
+    };
+  };
+
   return (
     <CacheContext.Provider value={{
+      // Generic methods
       getFromCache,
       setCache,
       getRawCacheData,
+      
+      // Ads methods
       getFromCacheAds,
       setCacheAds,
+      clearCacheForCustomer,
+      
+      // Analytics methods
       getFromCacheAnalytics,
       setCacheAnalytics,
+      clearCacheForProperty,
+      
+      // Meta Ads methods
       getFromCacheMeta,
       setCacheMeta,
-      clearCache,
-      clearCacheForCustomer,
-      clearCacheForProperty,
       clearCacheForMetaAccount,
+      
+      // Facebook methods
+      getFromCacheFacebook,
+      setCacheFacebook,
+      clearCacheForFacebookPage,
+      
+      // General methods
+      clearCache,
       getCacheStats
     }}>
       {children}

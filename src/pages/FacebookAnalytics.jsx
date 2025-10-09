@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
+import { useFacebookPages, useFacebookInsights, useFacebookPosts } from "../hooks/useFacebookCache";
 import FacebookPageSelector from "../components/FacebookPageSelector";
 import FacebookMetricCards from "../components/FacebookMetricCards";
 import FacebookPostsTable from "../components/FacebookPostsTable";
@@ -17,144 +18,54 @@ const FacebookAnalytics = ({ period, customDates }) => {
     isAuthenticated 
   } = useFacebookAuth();
   
-  const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
-  const [pageInsights, setPageInsights] = useState(null);
-  const [pagePosts, setPagePosts] = useState([]);
-  
-  const [loadingPages, setLoadingPages] = useState(false);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-  const [loadingPosts, setLoadingPosts] = useState(false);
-  
-  const [error, setError] = useState(null);
 
   const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
-  // Fetch pages on mount
+  // Fetch pages with caching
+  const { 
+    pages, 
+    loading: loadingPages, 
+    error: pagesError 
+  } = useFacebookPages(activeToken);
+
+  // Auto-select first page when pages load
   useEffect(() => {
-    if (activeToken) {
-      fetchPages();
+    if (pages.length > 0 && !selectedPage) {
+      setSelectedPage(pages[0]);
     }
-  }, [activeToken]);
+  }, [pages, selectedPage]);
 
-  // Fetch insights and posts when page or period changes
-  useEffect(() => {
-    if (selectedPage && activeToken) {
-      setPageInsights(null);
-      setPagePosts([]);
-      fetchPageInsights();
-      fetchPagePosts();
-    }
-  }, [selectedPage, period, customDates, activeToken]);
+  // Fetch page insights with caching
+  const {
+    data: pageInsights,
+    loading: loadingInsights,
+    error: insightsError
+  } = useFacebookInsights(
+    selectedPage?.id,
+    period,
+    customDates,
+    activeToken
+  );
 
-  const fetchPages = async () => {
-    setLoadingPages(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(
-        "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/pages",
-        { headers: { Authorization: `Bearer ${activeToken}` } }
-      );
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          handleDisconnect();
-          throw new Error('Authentication failed. Please reconnect.');
-        }
-        throw new Error(`Failed to fetch pages: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setPages(data);
-      
-      // Auto-select first page
-      if (data.length > 0) {
-        setSelectedPage(data[0]);
-      }
-    } catch (err) {
-      console.error('Error fetching pages:', err);
-      setError(err.message);
-    } finally {
-      setLoadingPages(false);
-    }
-  };
-
-  const fetchPageInsights = async () => {
-    if (!selectedPage) return;
-    
-    setLoadingInsights(true);
-    
-    try {
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/pages/${selectedPage.id}/insights`;
-      
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
-      } else if (period) {
-        const periodMap = {
-          'LAST_7_DAYS': '7d',
-          'LAST_30_DAYS': '30d',
-          'LAST_90_DAYS': '90d',
-          'LAST_365_DAYS': '365d'
-        };
-        const apiPeriod = periodMap[period] || '30d';
-        url += `?period=${apiPeriod}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${activeToken}` }
-      });
-      
-      if (!response.ok) throw new Error(`Failed to fetch insights: ${response.status}`);
-      
-      const data = await response.json();
-      setPageInsights(data);
-    } catch (err) {
-      console.error('Error fetching page insights:', err);
-    } finally {
-      setLoadingInsights(false);
-    }
-  };
-
-  const fetchPagePosts = async () => {
-    if (!selectedPage) return;
-    
-    setLoadingPosts(true);
-    
-    try {
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/pages/${selectedPage.id}/posts?limit=20`;
-      
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
-      } else if (period) {
-        const periodMap = {
-          'LAST_7_DAYS': '7d',
-          'LAST_30_DAYS': '30d',
-          'LAST_90_DAYS': '90d',
-          'LAST_365_DAYS': '365d'
-        };
-        const apiPeriod = periodMap[period] || '30d';
-        url += `&period=${apiPeriod}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${activeToken}` }
-      });
-      
-      if (!response.ok) throw new Error(`Failed to fetch posts: ${response.status}`);
-      
-      const data = await response.json();
-      setPagePosts(data);
-    } catch (err) {
-      console.error('Error fetching page posts:', err);
-    } finally {
-      setLoadingPosts(false);
-    }
-  };
+  // Fetch page posts with caching
+  const {
+    data: pagePosts,
+    loading: loadingPosts,
+    error: postsError
+  } = useFacebookPosts(
+    selectedPage?.id,
+    period,
+    customDates,
+    activeToken,
+    20 // limit
+  );
 
   const handlePageSelect = (page) => {
     setSelectedPage(page);
   };
+
+  const error = pagesError || insightsError || postsError;
 
   if (isLoading || loadingPages) {
     return (
@@ -180,12 +91,6 @@ const FacebookAnalytics = ({ period, customDates }) => {
             <div className="flex-1">
               <div className="text-red-800 font-semibold text-lg">Error Loading Facebook Data</div>
               <div className="text-red-600 text-sm mt-2">{error}</div>
-              <button 
-                onClick={fetchPages}
-                className="mt-4 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                Try Again
-              </button>
             </div>
           </div>
         </div>
@@ -263,23 +168,23 @@ const FacebookAnalytics = ({ period, customDates }) => {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <FacebookEngagementChart
-              posts={pagePosts}
+              posts={pagePosts || []}
               isLoading={loadingPosts}
             />
             <FacebookPostTypesChart
-              posts={pagePosts}
+              posts={pagePosts || []}
               isLoading={loadingPosts}
             />
           </div>
 
           {/* Posts Table */}
           <FacebookPostsTable
-            posts={pagePosts}
+            posts={pagePosts || []}
             isLoading={loadingPosts}
           />
 
           {/* Success Info */}
-          {!loadingInsights && !loadingPosts && pageInsights && (
+          {!loadingInsights && !loadingPosts && pageInsights && pagePosts && (
             <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
               <div className="flex items-center space-x-3">
                 <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
