@@ -141,7 +141,7 @@ function MetaAdsDemographicsChart({ selectedAds, period, customDates, facebookTo
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Metric</label>
         <div className="flex flex-wrap gap-2">
-          {['spend', 'impressions', 'reach', 'results'].map(metric => (
+          {['spend', 'impressions', 'reach'].map(metric => (
             <button
               key={metric}
               onClick={() => setSelectedMetric(metric)}
