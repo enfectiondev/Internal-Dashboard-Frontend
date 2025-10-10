@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Download } from "lucide-react";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-function KeywordTable({ activeCampaign, period }) {
+function KeywordTable({ activeCampaign, period, customDates }) {
   const [showAll, setShowAll] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -11,23 +11,27 @@ function KeywordTable({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
 
-  const keywordsApiCall = async (customerId, period) => {
+  const keywordsApiCall = async (customerId, period, customDates) => {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`,
-      {
-        headers: token
-          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-          : { "Content-Type": "application/json" },
-      }
-    );
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/keywords/${customerId}?period=${convertedPeriod}&offset=0&limit=100`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, {
+      headers: token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" },
+    });
 
     if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
     const json = await res.json();
@@ -49,7 +53,8 @@ function KeywordTable({ activeCampaign, period }) {
     activeCampaign?.id,
     period,
     'keywords',
-    keywordsApiCall
+    keywordsApiCall,
+    { customDates }
   );
 
   const downloadCSV = () => {

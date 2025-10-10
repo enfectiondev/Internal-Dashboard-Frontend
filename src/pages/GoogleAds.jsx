@@ -23,26 +23,18 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const keyStatsApiCall = async (customerId, periodOrCacheKey) => {
+  // UPDATED: Now properly handles customDates parameter from useApiWithCache
+  const keyStatsApiCall = async (customerId, periodOrCacheKey, customDatesParam) => {
     const token = localStorage.getItem("token");
     
-    // Extract the actual period from cache key if it's a custom period
-    let actualPeriod = period;
-    let startDate = null;
-    let endDate = null;
-    
-    if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      startDate = customDates.startDate;
-      endDate = customDates.endDate;
-    }
-    
-    const convertedPeriod = convertPeriodForAPI(actualPeriod);
+    // Use the customDatesParam passed from useApiWithCache
+    const convertedPeriod = convertPeriodForAPI(period);
 
     // Build URL with custom date parameters if needed
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
     
-    if (convertedPeriod === 'CUSTOM' && startDate && endDate) {
-      url += `&start_date=${startDate}&end_date=${endDate}`;
+    if (convertedPeriod === 'CUSTOM' && customDatesParam?.startDate && customDatesParam?.endDate) {
+      url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
     }
 
     console.log('Fetching key stats from:', url); // Debug log
@@ -74,16 +66,13 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     };
   };
 
-  // Create cache key that includes custom dates
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
-    : period;
-
+  // UPDATED: Pass customDates to useApiWithCache options
   const { data: metrics, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    cacheKey, // Use cache key for caching purposes
+    period, // Just pass the period, hook will create proper cache key
     "key-stats",
-    keyStatsApiCall
+    keyStatsApiCall,
+    { customDates } // CRITICAL: Pass customDates in options
   );
 
   if (!activeCampaign) {

@@ -47,7 +47,7 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const campaignsApiCall = async (customerId, period) => {
+  const campaignsApiCall = async (customerId, period, customDates) => {
     const token = localStorage.getItem("token");
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -79,16 +79,12 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
     }));
   };
 
-  // Create a cache key that includes custom dates for proper cache differentiation
-  const cacheKey = period === 'CUSTOM' && customDates?.startDate && customDates?.endDate
-    ? `${period}-${customDates.startDate}-${customDates.endDate}`
-    : period;
-
   const { data: campaignData, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    cacheKey,
+    period,
     'campaigns-shared',
-    campaignsApiCall
+    campaignsApiCall,
+    { customDates } // Pass custom dates to the hook
   );
 
   // Filter out campaigns with no usable data (based on toggles)

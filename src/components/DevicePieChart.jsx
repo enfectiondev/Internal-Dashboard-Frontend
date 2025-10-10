@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-function DevicePieChart({ activeCampaign, period }) {
+function DevicePieChart({ activeCampaign, period, customDates }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSlice, setActiveSlice] = useState(null);
 
@@ -27,23 +27,27 @@ function DevicePieChart({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
 
-  const deviceApiCall = async (customerId, period) => {
+  const deviceApiCall = async (customerId, period, customDates) => {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${convertedPeriod}`,
-      {
-        headers: token
-          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-          : { "Content-Type": "application/json" },
-      }
-    );
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, {
+      headers: token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" },
+    });
 
     if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
     const devices = await res.json();
@@ -79,7 +83,8 @@ function DevicePieChart({ activeCampaign, period }) {
     activeCampaign?.id,
     period,
     'device-performance',
-    deviceApiCall
+    deviceApiCall,
+    { customDates }
   );
 
   // Calculate majority device and its percentage

@@ -23,7 +23,8 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
   // Extract options
   const { 
     isAnalytics = false, 
-    convertPeriod = false 
+    convertPeriod = false,
+    customDates = null // NEW: Support custom dates
   } = options;
   
   // Use appropriate cache methods based on type
@@ -60,12 +61,13 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
       if (isMountedRef.current) {
         setLoading(true);
         setError(null);
-        // Don't clear data immediately to prevent flash of empty state
       }
 
-      // The periodOrCacheKey might be a simple period or a complex cache key
-      // For cache purposes, we'll use it as-is
-      const cacheKey = periodOrCacheKey;
+      // Create cache key that includes custom dates if provided
+      let cacheKey = periodOrCacheKey;
+      if (periodOrCacheKey === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+        cacheKey = `CUSTOM-${customDates.startDate}-${customDates.endDate}`;
+      }
       
       // Convert period if needed (for analytics) - only convert if it's a standard period
       const finalPeriod = convertPeriod && !cacheKey.includes('-') 
@@ -124,8 +126,8 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
       const apiPromise = (async () => {
         try {
           console.log(`[${endpoint}] Making API call for ${id} - ${cacheKey}`);
-          // Pass the cache key to the API call function
-          const result = await memoizedApiCall(id, cacheKey);
+          // Pass both the period and custom dates to the API call function
+          const result = await memoizedApiCall(id, periodOrCacheKey, customDates);
           
           console.log(`[${endpoint}] API response for ${id}:`, result);
           
@@ -177,7 +179,7 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
     };
 
     fetchData();
-  }, [id, periodOrCacheKey, endpoint, memoizedApiCall, isAnalytics, convertPeriod, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
+  }, [id, periodOrCacheKey, endpoint, memoizedApiCall, isAnalytics, convertPeriod, customDates, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
 
   // Log current state for debugging
   useEffect(() => {

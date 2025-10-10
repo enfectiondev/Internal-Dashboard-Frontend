@@ -30,7 +30,7 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function CampaignPerformanceDetails({ activeCampaign, period }) {
+function CampaignPerformanceDetails({ activeCampaign, period, customDates }) {
   const [showCtr, setShowCtr] = useState(true);
   const [showCost, setShowCost] = useState(true);
   const [showConversions, setShowConversions] = useState(true);
@@ -40,21 +40,26 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
 
-  const campaignDetailsApiCall = async (customerId, period) => {
+  const campaignDetailsApiCall = async (customerId, period, customDates) => {
     const token = localStorage.getItem("token");
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const convertedPeriod = convertPeriodForAPI(period);
-    const res = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`,
-      { headers }
-    );
+    
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const res = await fetch(url, { headers });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     const json = await res.json();
@@ -76,8 +81,9 @@ function CampaignPerformanceDetails({ activeCampaign, period }) {
   const { data, loading, error } = useApiWithCache(
     activeCampaign?.id,
     period,
-    'campaign-details', // Different endpoint name
-    campaignDetailsApiCall
+    'campaign-details',
+    campaignDetailsApiCall,
+    { customDates }
   );
 
   // Filter out campaigns with no usable data (based on toggles)

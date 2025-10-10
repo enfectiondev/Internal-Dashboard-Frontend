@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
-function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
+function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS", customDates }) {
   // Blue/Gray color scheme
   const colors = {
     enabled: "#1a4752ff",    // Dark blue
@@ -15,7 +15,8 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
@@ -38,17 +39,20 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
     return typeMap[cleanType] || 'Other';
   };
 
-  const campaignProgressApiCall = async (customerId, period) => {
+  const campaignProgressApiCall = async (customerId, period, customDates) => {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const response = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`,
-      { headers }
-    );
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -105,8 +109,9 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
   const { data, loading, error } = useApiWithCache(
     activeCampaign?.id,
     period,
-    'campaign-progress', // Different endpoint name
-    campaignProgressApiCall
+    'campaign-progress',
+    campaignProgressApiCall,
+    { customDates }
   );
 
   if (loading && !data) {
@@ -156,7 +161,9 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
           Campaign Distribution
         </h3>
         <p className="text-sm text-gray-500">
-          Campaign status breakdown by type for {period.replace('LAST_', '').replace('_', ' ').toLowerCase()}
+          Campaign status breakdown by type for {period === 'CUSTOM' && customDates?.startDate && customDates?.endDate 
+            ? `${customDates.startDate} to ${customDates.endDate}`
+            : period.replace('LAST_', '').replace('_', ' ').toLowerCase()}
         </p>
         <hr className="mt-3" />
       </div>

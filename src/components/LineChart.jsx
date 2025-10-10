@@ -30,7 +30,7 @@ const CustomLineTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function LineChartComp({ activeCampaign, period }) {
+function LineChartComp({ activeCampaign, period, customDates }) {
   const [showClicks, setShowClicks] = useState(true);
   const [showCost, setShowCost] = useState(true);
   const [showImpressions, setShowImpressions] = useState(true);
@@ -40,23 +40,27 @@ function LineChartComp({ activeCampaign, period }) {
       'LAST_7_DAYS': 'LAST_7_DAYS',
       'LAST_30_DAYS': 'LAST_30_DAYS',
       'LAST_3_MONTHS': 'LAST_90_DAYS',
-      'LAST_1_YEAR': 'LAST_365_DAYS'
+      'LAST_1_YEAR': 'LAST_365_DAYS',
+      'CUSTOM': 'CUSTOM'
     };
     return periodMap[period] || period;
   };
 
-  const timelineApiCall = async (customerId, period) => {
+  const timelineApiCall = async (customerId, period, customDates) => {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    const response = await fetch(
-      `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`,
-      {
-        headers: token
-          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-          : { "Content-Type": "application/json" },
-      }
-    );
+    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`;
+    
+    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    }
+
+    const response = await fetch(url, {
+      headers: token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" },
+    });
 
     if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
     return await response.json();
@@ -66,7 +70,8 @@ function LineChartComp({ activeCampaign, period }) {
     activeCampaign?.id,
     period,
     'time-performance',
-    timelineApiCall
+    timelineApiCall,
+    { customDates }
   );
 
   const labelBaseStyle = {
