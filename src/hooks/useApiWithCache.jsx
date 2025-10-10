@@ -1,254 +1,188 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCache } from '../context/CacheContext';
 
-const CacheContext = createContext();
+// Global promise cache to prevent duplicate API calls
+const activePromises = new Map();
 
-export const CacheProvider = ({ children }) => {
-  const [cache, setCache] = useState({
-    ads: {},      // Google Ads cache
-    analytics: {}, // Google Analytics cache
-    meta: {},     // Meta (Facebook/Instagram) cache
-    facebook: {}, // Facebook cache
-    instagram: {} // Instagram cache
-  });
-
-  // Generate a standardized cache key
-  const generateCacheKey = (id, period, endpoint) => {
-    // The period might be something like "LAST_7_DAYS" or "CUSTOM-2025-07-12-2025-10-08"
-    return `${id}_${period}_${endpoint}`;
+// Convert dashboard period to analytics API period format
+const convertPeriodToAnalytics = (period) => {
+  const periodMap = {
+    'LAST_7_DAYS': '7d',
+    'LAST_30_DAYS': '30d', 
+    'LAST_3_MONTHS': '90d',
+    'LAST_1_YEAR': '365d'
   };
-
-  // Google Ads cache methods
-  const getFromCacheAds = useCallback((customerId, period, endpoint) => {
-    const key = generateCacheKey(customerId, period, endpoint);
-    const cached = cache.ads[key];
-    
-    if (cached) {
-      console.log(`[CACHE GET] Ads cache HIT for key: ${key}`);
-      return cached;
-    }
-    
-    console.log(`[CACHE GET] Ads cache MISS for key: ${key}`);
-    console.log(`[CACHE GET] Available ads cache keys:`, Object.keys(cache.ads));
-    return null;
-  }, [cache.ads]);
-
-  const setCacheAds = useCallback((customerId, period, endpoint, data) => {
-    const key = generateCacheKey(customerId, period, endpoint);
-    console.log(`[CACHE SET] Setting ads cache for key: ${key}`, data);
-    
-    setCache(prev => ({
-      ...prev,
-      ads: {
-        ...prev.ads,
-        [key]: data
-      }
-    }));
-  }, []);
-
-  // Google Analytics cache methods
-  const getFromCacheAnalytics = useCallback((propertyId, period, endpoint) => {
-    const key = generateCacheKey(propertyId, period, endpoint);
-    const cached = cache.analytics[key];
-    
-    if (cached) {
-      console.log(`[CACHE GET] Analytics cache HIT for key: ${key}`);
-      return cached;
-    }
-    
-    console.log(`[CACHE GET] Analytics cache MISS for key: ${key}`);
-    console.log(`[CACHE GET] Available analytics cache keys:`, Object.keys(cache.analytics));
-    return null;
-  }, [cache.analytics]);
-
-  const setCacheAnalytics = useCallback((propertyId, period, endpoint, data) => {
-    const key = generateCacheKey(propertyId, period, endpoint);
-    console.log(`[CACHE SET] Setting analytics cache for key: ${key}`, data);
-    
-    setCache(prev => ({
-      ...prev,
-      analytics: {
-        ...prev.analytics,
-        [key]: data
-      }
-    }));
-  }, []);
-
-  // Meta cache methods
-  const getFromCacheMeta = useCallback((accountId, period, endpoint) => {
-    const key = generateCacheKey(accountId, period, endpoint);
-    const cached = cache.meta[key];
-    
-    if (cached) {
-      console.log(`[CACHE GET] Meta cache HIT for key: ${key}`);
-      return cached;
-    }
-    
-    console.log(`[CACHE GET] Meta cache MISS for key: ${key}`);
-    return null;
-  }, [cache.meta]);
-
-  const setCacheMeta = useCallback((accountId, period, endpoint, data) => {
-    const key = generateCacheKey(accountId, period, endpoint);
-    console.log(`[CACHE SET] Setting meta cache for key: ${key}`, data);
-    
-    setCache(prev => ({
-      ...prev,
-      meta: {
-        ...prev.meta,
-        [key]: data
-      }
-    }));
-  }, []);
-
-  // Facebook cache methods
-  const getFromCacheFacebook = useCallback((pageId, period, endpoint) => {
-    const key = generateCacheKey(pageId, period, endpoint);
-    const cached = cache.facebook[key];
-    
-    if (cached) {
-      console.log(`[CACHE GET] Facebook cache HIT for key: ${key}`);
-      return cached;
-    }
-    
-    console.log(`[CACHE GET] Facebook cache MISS for key: ${key}`);
-    return null;
-  }, [cache.facebook]);
-
-  const setCacheFacebook = useCallback((pageId, period, endpoint, data) => {
-    const key = generateCacheKey(pageId, period, endpoint);
-    console.log(`[CACHE SET] Setting facebook cache for key: ${key}`, data);
-    
-    setCache(prev => ({
-      ...prev,
-      facebook: {
-        ...prev.facebook,
-        [key]: data
-      }
-    }));
-  }, []);
-
-  // Instagram cache methods
-  const getFromCacheInstagram = useCallback((accountId, period, endpoint) => {
-    const key = generateCacheKey(accountId, period, endpoint);
-    const cached = cache.instagram[key];
-    
-    if (cached) {
-      console.log(`[CACHE GET] Instagram cache HIT for key: ${key}`);
-      return cached;
-    }
-    
-    console.log(`[CACHE GET] Instagram cache MISS for key: ${key}`);
-    return null;
-  }, [cache.instagram]);
-
-  const setCacheInstagram = useCallback((accountId, period, endpoint, data) => {
-    const key = generateCacheKey(accountId, period, endpoint);
-    console.log(`[CACHE SET] Setting instagram cache for key: ${key}`, data);
-    
-    setCache(prev => ({
-      ...prev,
-      instagram: {
-        ...prev.instagram,
-        [key]: data
-      }
-    }));
-  }, []);
-
-  // Clear all cache
-  const clearCache = useCallback(() => {
-    console.log('[CACHE] Clearing all cache');
-    setCache({
-      ads: {},
-      analytics: {},
-      meta: {},
-      facebook: {},
-      instagram: {}
-    });
-  }, []);
-
-  // Clear cache for a specific type
-  const clearCacheByType = useCallback((type) => {
-    console.log(`[CACHE] Clearing ${type} cache`);
-    setCache(prev => ({
-      ...prev,
-      [type]: {}
-    }));
-  }, []);
-
-  // Get cache statistics
-  const getCacheStats = useCallback(() => {
-    const stats = {
-      ads: Object.keys(cache.ads).length,
-      analytics: Object.keys(cache.analytics).length,
-      meta: Object.keys(cache.meta).length,
-      facebook: Object.keys(cache.facebook).length,
-      instagram: Object.keys(cache.instagram).length,
-      totalKeys: Object.keys(cache.ads).length + 
-                 Object.keys(cache.analytics).length + 
-                 Object.keys(cache.meta).length +
-                 Object.keys(cache.facebook).length +
-                 Object.keys(cache.instagram).length
-    };
-    
-    console.log('[CACHE STATS]', stats);
-    console.log('[CACHE STATS] Ads keys:', Object.keys(cache.ads));
-    console.log('[CACHE STATS] Analytics keys:', Object.keys(cache.analytics));
-    
-    return stats;
-  }, [cache]);
-
-  // Get all cached data (for reporting)
-  const getAllCachedData = useCallback(() => {
-    return {
-      ads: { ...cache.ads },
-      analytics: { ...cache.analytics },
-      meta: { ...cache.meta },
-      facebook: { ...cache.facebook },
-      instagram: { ...cache.instagram }
-    };
-  }, [cache]);
-
-  const value = {
-    // Ads methods
-    getFromCacheAds,
-    setCacheAds,
-    
-    // Analytics methods
-    getFromCacheAnalytics,
-    setCacheAnalytics,
-    
-    // Meta methods
-    getFromCacheMeta,
-    setCacheMeta,
-    
-    // Facebook methods
-    getFromCacheFacebook,
-    setCacheFacebook,
-    
-    // Instagram methods
-    getFromCacheInstagram,
-    setCacheInstagram,
-    
-    // Utility methods
-    clearCache,
-    clearCacheByType,
-    getCacheStats,
-    getAllCachedData
-  };
-
-  return (
-    <CacheContext.Provider value={value}>
-      {children}
-    </CacheContext.Provider>
-  );
+  return periodMap[period] || '7d';
 };
 
-export const useCache = () => {
-  const context = useContext(CacheContext);
-  if (!context) {
-    throw new Error('useCache must be used within a CacheProvider');
-  }
-  return context;
-};
+export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options = {}) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Extract options
+  const { 
+    isAnalytics = false, 
+    convertPeriod = false 
+  } = options;
+  
+  // Use appropriate cache methods based on type
+  const { 
+    getFromCacheAds, 
+    setCacheAds, 
+    getFromCacheAnalytics, 
+    setCacheAnalytics, 
+    getCacheStats 
+  } = useCache();
+  
+  const isMountedRef = useRef(true);
 
-export default CacheContext;
+  // Memoize the API call to prevent infinite re-renders
+  const memoizedApiCall = useCallback(apiCall, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id || !periodOrCacheKey) {
+        if (isMountedRef.current) {
+          console.log(`[${endpoint}] No ${isAnalytics ? 'propertyId' : 'customerId'} or period provided`);
+          setLoading(false);
+          setData(null);
+        }
+        return;
+      }
+
+      // CRITICAL: Reset state when period changes to show loading
+      if (isMountedRef.current) {
+        setLoading(true);
+        setError(null);
+        // Don't clear data immediately to prevent flash of empty state
+      }
+
+      // The periodOrCacheKey might be a simple period or a complex cache key
+      // For cache purposes, we'll use it as-is
+      const cacheKey = periodOrCacheKey;
+      
+      // Convert period if needed (for analytics) - only convert if it's a standard period
+      const finalPeriod = convertPeriod && !cacheKey.includes('-') 
+        ? convertPeriodToAnalytics(cacheKey) 
+        : cacheKey;
+      
+      const entityType = isAnalytics ? 'propertyId' : 'customerId';
+      
+      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${periodOrCacheKey} -> ${finalPeriod}`);
+      
+      // Log current cache stats
+      const cacheStats = getCacheStats();
+      console.log(`[${endpoint}] Current cache stats:`, cacheStats);
+
+      // Check cache first using appropriate method with the cache key
+      const cachedData = isAnalytics 
+        ? getFromCacheAnalytics(id, cacheKey, endpoint)
+        : getFromCacheAds(id, cacheKey, endpoint);
+        
+      if (cachedData) {
+        if (isMountedRef.current) {
+          console.log(`[${endpoint}] Cache hit for ${id} - ${cacheKey}`, cachedData);
+          setData(cachedData);
+          setLoading(false);
+          setError(null);
+        }
+        return;
+      }
+
+      console.log(`[${endpoint}] Cache miss for ${id} - ${cacheKey}, making API call`);
+
+      // Create unique key for this API call using the cache key
+      const promiseKey = `${isAnalytics ? 'analytics' : 'ads'}_${id}_${cacheKey}_${endpoint}`;
+      
+      // Check if this exact call is already in progress
+      if (activePromises.has(promiseKey)) {
+        console.log(`[${endpoint}] Using existing promise for ${id} - ${cacheKey}`);
+        try {
+          const result = await activePromises.get(promiseKey);
+          if (isMountedRef.current) {
+            setData(result);
+            setLoading(false);
+            setError(null);
+          }
+        } catch (err) {
+          if (isMountedRef.current) {
+            setError(err);
+            setData(null);
+            setLoading(false);
+          }
+        }
+        return;
+      }
+
+      // Create new API call promise
+      const apiPromise = (async () => {
+        try {
+          console.log(`[${endpoint}] Making API call for ${id} - ${cacheKey}`);
+          // Pass the cache key to the API call function
+          const result = await memoizedApiCall(id, cacheKey);
+          
+          console.log(`[${endpoint}] API response for ${id}:`, result);
+          
+          // Cache the result using appropriate method with the cache key
+          if (isAnalytics) {
+            setCacheAnalytics(id, cacheKey, endpoint, result);
+          } else {
+            setCacheAds(id, cacheKey, endpoint, result);
+          }
+          
+          return result;
+        } catch (apiError) {
+          console.error(`[${endpoint}] API error for ${id}:`, apiError);
+          throw apiError;
+        } finally {
+          activePromises.delete(promiseKey);
+          console.log(`[${endpoint}] Removed promise from active promises for ${id}`);
+        }
+      })();
+
+      // Store the promise
+      activePromises.set(promiseKey, apiPromise);
+
+      // Wait for result
+      try {
+        if (isMountedRef.current) {
+          setLoading(true);
+          setError(null);
+        }
+        
+        const result = await apiPromise;
+        
+        if (isMountedRef.current) {
+          console.log(`[${endpoint}] Setting data for ${id}:`, result);
+          setData(result);
+          setError(null);
+        }
+      } catch (err) {
+        console.error(`[${endpoint}] Final error handling for ${id}:`, err);
+        if (isMountedRef.current) {
+          setError(err);
+          setData(null);
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+  }, [id, periodOrCacheKey, endpoint, memoizedApiCall, isAnalytics, convertPeriod, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
+
+  // Log current state for debugging
+  useEffect(() => {
+    console.log(`[${endpoint}] State update - ${isAnalytics ? 'propertyId' : 'customerId'}: ${id}, loading: ${loading}, data:`, data, 'error:', error);
+  }, [data, loading, error, id, endpoint, isAnalytics]);
+
+  return { data, loading, error };
+};
