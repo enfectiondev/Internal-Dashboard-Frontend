@@ -1,6 +1,17 @@
-import React, { useState } from "react";
+import React from "react";
 
-function MetricCard({ title, value, subtitle, showNoData = false }) {
+function MetricCard({ title, value, subtitle, showNoData = false, isLoading = false }) {
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-gray-300 animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+        <div className="h-10 bg-gray-200 rounded w-1/2 mb-2"></div>
+        <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+      </div>
+    );
+  }
+
   if (showNoData) {
     return (
       <div className="bg-gray-50 text-gray-400 p-4 rounded-lg shadow-sm border-l-4 border-gray-300 relative">
@@ -17,11 +28,11 @@ function MetricCard({ title, value, subtitle, showNoData = false }) {
   }
 
   // Handle missing or invalid values
-  const displayValue = value && value !== 'N/A' ? value : '--';
-  const isNoValue = !value || value === 'N/A' || value === '--';
+  const displayValue = value && value !== 'N/A' && value !== '-' ? value : '--';
+  const isNoValue = !value || value === 'N/A' || value === '--' || value === '-';
 
   return (
-    <div className={`p-4 rounded-lg shadow-sm border-l-4 ${
+    <div className={`p-4 rounded-lg shadow-sm border-l-4 relative ${
       isNoValue 
         ? 'bg-gray-50 text-gray-400 border-gray-300' 
         : 'bg-white text-gray-800 border-black'
