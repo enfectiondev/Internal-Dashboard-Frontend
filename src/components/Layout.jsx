@@ -81,6 +81,7 @@ export default function Layout({ user, onLogout }) {
 
   const handleCustomDateSubmit = () => {
     if (customDates.startDate && customDates.endDate) {
+      console.log('Custom dates submitted:', customDates); // ADD THIS
       setPeriod("CUSTOM");
       setIsDropdownOpen(false);
       setShowCustomDatePicker(false);
@@ -480,13 +481,19 @@ export default function Layout({ user, onLogout }) {
 
     if (activeTab === "Facebook") {
       return (
-        <FacebookAnalytics period={getCurrentPeriodLabel()} />
+        <FacebookAnalytics 
+          period={getCurrentPeriodLabel()}
+          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+        />
       );
     }
 
     if (activeTab === "Instagram") {
       return (
-        <InstagramAnalytics period={getCurrentPeriodLabel()} />
+        <InstagramAnalytics 
+          period={getCurrentPeriodLabel()}
+          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+        />
       );
     }
 
@@ -502,7 +509,10 @@ export default function Layout({ user, onLogout }) {
 
     if (activeTab === "Reporting") {
       return (
-        <Reporting period={getCurrentPeriodLabel()} />
+        <Reporting 
+          period={getCurrentPeriodLabel()}
+          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+        />
       );
     }
     
