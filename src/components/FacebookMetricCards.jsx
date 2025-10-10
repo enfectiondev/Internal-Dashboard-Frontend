@@ -1,6 +1,7 @@
+// FacebookMetricCards.jsx - Updated to use summary data
 import React from "react";
 
-function FacebookMetricCards({ insights, isLoading, page }) {
+function FacebookMetricCards({ timeseriesData, isLoading }) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -15,14 +16,16 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     );
   }
 
-  if (!insights) {
+  if (!timeseriesData || !timeseriesData.summary) {
     return null;
   }
+
+  const { summary } = timeseriesData;
 
   const metrics = [
     {
       title: "Page Followers",
-      value: insights.followers?.toLocaleString() || 0,
+      value: summary.followers?.toLocaleString() || 0,
       subtitle: "Total followers",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,7 +36,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "Page Fans",
-      value: insights.fans?.toLocaleString() || 0,
+      value: summary.fans?.toLocaleString() || 0,
       subtitle: "Total page likes",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,7 +47,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "Impressions",
-      value: insights.impressions?.toLocaleString() || 0,
+      value: summary.impressions?.toLocaleString() || 0,
       subtitle: "Total post views",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +59,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "Unique Impressions",
-      value: insights.unique_impressions?.toLocaleString() || 0,
+      value: summary.unique_impressions?.toLocaleString() || 0,
       subtitle: "Unique viewers",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +70,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "Post Engagements",
-      value: insights.post_engagements?.toLocaleString() || 0,
+      value: summary.post_engagements?.toLocaleString() || 0,
       subtitle: "Total interactions",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,7 +81,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "Engaged Users",
-      value: insights.engaged_users?.toLocaleString() || 0,
+      value: summary.engaged_users?.toLocaleString() || 0,
       subtitle: "Users who engaged",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,7 +92,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "Page Views",
-      value: insights.page_views?.toLocaleString() || 0,
+      value: summary.page_views?.toLocaleString() || 0,
       subtitle: "Profile visits",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +103,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     },
     {
       title: "New Likes",
-      value: insights.new_likes?.toLocaleString() || 0,
+      value: summary.new_likes?.toLocaleString() || 0,
       subtitle: "In selected period",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +114,7 @@ function FacebookMetricCards({ insights, isLoading, page }) {
     }
   ];
 
-const colorClasses = {
+  const colorClasses = {
     blue: "border-black text-[#0f4653]",
     red: "border-black text-[#0f4653]",
     purple: "border-black text-[#0f4653]",
@@ -120,7 +123,7 @@ const colorClasses = {
     yellow: "border-black text-[#0f4653]",
     pink: "border-black text-[#0f4653]",
     teal: "border-black text-[#0f4653]"
-};
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -150,3 +153,4 @@ const colorClasses = {
 }
 
 export default FacebookMetricCards;
+

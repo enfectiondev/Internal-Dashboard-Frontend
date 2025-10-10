@@ -3,6 +3,7 @@ import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
 import { useFacebookPages, useFacebookInsights, useFacebookPosts } from "../hooks/useFacebookCache";
 import FacebookMetricCards from "../components/FacebookMetricCards";
+import FacebookMetricsChart from "../components/FacebookMetricsChart";
 import FacebookPostsTable from "../components/FacebookPostsTable";
 import FacebookEngagementChart from "../components/FacebookEngagementChart";
 import FacebookPostTypesChart from "../components/FacebookPostTypesChart";
@@ -18,6 +19,8 @@ const FacebookAnalytics = ({ period, customDates }) => {
   } = useFacebookAuth();
   
   const [selectedPage, setSelectedPage] = useState(null);
+  const [timeseriesData, setTimeseriesData] = useState(null);
+  const [loadingTimeseries, setLoadingTimeseries] = useState(false);
 
   const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
@@ -35,7 +38,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
     }
   }, [pages, selectedPage]);
 
-  // Fetch page insights with caching
+  // Fetch page insights with caching (keeping for backward compatibility)
   const {
     data: pageInsights,
     loading: loadingInsights,
@@ -59,6 +62,48 @@ const FacebookAnalytics = ({ period, customDates }) => {
     activeToken,
     20 // limit
   );
+
+  // Fetch timeseries data for the new chart
+  useEffect(() => {
+    if (selectedPage?.id && activeToken) {
+      fetchTimeseriesData();
+    }
+  }, [selectedPage?.id, period, customDates, activeToken]);
+
+  const fetchTimeseriesData = async () => {
+    setLoadingTimeseries(true);
+    try {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://eyqi6vd53z.us-east-2.awsapprunner.com';
+      
+      let url = `${baseUrl}/api/meta/pages/${selectedPage.id}/insights/timeseries`;
+      
+      // Add period or custom dates
+      if (customDates?.startDate && customDates?.endDate) {
+        url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+      } else if (period) {
+        url += `?period=${period}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch timeseries data: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setTimeseriesData(data);
+    } catch (error) {
+      console.error("Error fetching timeseries data:", error);
+      setTimeseriesData(null);
+    } finally {
+      setLoadingTimeseries(false);
+    }
+  };
 
   const handlePageSelect = (page) => {
     setSelectedPage(page);
@@ -115,7 +160,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
                 Connected to Facebook
               </h2>
               <p className="text-[#A1BCD3]">
-                {facebookUser?.name} • {facebookUser?.email}
+                {facebookUser?.name} {facebookUser?.email && `• ${facebookUser.email}`}
               </p>
             </div>
           </div>
@@ -127,6 +172,29 @@ const FacebookAnalytics = ({ period, customDates }) => {
           </button>
         </div>
       </div>
+
+      {/* Page Selector */}
+      {pages.length > 1 && (
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Facebook Page
+          </label>
+          <select
+            value={selectedPage?.id || ''}
+            onChange={(e) => {
+              const page = pages.find(p => p.id === e.target.value);
+              handlePageSelect(page);
+            }}
+            className="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4653] focus:outline-none"
+          >
+            {pages.map((page) => (
+              <option key={page.id} value={page.id}>
+                {page.name} ({page.followers_count?.toLocaleString() || 0} followers)
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* No Pages Message */}
       {pages.length === 0 && !loadingPages && (
@@ -148,11 +216,16 @@ const FacebookAnalytics = ({ period, customDates }) => {
       {/* Page Analytics */}
       {selectedPage && (
         <>
-          {/* Metric Cards */}
+          {/* Metric Cards - Now using timeseries summary data */}
           <FacebookMetricCards
-            insights={pageInsights}
-            isLoading={loadingInsights}
-            page={selectedPage}
+            timeseriesData={timeseriesData}
+            isLoading={loadingTimeseries}
+          />
+
+          {/* New Metrics Line Chart */}
+          <FacebookMetricsChart
+            timeseriesData={timeseriesData}
+            isLoading={loadingTimeseries}
           />
 
           {/* Charts Row */}
@@ -174,7 +247,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
           />
 
           {/* Success Info */}
-          {!loadingInsights && !loadingPosts && pageInsights && pagePosts && (
+          {!loadingTimeseries && !loadingPosts && timeseriesData && pagePosts && (
             <div className="bg-green-500/20 border border-green-500 text-green-300 px-6 py-4 rounded-lg">
               <div className="flex items-center space-x-3">
                 <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -183,7 +256,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
                 <div>
                   <h4 className="font-semibold">Facebook Page Analytics Loaded!</h4>
                   <p className="text-sm mt-1">
-                    Viewing analytics for {selectedPage.name} • {pagePosts.length} posts in selected period
+                    Viewing analytics for {selectedPage.name} • {pagePosts.length} posts • {timeseriesData.timeseries?.length || 0} days of data
                   </p>
                 </div>
               </div>
@@ -195,4 +268,4 @@ const FacebookAnalytics = ({ period, customDates }) => {
   );
 };
 
-export default FacebookAnalytics;
+export default FacebookAnalytics
