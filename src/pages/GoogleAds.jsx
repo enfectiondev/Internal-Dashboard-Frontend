@@ -23,16 +23,29 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     return periodMap[period] || period;
   };
 
-  const keyStatsApiCall = async (customerId, period) => {
+  const keyStatsApiCall = async (customerId, periodOrCacheKey) => {
     const token = localStorage.getItem("token");
-    const convertedPeriod = convertPeriodForAPI(period);
+    
+    // Extract the actual period from cache key if it's a custom period
+    let actualPeriod = period;
+    let startDate = null;
+    let endDate = null;
+    
+    if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      startDate = customDates.startDate;
+      endDate = customDates.endDate;
+    }
+    
+    const convertedPeriod = convertPeriodForAPI(actualPeriod);
 
     // Build URL with custom date parameters if needed
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
     
-    if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-      url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+    if (convertedPeriod === 'CUSTOM' && startDate && endDate) {
+      url += `&start_date=${startDate}&end_date=${endDate}`;
     }
+
+    console.log('Fetching key stats from:', url); // Debug log
 
     const res = await fetch(url, {
       headers: token
@@ -40,8 +53,14 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
         : { "Content-Type": "application/json" },
     });
 
-    if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('API Error:', res.status, errorText);
+      throw new Error(`Network response was not ok: ${res.status}`);
+    }
+    
     const json = await res.json();
+    console.log('Key stats response:', json); // Debug log
 
     return {
       impressions: json.total_impressions?.formatted || "-",
@@ -60,9 +79,9 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     ? `${period}-${customDates.startDate}-${customDates.endDate}`
     : period;
 
-  const { data: metrics, loading } = useApiWithCache(
+  const { data: metrics, loading, error } = useApiWithCache(
     activeCampaign?.id,
-    cacheKey,
+    cacheKey, // Use cache key for caching purposes
     "key-stats",
     keyStatsApiCall
   );
@@ -75,7 +94,26 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     );
   }
 
-  if (loading) {
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <div className="text-red-800 font-medium">Error loading key stats</div>
+              <div className="text-red-600 text-sm mt-1">{error.message}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && !metrics) {
     return (
       <div className="p-4 lg:p-6 animate-pulse space-y-4 lg:space-y-6">
         {/* Metrics Loading Skeleton - 12-column grid */}
@@ -120,6 +158,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Total Impressions" 
               subtitle="Reach and Visibility" 
               value={metrics?.impressions} 
+              isLoading={loading}
             />
           </div>
           <div className="col-span-1">
@@ -127,6 +166,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Total Cost" 
               subtitle="Budget utilization" 
               value={metrics?.cost} 
+              isLoading={loading}
             />
           </div>
           <div className="col-span-1">
@@ -134,6 +174,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Total Clicks" 
               subtitle="User engagement" 
               value={metrics?.clicks} 
+              isLoading={loading}
             />
           </div>
           <div className="col-span-1">
@@ -141,6 +182,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Conversion Rate" 
               subtitle="Campaign effectiveness" 
               value={metrics?.conversionRate} 
+              isLoading={loading}
             />
           </div>
         </div>
@@ -152,6 +194,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Total Conversions" 
               subtitle="Goal achievements" 
               value={metrics?.conversions} 
+              isLoading={loading}
             />
           </div>
           <div className="col-span-1">
@@ -159,6 +202,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Avg. Cost Per Click" 
               subtitle="Bidding efficiency" 
               value={metrics?.cpc} 
+              isLoading={loading}
             />
           </div>
           <div className="col-span-1">
@@ -166,6 +210,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Cost Per Conv." 
               subtitle="ROI efficiency" 
               value={metrics?.costPerConv} 
+              isLoading={loading}
             />
           </div>
           <div className="col-span-1">
@@ -173,6 +218,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
               title="Click-Through Rate" 
               subtitle="Ad relevance" 
               value={metrics?.ctr} 
+              isLoading={loading}
             />
           </div>
         </div>
