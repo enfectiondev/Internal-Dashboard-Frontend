@@ -64,7 +64,15 @@ export default function Layout({ user, onLogout }) {
   ];
 
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  
+  // Actual dates used by components
   const [customDates, setCustomDates] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  
+  // Temporary dates for the date picker (before Apply is clicked)
+  const [tempCustomDates, setTempCustomDates] = useState({
     startDate: '',
     endDate: ''
   });
@@ -72,20 +80,36 @@ export default function Layout({ user, onLogout }) {
   const handlePeriodSelect = (periodValue) => {
     if (periodValue === "CUSTOM") {
       setShowCustomDatePicker(true);
+      // Don't change period yet - wait for Apply button
     } else {
       setShowCustomDatePicker(false);
       setPeriod(periodValue);
       setIsDropdownOpen(false);
+      // Clear custom dates when switching to predefined period
+      setCustomDates({ startDate: '', endDate: '' });
+      setTempCustomDates({ startDate: '', endDate: '' });
     }
   };
 
   const handleCustomDateSubmit = () => {
-    if (customDates.startDate && customDates.endDate) {
-      console.log('Custom dates submitted:', customDates); // ADD THIS
+    if (tempCustomDates.startDate && tempCustomDates.endDate) {
+      console.log('Custom dates applied:', tempCustomDates);
+      // Only update the actual customDates when Apply is clicked
+      setCustomDates({
+        startDate: tempCustomDates.startDate,
+        endDate: tempCustomDates.endDate
+      });
       setPeriod("CUSTOM");
       setIsDropdownOpen(false);
       setShowCustomDatePicker(false);
     }
+  };
+
+  const handleCustomDateCancel = () => {
+    setShowCustomDatePicker(false);
+    setIsDropdownOpen(false);
+    // Reset temp dates
+    setTempCustomDates({ startDate: '', endDate: '' });
   };
 
   useEffect(() => {
@@ -216,8 +240,6 @@ export default function Layout({ user, onLogout }) {
     fetchMetaAdsAccounts();
   }, []);
 
-
-
   useEffect(() => {
     const fetchFacebookAccounts = async () => {
       const facebookToken = localStorage.getItem('facebook_token');
@@ -274,33 +296,29 @@ export default function Layout({ user, onLogout }) {
       }
     }, []);
 
-    // Update the existing Facebook switch effect
-    useEffect(() => {
-      const shouldSwitchToFacebook = localStorage.getItem('switch_to_facebook_tab');
-      if (shouldSwitchToFacebook === 'true') {
-        setActiveTab('Facebook');
-        setPeriod('LAST_30_DAYS'); // Set to 30 days like Meta Ads
-        localStorage.removeItem('switch_to_facebook_tab');
-      }
-    }, []);
+  useEffect(() => {
+    const shouldSwitchToFacebook = localStorage.getItem('switch_to_facebook_tab');
+    if (shouldSwitchToFacebook === 'true') {
+      setActiveTab('Facebook');
+      setPeriod('LAST_30_DAYS');
+      localStorage.removeItem('switch_to_facebook_tab');
+    }
+  }, []);
 
   useEffect(() => {
     const shouldSwitchToMetaAds = localStorage.getItem('switch_to_meta_ads_tab');
     if (shouldSwitchToMetaAds === 'true') {
       setActiveTab('Meta Ads');
-      setPeriod('LAST_30_DAYS'); // Set to 30 days
+      setPeriod('LAST_30_DAYS');
       localStorage.removeItem('switch_to_meta_ads_tab');
     }
   }, []);
 
-  // Auto-select first Meta account when accounts load
   useEffect(() => {
     if (activeTab === "Meta Ads" && metaAdsAccounts.length > 0 && activeMetaAdsIdx === 0) {
-      // First account is already selected by default, just trigger data fetch
       console.log("Auto-selected first Meta Ads account:", metaAdsAccounts[0]);
     }
   }, [metaAdsAccounts, activeTab]);
-
 
   useEffect(() => {
     const fetchInstagramAccounts = async () => {
@@ -309,15 +327,6 @@ export default function Layout({ user, onLogout }) {
     };
 
     fetchInstagramAccounts();
-  }, [token]);
-
-  useEffect(() => {
-    const fetchMetaAdsAccounts = async () => {
-      setMetaAdsAccounts([]);
-      setLoadingMetaAds(false);
-    };
-
-    fetchMetaAdsAccounts();
   }, [token]);
 
   const handleLogout = () => {
@@ -330,11 +339,6 @@ export default function Layout({ user, onLogout }) {
     setDateRange({ startDate, endDate });
     console.log("Date range changed:", startDate, endDate);
   };
-
-  // const handlePeriodSelect = (periodValue) => {
-  //   setPeriod(periodValue);
-  //   setIsDropdownOpen(false);
-  // };
 
   const handleIntentAccountSelect = (account) => {
     setSelectedIntentAccount(account);
@@ -383,6 +387,9 @@ export default function Layout({ user, onLogout }) {
   };
 
   const getCurrentPeriodLabel = () => {
+    if (period === "CUSTOM" && customDates.startDate && customDates.endDate) {
+      return `${customDates.startDate} to ${customDates.endDate}`;
+    }
     const option = periodOptions.find(opt => opt.value === period);
     return option ? option.label : "7 Days";
   };
@@ -483,7 +490,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <FacebookAnalytics 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -492,7 +499,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <InstagramAnalytics 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -511,7 +518,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <Reporting 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -534,7 +541,7 @@ export default function Layout({ user, onLogout }) {
           <GoogleAds 
             activeCampaign={campaigns[activeCampaignIdx]} 
             period={period}
-            customDates={customDates}  // ADD THIS LINE
+            customDates={customDates}
           />
         );
       case "Google Analytics":
@@ -706,9 +713,9 @@ export default function Layout({ user, onLogout }) {
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className="flex items-center space-x-2 bg-[#196473] text-white p-1 md:p-2 rounded text-sm md:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 min-w-[80px]"
                   >
-                    <span>{getCurrentPeriodLabel()}</span>
+                    <span className="truncate max-w-[200px]">{getCurrentPeriodLabel()}</span>
                     <svg 
-                      className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                      className={`w-4 h-4 transition-transform flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`}
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
@@ -726,7 +733,7 @@ export default function Layout({ user, onLogout }) {
                         className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg ${
                           option.value === "CUSTOM" ? '' : 'last:rounded-b-lg'
                         } transition-colors ${
-                          period === option.value 
+                          period === option.value && !showCustomDatePicker
                             ? 'bg-[#508995] text-white hover:bg-[#508995]' 
                             : 'text-gray-800'
                         }`}
@@ -736,13 +743,13 @@ export default function Layout({ user, onLogout }) {
                     ))}
                     
                     {showCustomDatePicker && (
-                      <div className="p-4 border-t border-gray-200 space-y-3 bg-white">
+                      <div className="p-4 border-t border-gray-200 space-y-3 bg-white rounded-b-lg">
                         <div>
                           <label className="text-xs font-medium text-gray-700 block mb-1">Start Date</label>
                           <input
                             type="date"
-                            value={customDates.startDate}
-                            onChange={(e) => setCustomDates(prev => ({ ...prev, startDate: e.target.value }))}
+                            value={tempCustomDates.startDate}
+                            onChange={(e) => setTempCustomDates(prev => ({ ...prev, startDate: e.target.value }))}
                             className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
                             style={{ colorScheme: 'light' }}
                           />
@@ -752,20 +759,28 @@ export default function Layout({ user, onLogout }) {
                           <label className="text-xs font-medium text-gray-700 block mb-1">End Date</label>
                           <input
                             type="date"
-                            value={customDates.endDate}
-                            onChange={(e) => setCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
+                            value={tempCustomDates.endDate}
+                            onChange={(e) => setTempCustomDates(prev => ({ ...prev, endDate: e.target.value }))}
                             className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded focus:ring-2 focus:ring-[#1A4752] focus:border-transparent"
                             style={{ colorScheme: 'light' }}
                           />
                           <span className="text-xs text-gray-500 mt-1 block">Format: YYYY-MM-DD</span>
                         </div>
-                        <button
-                          onClick={handleCustomDateSubmit}
-                          disabled={!customDates.startDate || !customDates.endDate}
-                          className="w-full px-4 py-2 bg-[#508995] text-white rounded hover:bg-[#3F7380] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
-                        >
-                          Apply Custom Range
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleCustomDateCancel}
+                            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors text-sm font-medium"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleCustomDateSubmit}
+                            disabled={!tempCustomDates.startDate || !tempCustomDates.endDate}
+                            className="flex-1 px-4 py-2 bg-[#508995] text-white rounded hover:bg-[#3F7380] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
+                          >
+                            Apply
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
