@@ -163,9 +163,15 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
 
       {/* Two Row Layout - Progress Bars on Top, Summary Cards on Bottom */}
       <div className="flex flex-col h-96">
-        {/* First Row - Progress Bars Section (65% of height) */}
-        <div className="flex-1" style={{ flexBasis: '65%' }}>
-          <div className="h-full overflow-y-auto space-y-3 pr-2">
+        {/* First Row - Progress Bars Section with Scroll (65% of height) */}
+        <div className="flex-1 overflow-hidden" style={{ flexBasis: '65%' }}>
+          <div 
+            className="h-full overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#cbd5e1 #f1f5f9'
+            }}
+          >
             {data.map((item, index) => {
               const enabledPct = (item.enabled / item.total) * 100;
               const pausedPct = (item.paused / item.total) * 100;
@@ -274,6 +280,28 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS" }) {
           </div>
         </div>
       </div>
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        /* For Webkit browsers (Chrome, Safari, Edge) */
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
     </div>
   );
 }
