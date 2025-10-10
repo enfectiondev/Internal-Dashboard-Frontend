@@ -63,6 +63,39 @@ const FacebookAnalytics = ({ period, customDates }) => {
     20 // limit
   );
 
+  // Normalize period format - convert "7 Days" to "7d", "30 Days" to "30d", etc.
+  const normalizePeriod = (periodValue) => {
+    if (!periodValue) return '30d'; // default
+    
+    // If already in correct format (7d, 30d, etc.), return as is
+    if (/^\d+d$/.test(periodValue)) {
+      return periodValue;
+    }
+    
+    // Convert various formats to API format
+    const periodMap = {
+      '7 Days': '7d',
+      '30 Days': '30d',
+      '90 Days': '90d',
+      '3 Months': '90d',
+      '1 Year': '365d',
+      'LAST_7_DAYS': '7d',
+      'LAST_30_DAYS': '30d',
+      'LAST_3_MONTHS': '90d',
+      'LAST_1_YEAR': '365d',
+      '7': '7d',
+      '30': '30d',
+      '90': '90d',
+      '365': '365d',
+      'week': '7d',
+      'month': '30d',
+      'quarter': '90d',
+      'year': '365d'
+    };
+    
+    return periodMap[periodValue] || periodMap[periodValue.toLowerCase()] || '30d';
+  };
+
   // Fetch timeseries data for the new chart
   useEffect(() => {
     if (selectedPage?.id && activeToken) {
