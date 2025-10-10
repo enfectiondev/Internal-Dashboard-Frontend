@@ -77,12 +77,46 @@ const FacebookAnalytics = ({ period, customDates }) => {
       
       let url = `${baseUrl}/api/meta/pages/${selectedPage.id}/insights/timeseries`;
       
+      // Normalize period format - convert "7 Days" to "7d", "30 Days" to "30d", etc.
+      const normalizePeriod = (periodValue) => {
+        if (!periodValue) return '30d'; // default
+        
+        // If already in correct format (7d, 30d, etc.), return as is
+        if (/^\d+d$/.test(periodValue)) {
+          return periodValue;
+        }
+        
+        // Convert various formats to API format
+        const periodMap = {
+          '7 Days': '7d',
+          '30 Days': '30d',
+          '90 Days': '90d',
+          '1 Year': '365d',
+          '7': '7d',
+          '30': '30d',
+          '90': '90d',
+          '365': '365d',
+          'week': '7d',
+          'month': '30d',
+          'quarter': '90d',
+          'year': '365d'
+        };
+        
+        return periodMap[periodValue] || periodMap[periodValue.toLowerCase()] || '30d';
+      };
+      
       // Add period or custom dates
       if (customDates?.startDate && customDates?.endDate) {
         url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
       } else if (period) {
-        url += `?period=${period}`;
+        const normalizedPeriod = normalizePeriod(period);
+        url += `?period=${normalizedPeriod}`;
+      } else {
+        // Default to 30 days if no period specified
+        url += `?period=30d`;
       }
+
+      console.log('Fetching timeseries from:', url); // Debug log
 
       const response = await fetch(url, {
         headers: {
@@ -92,10 +126,13 @@ const FacebookAnalytics = ({ period, customDates }) => {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
         throw new Error(`Failed to fetch timeseries data: ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('Timeseries data received:', data); // Debug log
       setTimeseriesData(data);
     } catch (error) {
       console.error("Error fetching timeseries data:", error);
@@ -268,4 +305,4 @@ const FacebookAnalytics = ({ period, customDates }) => {
   );
 };
 
-export default FacebookAnalytics
+export default FacebookAnalytics;
