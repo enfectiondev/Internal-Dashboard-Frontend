@@ -10,7 +10,8 @@ const convertPeriodToAnalytics = (period) => {
     'LAST_7_DAYS': '7d',
     'LAST_30_DAYS': '30d', 
     'LAST_3_MONTHS': '90d',
-    'LAST_1_YEAR': '365d'
+    'LAST_1_YEAR': '365d',
+    'CUSTOM': 'custom'  // ADD THIS
   };
   return periodMap[period] || '7d';
 };
@@ -64,9 +65,13 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
       }
 
       // Create cache key that includes custom dates if provided
+      // UPDATED: Check for both 'CUSTOM' (Google Ads) and 'custom' (GA4)
       let cacheKey = periodOrCacheKey;
-      if (periodOrCacheKey === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        cacheKey = `CUSTOM-${customDates.startDate}-${customDates.endDate}`;
+      const isCustomPeriod = periodOrCacheKey === 'CUSTOM' || periodOrCacheKey === 'custom';
+      
+      if (isCustomPeriod && customDates?.startDate && customDates?.endDate) {
+        cacheKey = `${periodOrCacheKey}-${customDates.startDate}-${customDates.endDate}`;
+        console.log(`[${endpoint}] Creating custom cache key: ${cacheKey}`);
       }
       
       // Convert period if needed (for analytics) - only convert if it's a standard period
@@ -76,7 +81,7 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
       
       const entityType = isAnalytics ? 'propertyId' : 'customerId';
       
-      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${periodOrCacheKey} -> ${finalPeriod}`);
+      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${periodOrCacheKey} -> ${finalPeriod}, cacheKey: ${cacheKey}`);
       
       // Log current cache stats
       const cacheStats = getCacheStats();
