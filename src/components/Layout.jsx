@@ -69,6 +69,17 @@ export default function Layout({ user, onLogout }) {
     endDate: ''
   });
 
+  const convertPeriodForAnalytics = (period) => {
+    const periodMap = {
+      'LAST_7_DAYS': '7d',
+      'LAST_30_DAYS': '30d',
+      'LAST_3_MONTHS': '90d',
+      'LAST_1_YEAR': '365d',
+      'CUSTOM': 'custom'  // GA4 uses lowercase 'custom'
+    };
+    return periodMap[period] || '30d';
+  };
+
   const handlePeriodSelect = (periodValue) => {
     if (periodValue === "CUSTOM") {
       setShowCustomDatePicker(true);
@@ -78,6 +89,8 @@ export default function Layout({ user, onLogout }) {
       setIsDropdownOpen(false);
     }
   };
+
+  
 
   const handleCustomDateSubmit = () => {
     if (customDates.startDate && customDates.endDate) {
@@ -541,7 +554,8 @@ export default function Layout({ user, onLogout }) {
         return (
           <GoogleAnalytics 
             activeProperty={properties[activePropertyIdx]} 
-            period={period}
+            period={convertPeriodForAnalytics(period)}  // Convert period format
+            customDates={period === "CUSTOM" ? customDates : null}  // Pass custom dates
           />
         );
       default:

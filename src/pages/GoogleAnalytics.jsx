@@ -15,32 +15,40 @@ import { useApiWithCache } from "../hooks/useApiWithCache";
 
 
 
-export default function GoogleAnalytics({ activeProperty, period }) {
+export default function GoogleAnalytics({ activeProperty, period, customDates }) {
+  // Update the useApiWithCache call to pass customDates
   const { data: metrics, loading: metricsLoading, error: metricsError } =
     useApiWithCache(
       activeProperty?.id,
       period,
       "metrics",
-      async (propertyId, analyticsPeriod) => {
+      async (propertyId, analyticsPeriod, customDatesParam) => {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`,
-          {
-            headers: token
-              ? {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                }
-              : { "Content-Type": "application/json" },
-          }
-        );
+        
+        // Build URL with custom date parameters if needed
+        let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`;
+        
+        if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+          url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+        }
+        
+        const res = await fetch(url, {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              }
+            : { "Content-Type": "application/json" },
+        });
+        
         if (!res.ok)
           throw new Error(`Network response was not ok: ${res.status}`);
         return await res.json();
       },
       {
         isAnalytics: true,
-        convertPeriod: true,
+        convertPeriod: false,  // Changed to false since we're already converting in Layout
+        customDates  // Pass customDates to the hook
       }
     );
 
@@ -200,12 +208,14 @@ export default function GoogleAnalytics({ activeProperty, period }) {
             <TrafficPerformanceBarChart
               activeProperty={activeProperty}
               period={period}
+              customDates={customDates}
             />
           </div>
           <div className="lg:col-span-1 min-h-[300px]">
             <TrafficBreakdownPie
               activeProperty={activeProperty}
               period={period}
+              customDates={customDates}
               className="w-full h-full"
             />
           </div>
@@ -220,7 +230,7 @@ export default function GoogleAnalytics({ activeProperty, period }) {
         
         <div className="grid grid-cols-1">
           <div className="col-span-1 min-h-[350px]">
-            <AnalyticsOvertime activeProperty={activeProperty} period={period} />
+            <AnalyticsOvertime activeProperty={activeProperty} period={period} customDates={customDates} />
           </div>
         </div>
       </section>
@@ -236,12 +246,13 @@ export default function GoogleAnalytics({ activeProperty, period }) {
             <DevicePerformancePie
               activeProperty={activeProperty}
               period={period}
+              customDates={customDates}
               isAnalytics={true}
               className="w-full h-full"
             />
           </div>
           <div className="lg:col-span-2 min-h-[300px]">
-            <UserEngagement activeProperty={activeProperty} period={period} />
+            <UserEngagement activeProperty={activeProperty} period={period} customDates={customDates} />
           </div>
         </div>
       </section>
@@ -254,7 +265,7 @@ export default function GoogleAnalytics({ activeProperty, period }) {
         
         <div className="grid grid-cols-1">
           <div className="col-span-1 min-h-[400px]">
-            <ROIAnalytics activeProperty={activeProperty} period={period} />
+            <ROIAnalytics activeProperty={activeProperty} period={period} customDates={customDates} />
           </div>
         </div>
       </section>
@@ -270,12 +281,14 @@ export default function GoogleAnalytics({ activeProperty, period }) {
             <GeographicalDetailsCard
               activeProperty={activeProperty}
               period={period}
+              customDates={customDates}
             />
           </div>
           <div className="col-span-1 min-h-[300px]">
             <AudienceInsightsCard
               activeProperty={activeProperty}
               period={period}
+              customDates={customDates}
             />
           </div>
         </div>
@@ -289,6 +302,7 @@ export default function GoogleAnalytics({ activeProperty, period }) {
               chatType="analytics"
               activeProperty={activeProperty}
               period={period}
+              customDates={customDates}
           />
           </div>
         </div>
