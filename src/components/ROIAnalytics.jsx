@@ -14,6 +14,9 @@ import { useCache } from "../context/CacheContext";
 
 // Inner ROIAnalytics Component that handles the actual charts and data
 const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDates }) => {
+  // ✅ ADD THESE LOGS AT THE VERY TOP
+  console.log('[ROIAnalyticsInner] Props received:', { propertyId, adsCustomerId, period, customDates });
+  
   const [chartData, setChartData] = useState([]);
   const [matrixData, setMatrixData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,10 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
   };
 
   // Convert period format for API
+  // Convert period format for API
   const convertPeriodForAPI = (period) => {
+    console.log('[convertPeriodForAPI] Input period:', period); // ✅ ADD THIS
+    
     const periodMap = {
       'LAST_7_DAYS': '7d',
       'LAST_30_DAYS': '30d',
@@ -51,7 +57,10 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
       'LAST_1_YEAR': '365d',
       'CUSTOM': 'custom'
     };
-    return periodMap[period] || '7d';
+    
+    const result = periodMap[period] || '7d';
+    console.log('[convertPeriodForAPI] Output period:', result); // ✅ ADD THIS
+    return result;
   };
 
   useEffect(() => {
@@ -373,6 +382,8 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
 
 // Main ROI Analytics Component that handles account selection
 export default function ROIAnalytics({ activeProperty, period, customDates }) {
+  // ✅ ADD THIS LOG
+  console.log('[ROIAnalytics] Props received:', { activeProperty, period, customDates });
 
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -539,7 +550,7 @@ export default function ROIAnalytics({ activeProperty, period, customDates }) {
             propertyId={selectedAccount.propertyId}
             adsCustomerId={selectedAccount.adsCustomerId}
             onBack={handleBackToSelection}
-            period={period || "LAST_7_DAYS"}
+            period={period}
             customDates={customDates}  // Add this line
           />
         </div>

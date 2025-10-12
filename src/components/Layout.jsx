@@ -81,12 +81,16 @@ export default function Layout({ user, onLogout }) {
   };
 
   const handlePeriodSelect = (periodValue) => {
+    console.log('[Layout] Period selected:', periodValue); // ADD THIS LOG
     if (periodValue === "CUSTOM") {
       setShowCustomDatePicker(true);
+      // Don't set period yet, wait for date submission
     } else {
       setShowCustomDatePicker(false);
-      setPeriod(periodValue);
+      setCustomDates({ startDate: '', endDate: '' }); // ✅ CLEAR custom dates when selecting predefined period
+      setPeriod(periodValue); // ✅ This should trigger re-render
       setIsDropdownOpen(false);
+      console.log('[Layout] Period set to:', periodValue); // ADD THIS LOG
     }
   };
 
@@ -94,10 +98,13 @@ export default function Layout({ user, onLogout }) {
 
   const handleCustomDateSubmit = () => {
     if (customDates.startDate && customDates.endDate) {
-      console.log('Custom dates submitted:', customDates); // ADD THIS
+      console.log('[Layout] Custom dates submitted:', customDates); // This log already exists
+      console.log('[Layout] Setting period to CUSTOM'); // ADD THIS LOG
       setPeriod("CUSTOM");
       setIsDropdownOpen(false);
       setShowCustomDatePicker(false);
+    } else {
+      console.log('[Layout] ERROR: Missing dates', customDates); // ADD THIS LOG
     }
   };
 
