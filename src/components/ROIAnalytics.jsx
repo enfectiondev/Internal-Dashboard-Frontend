@@ -11,6 +11,7 @@ import { AiOutlineCaretDown } from "react-icons/ai";
 import { ArrowLeft } from "lucide-react";
 import { useCache } from "../context/CacheContext";
 
+
 // Inner ROIAnalytics Component that handles the actual charts and data
 const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDates }) => {
   const [chartData, setChartData] = useState([]);
@@ -27,7 +28,8 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
   });
 
   const token = localStorage.getItem("token");
-  const { getFromCache, setCache } = useCache();
+  // const { getFromCache, setCache } = useCache();
+  const { getRawCacheData, setCache } = useCache();
 
   // Channel colors
   const channelColors = {
@@ -56,14 +58,20 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
     const fetchData = async () => {
       const timeframe = convertPeriodForAPI(period);
       
-      // Create cache key with custom dates if applicable
-      let cacheKey = `${propertyId}_${adsCustomerId}_${timeframe}`;
+      // ✅ NEW: Create a unique cache key that includes actual dates for custom periods
+      let cacheKey;
       if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
-        cacheKey = `${propertyId}_${adsCustomerId}_custom_${customDates.startDate}_${customDates.endDate}`;
+        // For custom periods, use the actual date range in the key
+        cacheKey = `roi_${propertyId}_${adsCustomerId}_custom_${customDates.startDate}_${customDates.endDate}`;
+      } else {
+        // For predefined periods, use the period name
+        cacheKey = `roi_${propertyId}_${adsCustomerId}_${timeframe}`;
       }
       
-      // Check cache first
-      const cachedData = getFromCache(cacheKey, timeframe, 'roi-analytics', 'roi');
+      console.log('[ROI Analytics] Cache key:', cacheKey);
+      
+      // ✅ Check cache using the raw cache key (not going through complex logic)
+      const cachedData = getRawCacheData(cacheKey);
       if (cachedData) {
         console.log('[ROI Analytics] Using cached data:', cachedData);
         setChartData(cachedData.chartData || []);
@@ -155,14 +163,16 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
         setChartData(chartArray);
         setMatrixData(matrixResult);
 
-        // Cache the data
+        // ✅ Cache the data using setCacheState directly
         const dataToCache = {
           chartData: chartArray,
           matrixData: matrixResult,
           timestamp: Date.now()
         };
-        setCache(cacheKey, timeframe, 'roi-analytics', dataToCache, 'roi');
-        console.log('[ROI Analytics] Data cached successfully');
+        
+        // Use setCacheState to directly set the cache
+        setCacheRaw(cacheKey, dataToCache);
+        console.log('[ROI Analytics] Data cached successfully with key:', cacheKey);
 
       } catch (err) {
         console.error("Failed to fetch ROI Analytics data:", err);
@@ -174,7 +184,8 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
     if (propertyId && adsCustomerId && token) {
       fetchData();
     }
-  }, [propertyId, adsCustomerId, token, period, customDates, getFromCache, setCache]);
+  }, [propertyId, adsCustomerId, token, period, customDates?.startDate, customDates?.endDate, getRawCacheData, setCache]);
+
 
   const CustomLineTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {

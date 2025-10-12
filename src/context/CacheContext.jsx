@@ -191,12 +191,24 @@ export const CacheProvider = ({ children }) => {
     };
   };
 
+  // Simple direct cache set method
+  const setCacheRaw = (key, data) => {
+    console.log(`[CACHE SET RAW] Key: ${key}`);
+    console.log(`[CACHE SET RAW] Data:`, data);
+    
+    setCacheState(prev => ({
+      ...prev,
+      [key]: data
+    }));
+  };
+
   return (
     <CacheContext.Provider value={{
       // Generic methods
       getFromCache,
       setCache,
       getRawCacheData,
+      setCacheRaw,
       
       // Ads methods
       getFromCacheAds,
