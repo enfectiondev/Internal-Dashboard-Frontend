@@ -1,201 +1,228 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useCache } from '../context/CacheContext';
+import React, { createContext, useContext, useState } from 'react';
 
-// Global promise cache to prevent duplicate API calls
-const activePromises = new Map();
+const CacheContext = createContext();
 
-// Convert dashboard period to analytics API period format
-const convertPeriodToAnalytics = (period) => {
-  const periodMap = {
-    'LAST_7_DAYS': '7d',
-    'LAST_30_DAYS': '30d', 
-    'LAST_3_MONTHS': '90d',
-    'LAST_1_YEAR': '365d',
-    'CUSTOM': 'custom'
-  };
-  return periodMap[period] || '7d';
+export const useCache = () => {
+  const context = useContext(CacheContext);
+  if (!context) {
+    throw new Error('useCache must be used within a CacheProvider');
+  }
+  return context;
 };
 
-export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options = {}) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // Extract options
-  const { 
-    isAnalytics = false, 
-    convertPeriod = false,
-    customDates = null
-  } = options;
-  
-  // Use appropriate cache methods based on type
-  const { 
-    getFromCacheAds, 
-    setCacheAds, 
-    getFromCacheAnalytics, 
-    setCacheAnalytics, 
-    getCacheStats 
-  } = useCache();
-  
-  const isMountedRef = useRef(true);
+export const CacheProvider = ({ children }) => {
+  const [cache, setCacheState] = useState({});
 
-  // Memoize the API call to prevent infinite re-renders
-  const memoizedApiCall = useCallback(apiCall, []);
+  // Generic cache key generator with custom date support
+  const getCacheKey = (id, period, endpoint, type = 'ads', customDates = null) => {
+    // For CUSTOM period, append start and end dates to create unique cache key
+    const isCustomPeriod = period === 'CUSTOM' || period === 'custom';
+    
+    if (isCustomPeriod && customDates?.startDate && customDates?.endDate) {
+      const dateKey = `${customDates.startDate}_${customDates.endDate}`;
+      return `${type}_${id}_${period}_${dateKey}_${endpoint}`;
+    }
+    
+    return `${type}_${id}_${period}_${endpoint}`;
+  };
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
+  // Generic get from cache with custom date support
+  const getFromCache = (id, period, endpoint, type = 'ads', customDates = null) => {
+    const key = getCacheKey(id, period, endpoint, type, customDates);
+    const data = cache[key] || null;
+    
+    console.log(`[CACHE GET] Key: ${key}`);
+    console.log(`[CACHE GET] Result:`, data ? 'HIT' : 'MISS');
+    
+    return data;
+  };
 
-  // Create a stable string representation of customDates for dependency array
-  const customDatesStr = customDates ? `${customDates.startDate}-${customDates.endDate}` : '';
+  // Direct cache access by key
+  const getRawCacheData = (key) => {
+    const data = cache[key] || null;
+    console.log(`[RAW CACHE GET] Key: ${key}, Result: ${data ? 'HIT' : 'MISS'}`);
+    return data;
+  };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!id || !periodOrCacheKey) {
-        if (isMountedRef.current) {
-          console.log(`[${endpoint}] No ${isAnalytics ? 'propertyId' : 'customerId'} or period provided`);
-          setLoading(false);
-          setData(null);
-        }
-        return;
-      }
+  // Generic set cache with custom date support
+  const setCache = (id, period, endpoint, data, type = 'ads', customDates = null) => {
+    const key = getCacheKey(id, period, endpoint, type, customDates);
+    
+    // Only cache if we have meaningful data
+    const shouldCache = data && (
+      Array.isArray(data) ? data.length > 0 : 
+      typeof data === 'object' ? Object.keys(data).length > 0 :
+      true
+    );
 
-      // CRITICAL: Reset state when period changes to show loading
-      if (isMountedRef.current) {
-        setLoading(true);
-        setError(null);
-      }
-
-      // Create cache key that includes custom dates if provided
-      // Check for both 'CUSTOM' (Google Ads) and 'custom' (GA4)
-      let cacheKey = periodOrCacheKey;
-      const isCustomPeriod = periodOrCacheKey === 'CUSTOM' || periodOrCacheKey === 'custom';
+    if (shouldCache) {
+      console.log(`[CACHE SET] Key: ${key}`);
+      console.log(`[CACHE SET] Data:`, data);
       
-      if (isCustomPeriod && customDates?.startDate && customDates?.endDate) {
-        cacheKey = `${periodOrCacheKey}-${customDates.startDate}-${customDates.endDate}`;
-        console.log(`[${endpoint}] Creating custom cache key: ${cacheKey}`);
-      }
-      
-      // Convert period for API call if needed (for analytics)
-      // The period passed to API should be the original periodOrCacheKey, not the cache key
-      let apiPeriod = periodOrCacheKey;
-      if (convertPeriod && periodOrCacheKey !== 'CUSTOM' && periodOrCacheKey !== 'custom') {
-        apiPeriod = convertPeriodToAnalytics(periodOrCacheKey);
-      }
-      
-      const entityType = isAnalytics ? 'propertyId' : 'customerId';
-      
-      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${periodOrCacheKey} -> ${apiPeriod}, cacheKey: ${cacheKey}`);
-      
-      // Log current cache stats
-      const cacheStats = getCacheStats();
-      console.log(`[${endpoint}] Current cache stats:`, cacheStats);
+      setCacheState(prev => ({
+        ...prev,
+        [key]: data
+      }));
+    } else {
+      console.log(`[CACHE SKIP] Not caching empty data for key: ${key}`);
+    }
+  };
 
-      // Check cache first using appropriate method with the cache key
-      const cachedData = isAnalytics 
-        ? getFromCacheAnalytics(id, cacheKey, endpoint)
-        : getFromCacheAds(id, cacheKey, endpoint);
-        
-      if (cachedData) {
-        if (isMountedRef.current) {
-          console.log(`[${endpoint}] Cache hit for ${id} - ${cacheKey}`, cachedData);
-          setData(cachedData);
-          setLoading(false);
-          setError(null);
-        }
-        return;
-      }
+  // Backward compatibility methods for Ads
+  const getFromCacheAds = (customerId, period, endpoint, customDates = null) => {
+    return getFromCache(customerId, period, endpoint, 'ads', customDates);
+  };
 
-      console.log(`[${endpoint}] Cache miss for ${id} - ${cacheKey}, making API call`);
+  const setCacheAds = (customerId, period, endpoint, data, customDates = null) => {
+    return setCache(customerId, period, endpoint, data, 'ads', customDates);
+  };
 
-      // Create unique key for this API call using the cache key
-      const promiseKey = `${isAnalytics ? 'analytics' : 'ads'}_${id}_${cacheKey}_${endpoint}`;
-      
-      // Check if this exact call is already in progress
-      if (activePromises.has(promiseKey)) {
-        console.log(`[${endpoint}] Using existing promise for ${id} - ${cacheKey}`);
-        try {
-          const result = await activePromises.get(promiseKey);
-          if (isMountedRef.current) {
-            setData(result);
-            setLoading(false);
-            setError(null);
-          }
-        } catch (err) {
-          if (isMountedRef.current) {
-            setError(err);
-            setData(null);
-            setLoading(false);
-          }
-        }
-        return;
-      }
+  // Methods for Analytics with custom date support
+  const getFromCacheAnalytics = (propertyId, period, endpoint, customDates = null) => {
+    return getFromCache(propertyId, period, endpoint, 'analytics', customDates);
+  };
 
-      // Create new API call promise
-      const apiPromise = (async () => {
-        try {
-          console.log(`[${endpoint}] Making API call for ${id} - ${cacheKey}`);
-          // Pass the API period (not cache key) and custom dates to the API call function
-          const result = await memoizedApiCall(id, apiPeriod, customDates);
-          
-          console.log(`[${endpoint}] API response for ${id}:`, result);
-          
-          // Cache the result using appropriate method with the cache key
-          if (isAnalytics) {
-            setCacheAnalytics(id, cacheKey, endpoint, result);
-          } else {
-            setCacheAds(id, cacheKey, endpoint, result);
-          }
-          
-          return result;
-        } catch (apiError) {
-          console.error(`[${endpoint}] API error for ${id}:`, apiError);
-          throw apiError;
-        } finally {
-          activePromises.delete(promiseKey);
-          console.log(`[${endpoint}] Removed promise from active promises for ${id}`);
-        }
-      })();
+  const setCacheAnalytics = (propertyId, period, endpoint, data, customDates = null) => {
+    return setCache(propertyId, period, endpoint, data, 'analytics', customDates);
+  };
 
-      // Store the promise
-      activePromises.set(promiseKey, apiPromise);
+  // Methods for Meta Ads
+  const getFromCacheMeta = (accountId, period, endpoint, customDates = null) => {
+    return getFromCache(accountId, period, endpoint, 'meta', customDates);
+  };
 
-      // Wait for result
-      try {
-        if (isMountedRef.current) {
-          setLoading(true);
-          setError(null);
+  const setCacheMeta = (accountId, period, endpoint, data, customDates = null) => {
+    return setCache(accountId, period, endpoint, data, 'meta', customDates);
+  };
+
+  // Methods for Facebook
+  const getFromCacheFacebook = (pageId, period, endpoint, customDates = null) => {
+    return getFromCache(pageId, period, endpoint, 'facebook', customDates);
+  };
+
+  const setCacheFacebook = (pageId, period, endpoint, data, customDates = null) => {
+    return setCache(pageId, period, endpoint, data, 'facebook', customDates);
+  };
+
+  // Clear all cache
+  const clearCache = () => {
+    console.log('[CACHE CLEAR] Clearing all cache');
+    setCacheState({});
+  };
+
+  // Clear cache for specific customer
+  const clearCacheForCustomer = (customerId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for customer: ${customerId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`ads_${customerId}_`)) {
+          delete newCache[key];
         }
-        
-        const result = await apiPromise;
-        
-        if (isMountedRef.current) {
-          console.log(`[${endpoint}] Setting data for ${id}:`, result);
-          setData(result);
-          setError(null);
+      });
+      return newCache;
+    });
+  };
+
+  // Clear cache for specific property
+  const clearCacheForProperty = (propertyId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for property: ${propertyId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`analytics_${propertyId}_`)) {
+          delete newCache[key];
         }
-      } catch (err) {
-        console.error(`[${endpoint}] Final error handling for ${id}:`, err);
-        if (isMountedRef.current) {
-          setError(err);
-          setData(null);
+      });
+      return newCache;
+    });
+  };
+
+  // Clear cache for specific Meta account
+  const clearCacheForMetaAccount = (accountId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for Meta account: ${accountId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`meta_${accountId}_`)) {
+          delete newCache[key];
         }
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
+      });
+      return newCache;
+    });
+  };
+
+  // Clear cache for specific Facebook page
+  const clearCacheForFacebookPage = (pageId) => {
+    console.log(`[CACHE CLEAR] Clearing cache for Facebook page: ${pageId}`);
+    setCacheState(prev => {
+      const newCache = { ...prev };
+      Object.keys(newCache).forEach(key => {
+        if (key.startsWith(`facebook_${pageId}_`)) {
+          delete newCache[key];
         }
-      }
+      });
+      return newCache;
+    });
+  };
+
+  // Get cache statistics
+  const getCacheStats = () => {
+    const keys = Object.keys(cache);
+    const stats = {
+      ads: {},
+      analytics: {},
+      meta: {},
+      facebook: {}
     };
+    
+    keys.forEach(key => {
+      const [type, id] = key.split('_');
+      if (stats[type]) {
+        if (!stats[type][id]) stats[type][id] = 0;
+        stats[type][id]++;
+      }
+    });
+    
+    return {
+      totalKeys: keys.length,
+      ...stats,
+      allKeys: keys
+    };
+  };
 
-    fetchData();
-    // Use customDatesStr instead of customDates object to prevent infinite loops
-  }, [id, periodOrCacheKey, endpoint, memoizedApiCall, isAnalytics, convertPeriod, customDatesStr, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
-
-  // Log current state for debugging
-  useEffect(() => {
-    console.log(`[${endpoint}] State update - ${isAnalytics ? 'propertyId' : 'customerId'}: ${id}, loading: ${loading}, data:`, data, 'error:', error);
-  }, [data, loading, error, id, endpoint, isAnalytics]);
-
-  return { data, loading, error };
+  return (
+    <CacheContext.Provider value={{
+      // Generic methods
+      getFromCache,
+      setCache,
+      getRawCacheData,
+      
+      // Ads methods
+      getFromCacheAds,
+      setCacheAds,
+      clearCacheForCustomer,
+      
+      // Analytics methods
+      getFromCacheAnalytics,
+      setCacheAnalytics,
+      clearCacheForProperty,
+      
+      // Meta Ads methods
+      getFromCacheMeta,
+      setCacheMeta,
+      clearCacheForMetaAccount,
+      
+      // Facebook methods
+      getFromCacheFacebook,
+      setCacheFacebook,
+      clearCacheForFacebookPage,
+      
+      // General methods
+      clearCache,
+      getCacheStats
+    }}>
+      {children}
+    </CacheContext.Provider>
+  );
 };

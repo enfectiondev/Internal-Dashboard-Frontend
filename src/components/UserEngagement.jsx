@@ -12,6 +12,9 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
 
   const { getFromCacheAnalytics, setCacheAnalytics } = useCache();
 
+  // Determine if this is a custom period
+  const isCustomPeriod = period === 'CUSTOM' || period === 'custom';
+
   // Fetch initial conversions data using the cache hook
   const { data: conversionsData, loading: conversionsLoading, error: conversionsError } = useApiWithCache(
     activeProperty?.id,
@@ -26,6 +29,8 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
       }
       
+      console.log(`[UserEngagement] Fetching conversions from: ${url}`);
+      
       const res = await fetch(url, {
         headers: token
           ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
@@ -37,7 +42,7 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
     {
       isAnalytics: true,
       convertPeriod: false,
-      customDates
+      customDates: isCustomPeriod ? customDates : null
     }
   );
 
@@ -55,26 +60,37 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
         return periodMap[period] || '7d';
       };
       
-      // Create cache key with custom dates if applicable
-      let cacheKey = period;
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        cacheKey = `CUSTOM-${customDates.startDate}-${customDates.endDate}`;
-      }
-      
       const analyticsPeriod = convertPeriodToAnalytics(period);
-      const cachedFunnelData = getFromCacheAnalytics(activeProperty.id, cacheKey, 'funnel');
+      
+      // Get cached funnel data - pass customDates for custom periods
+      const cachedFunnelData = getFromCacheAnalytics(
+        activeProperty.id, 
+        period, 
+        'funnel',
+        isCustomPeriod ? customDates : null
+      );
+      
+      console.log('[UserEngagement] Checking cached funnel:', {
+        propertyId: activeProperty.id,
+        period,
+        isCustomPeriod,
+        customDates,
+        cachedData: cachedFunnelData
+      });
       
       if (cachedFunnelData && cachedFunnelData.funnelData && cachedFunnelData.selectedLabels) {
+        console.log('[UserEngagement] Loading funnel from cache');
         setFunnelData(cachedFunnelData.funnelData);
         setSelectedLabels(cachedFunnelData.selectedLabels);
         setCurrentScreen("funnel");
       } else {
+        console.log('[UserEngagement] No cached funnel found, showing selection');
         setCurrentScreen("selection");
         setSelectedLabels([]);
         setFunnelData(null);
       }
     }
-  }, [activeProperty?.id, period, customDates, getFromCacheAnalytics]);
+  }, [activeProperty?.id, period, customDates?.startDate, customDates?.endDate, getFromCacheAnalytics, isCustomPeriod]);
 
   // Transform conversions data for display
   const allFunnelData = conversionsData ? conversionsData.map((item) => ({
@@ -118,6 +134,9 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
         url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
       }
       
+      console.log(`[UserEngagement] Generating funnel with URL: ${url}`);
+      console.log(`[UserEngagement] Selected events:`, selectedLabels);
+      
       const requestBody = {
         selected_events: selectedLabels,
         conversions_data: conversionsData
@@ -137,23 +156,33 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
       }
 
       const data = await res.json();
+      console.log('[UserEngagement] Funnel data received:', data);
+      
       setFunnelData(data);
       
-      // Create cache key with custom dates if applicable
-      let cacheKey = period;
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        cacheKey = `CUSTOM-${customDates.startDate}-${customDates.endDate}`;
-      }
+      // Cache the funnel data with selected labels - pass customDates for custom periods
+      setCacheAnalytics(
+        activeProperty.id, 
+        period, 
+        'funnel', 
+        {
+          funnelData: data,
+          selectedLabels: selectedLabels
+        },
+        isCustomPeriod ? customDates : null
+      );
       
-      // Cache the funnel data with selected labels
-      setCacheAnalytics(activeProperty.id, cacheKey, 'funnel', {
-        funnelData: data,
-        selectedLabels: selectedLabels
+      console.log('[UserEngagement] Funnel data cached with key:', {
+        propertyId: activeProperty.id,
+        period,
+        isCustomPeriod,
+        customDates,
+        endpoint: 'funnel'
       });
       
       setCurrentScreen("funnel");
     } catch (err) {
-      console.error("Failed to generate funnel:", err);
+      console.error("[UserEngagement] Failed to generate funnel:", err);
       setFunnelError(err.message);
     } finally {
       setFunnelLoading(false);
@@ -197,7 +226,6 @@ const UserEngagement = ({ activeProperty, period, customDates }) => {
     return (
       <div className="w-full max-w-5xl px-4 py-6 mx-auto bg-white rounded-lg shadow-lg">
         <h3 className="font-semibold text-black mb-4">User Engagement Funnel</h3>
-        {/* <LoadingSpinner /> */}
         <p className="text-center text-[#1A4752] mt-4">Loading funnel data...</p>
       </div>
     );

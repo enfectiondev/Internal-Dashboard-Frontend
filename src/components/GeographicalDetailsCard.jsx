@@ -8,7 +8,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function GeographicalDetailsCard({ activeProperty, period }) {
+export default function GeographicalDetailsCard({ activeProperty, period, customDates }) {
   const [selectedCity, setSelectedCity] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(true);
@@ -18,25 +18,30 @@ export default function GeographicalDetailsCard({ activeProperty, period }) {
     activeProperty?.id,
     period,
     "audience-insights-city",
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=city&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json"
-              }
-            : { "Content-Type": "application/json" }
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=city&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          : { "Content-Type": "application/json" }
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: false,  // Changed to false since period is already converted in Layout
+      customDates  // Add this line
     }
   );
 
