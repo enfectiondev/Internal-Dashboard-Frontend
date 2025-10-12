@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 import { useCache } from "../context/CacheContext";
 
-const UserEngagement = ({ activeProperty, period }) => {
+const UserEngagement = ({ activeProperty, period, customDates }) => {
   const [showMessage, setShowMessage] = useState(false);
   const [currentScreen, setCurrentScreen] = useState("selection");
   const [selectedLabels, setSelectedLabels] = useState([]);
@@ -17,22 +17,27 @@ const UserEngagement = ({ activeProperty, period }) => {
     activeProperty?.id,
     period,
     'conversions',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/conversions/${propertyId}?period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/conversions/${propertyId}?period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: false,
+      customDates
     }
   );
 
@@ -44,13 +49,20 @@ const UserEngagement = ({ activeProperty, period }) => {
           'LAST_7_DAYS': '7d',
           'LAST_30_DAYS': '30d', 
           'LAST_3_MONTHS': '90d',
-          'LAST_1_YEAR': '365d'
+          'LAST_1_YEAR': '365d',
+          'CUSTOM': 'custom'
         };
         return periodMap[period] || '7d';
       };
       
+      // Create cache key with custom dates if applicable
+      let cacheKey = period;
+      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+        cacheKey = `CUSTOM-${customDates.startDate}-${customDates.endDate}`;
+      }
+      
       const analyticsPeriod = convertPeriodToAnalytics(period);
-      const cachedFunnelData = getFromCacheAnalytics(activeProperty.id, analyticsPeriod, 'funnel');
+      const cachedFunnelData = getFromCacheAnalytics(activeProperty.id, cacheKey, 'funnel');
       
       if (cachedFunnelData && cachedFunnelData.funnelData && cachedFunnelData.selectedLabels) {
         setFunnelData(cachedFunnelData.funnelData);
@@ -62,7 +74,7 @@ const UserEngagement = ({ activeProperty, period }) => {
         setFunnelData(null);
       }
     }
-  }, [activeProperty?.id, period, getFromCacheAnalytics]);
+  }, [activeProperty?.id, period, customDates, getFromCacheAnalytics]);
 
   // Transform conversions data for display
   const allFunnelData = conversionsData ? conversionsData.map((item) => ({
@@ -92,29 +104,33 @@ const UserEngagement = ({ activeProperty, period }) => {
           'LAST_7_DAYS': '7d',
           'LAST_30_DAYS': '30d', 
           'LAST_3_MONTHS': '90d',
-          'LAST_1_YEAR': '365d'
+          'LAST_1_YEAR': '365d',
+          'CUSTOM': 'custom'
         };
         return periodMap[period] || '7d';
       };
       
       const analyticsPeriod = convertPeriodToAnalytics(period);
       
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/funnel/${activeProperty.id}?period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDates?.startDate && customDates?.endDate) {
+        url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+      }
+      
       const requestBody = {
         selected_events: selectedLabels,
         conversions_data: conversionsData
       };
 
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/funnel/${activeProperty.id}?period=${analyticsPeriod}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody)
-        }
-      );
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
 
       if (!res.ok) {
         throw new Error(`Failed to fetch funnel data: ${res.status}`);
@@ -123,8 +139,14 @@ const UserEngagement = ({ activeProperty, period }) => {
       const data = await res.json();
       setFunnelData(data);
       
+      // Create cache key with custom dates if applicable
+      let cacheKey = period;
+      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+        cacheKey = `CUSTOM-${customDates.startDate}-${customDates.endDate}`;
+      }
+      
       // Cache the funnel data with selected labels
-      setCacheAnalytics(activeProperty.id, analyticsPeriod, 'funnel', {
+      setCacheAnalytics(activeProperty.id, cacheKey, 'funnel', {
         funnelData: data,
         selectedLabels: selectedLabels
       });
@@ -228,50 +250,71 @@ const UserEngagement = ({ activeProperty, period }) => {
         {/* Only show label selection if not loading */}
         {!funnelLoading && (
           <div className="mb-8">
-            <h4 className="text-normal font-semibold mb-4 text-[#1A4752]">
-              Select events to include in your funnel:
-            </h4>
             {allFunnelData.length > 0 ? (
-              <div className="grid grid-cols-3 gap-4">
-                {allFunnelData.map((item) => (
-                  <div
-                    key={item.label}
-                    onClick={() => toggleLabelSelection(item.label)}
-                    className="flex items-center space-x-2 p-3 cursor-pointer hover:bg-gray-50 rounded-lg border-2 border-transparent hover:border-[#58C3DB] transition-all"
-                  >
+              <>
+                <h4 className="text-normal font-semibold mb-4 text-[#1A4752]">
+                  Select events to include in your funnel:
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                  {allFunnelData.map((item) => (
                     <div
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                        selectedLabels.includes(item.label)
-                          ? "bg-[#2B889C] border-[#2B889C]"
-                          : "bg-gray-100 border-gray-300"
-                      }`}
+                      key={item.label}
+                      onClick={() => toggleLabelSelection(item.label)}
+                      className="flex items-center space-x-2 p-3 cursor-pointer hover:bg-gray-50 rounded-lg border-2 border-transparent hover:border-[#58C3DB] transition-all"
                     >
-                      {selectedLabels.includes(item.label) && (
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-sm text-[#1A4752]">{item.label}</div>
-                      <div className="text-xs text-gray-600">
-                        {item.value.toLocaleString()} events ({item.percent})
+                      <div
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          selectedLabels.includes(item.label)
+                            ? "bg-[#2B889C] border-[#2B889C]"
+                            : "bg-gray-100 border-gray-300"
+                        }`}
+                      >
+                        {selectedLabels.includes(item.label) && (
+                          <svg
+                            className="w-3 h-3 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-sm text-[#1A4752]">{item.label}</div>
+                        <div className="text-xs text-gray-600">
+                          {item.value.toLocaleString()} events ({item.percent})
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             ) : (
-              <div className="text-gray-500 text-center py-8">
-                No conversion events available for this property
+              <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <svg 
+                  className="mx-auto h-16 w-16 text-gray-400 mb-4" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
+                  />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  No Conversion Events Available
+                </h3>
+                <p className="text-sm text-gray-500 max-w-md mx-auto">
+                  There are no conversion events recorded for this property during the selected time period. 
+                  Try selecting a different date range or ensure conversion tracking is properly configured.
+                </p>
               </div>
             )}
           </div>
