@@ -29,7 +29,7 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
 
   const token = localStorage.getItem("token");
   // const { getFromCache, setCache } = useCache();
-  const { getRawCacheData, setCache } = useCache();
+  // const { getRawCacheData, setCache } = useCache();
 
   // Channel colors
   const channelColors = {
@@ -58,28 +58,10 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
     const fetchData = async () => {
       const timeframe = convertPeriodForAPI(period);
       
-      // ✅ NEW: Create a unique cache key that includes actual dates for custom periods
-      let cacheKey;
-      if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
-        // For custom periods, use the actual date range in the key
-        cacheKey = `roi_${propertyId}_${adsCustomerId}_custom_${customDates.startDate}_${customDates.endDate}`;
-      } else {
-        // For predefined periods, use the period name
-        cacheKey = `roi_${propertyId}_${adsCustomerId}_${timeframe}`;
-      }
+      console.log('[ROI Analytics] Fetching data for period:', timeframe);
+      console.log('[ROI Analytics] Custom dates:', customDates);
       
-      console.log('[ROI Analytics] Cache key:', cacheKey);
-      
-      // ✅ Check cache using the raw cache key (not going through complex logic)
-      const cachedData = getRawCacheData(cacheKey);
-      if (cachedData) {
-        console.log('[ROI Analytics] Using cached data:', cachedData);
-        setChartData(cachedData.chartData || []);
-        setMatrixData(cachedData.matrixData || null);
-        setLoading(false);
-        return;
-      }
-
+      // ✅ SKIP CACHE ENTIRELY - Always fetch fresh data
       setLoading(true);
       try {
         console.log('[ROI Analytics] Fetching fresh data...');
@@ -89,12 +71,17 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
         let revenueUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`;
         let matrixUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=${timeframe}`;
         
+        console.log('[ROI Analytics] Channel URL:', channelUrl);
+        console.log('[ROI Analytics] Revenue URL:', revenueUrl);
+        console.log('[ROI Analytics] Matrix URL:', matrixUrl);
+        
         // Add custom date parameters for GA4 endpoints (lowercase 'custom')
         if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
           const dateParams = `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
           channelUrl += dateParams;
           revenueUrl += dateParams;
           matrixUrl += dateParams;
+          console.log('[ROI Analytics] Added date params:', dateParams);
         }
         
         // Fetch channel revenue timeseries
@@ -102,12 +89,14 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
           headers: { Authorization: `Bearer ${token}` }
         });
         const channelData = await channelRes.json();
+        console.log('[ROI Analytics] Channel data received:', channelData);
 
         // Fetch total revenue timeseries
         const revenueRes = await fetch(revenueUrl, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const revenueData = await revenueRes.json();
+        console.log('[ROI Analytics] Revenue data received:', revenueData);
 
         // Fetch ROAS/ROI metrics
         const matrixRes = await fetch(matrixUrl, {
@@ -115,12 +104,14 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
         });
         const matrixJson = await matrixRes.json();
         const matrixResult = matrixJson[0] || matrixJson;
+        console.log('[ROI Analytics] Matrix data received:', matrixResult);
 
         // Filter channels to only include the required ones
         const requiredChannels = ['Direct', 'Unassigned', 'Organic Search', 'Organic Social', 'Paid Search', 'Paid Social'];
         const filteredChannels = channelData.channels_found?.filter(channel => 
           requiredChannels.includes(channel)
         ) || [];
+        console.log('[ROI Analytics] Filtered channels:', filteredChannels);
 
         // Process time series data
         const processedData = {};
@@ -160,22 +151,16 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
           new Date(a.date) - new Date(b.date)
         );
 
+        console.log('[ROI Analytics] Final processed chart data:', chartArray);
+        console.log('[ROI Analytics] Final matrix data:', matrixResult);
+
         setChartData(chartArray);
         setMatrixData(matrixResult);
 
-        // ✅ Cache the data using setCacheState directly
-        const dataToCache = {
-          chartData: chartArray,
-          matrixData: matrixResult,
-          timestamp: Date.now()
-        };
-        
-        // Use setCacheState to directly set the cache
-        setCacheRaw(cacheKey, dataToCache);
-        console.log('[ROI Analytics] Data cached successfully with key:', cacheKey);
-
       } catch (err) {
         console.error("Failed to fetch ROI Analytics data:", err);
+        setChartData([]);
+        setMatrixData(null);
       } finally {
         setLoading(false);
       }
@@ -184,8 +169,7 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
     if (propertyId && adsCustomerId && token) {
       fetchData();
     }
-  }, [propertyId, adsCustomerId, token, period, customDates?.startDate, customDates?.endDate, getRawCacheData, setCache]);
-
+  }, [propertyId, adsCustomerId, token, period, customDates?.startDate, customDates?.endDate]);
 
   const CustomLineTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
