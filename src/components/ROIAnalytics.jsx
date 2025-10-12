@@ -45,21 +45,29 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
     totalRevenue: "#374151",
   };
 
-  // Convert period format for API
+
   // Convert period format for API
   const convertPeriodForAPI = (period) => {
-    console.log('[convertPeriodForAPI] Input period:', period); // ✅ ADD THIS
+    console.log('[convertPeriodForAPI] Input period:', period);
     
+    // ✅ FIXED: Handle both formats - ads format (LAST_X_DAYS) and GA4 format (Xd)
     const periodMap = {
+      // Ads format
       'LAST_7_DAYS': '7d',
       'LAST_30_DAYS': '30d',
       'LAST_3_MONTHS': '90d',
       'LAST_1_YEAR': '365d',
-      'CUSTOM': 'custom'
+      'CUSTOM': 'custom',
+      // GA4 format (already converted) - just return as-is
+      '7d': '7d',
+      '30d': '30d',
+      '90d': '90d',
+      '365d': '365d',
+      'custom': 'custom'
     };
     
     const result = periodMap[period] || '7d';
-    console.log('[convertPeriodForAPI] Output period:', result); // ✅ ADD THIS
+    console.log('[convertPeriodForAPI] Output period:', result);
     return result;
   };
 
