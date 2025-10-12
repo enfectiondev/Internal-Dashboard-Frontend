@@ -12,7 +12,7 @@ import { ArrowLeft } from "lucide-react";
 import { useCache } from "../context/CacheContext";
 
 // Inner ROIAnalytics Component that handles the actual charts and data
-const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period }) => {
+const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDates }) => {
   const [chartData, setChartData] = useState([]);
   const [matrixData, setMatrixData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +46,8 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period }) => {
       'LAST_7_DAYS': '7d',
       'LAST_30_DAYS': '30d',
       'LAST_3_MONTHS': '90d',
-      'LAST_1_YEAR': '365d'
+      'LAST_1_YEAR': '365d',
+      'CUSTOM': 'custom'
     };
     return periodMap[period] || '7d';
   };
@@ -54,7 +55,12 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period }) => {
   useEffect(() => {
     const fetchData = async () => {
       const timeframe = convertPeriodForAPI(period);
-      const cacheKey = `${propertyId}_${adsCustomerId}_${timeframe}`;
+      
+      // Create cache key with custom dates if applicable
+      let cacheKey = `${propertyId}_${adsCustomerId}_${timeframe}`;
+      if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
+        cacheKey = `${propertyId}_${adsCustomerId}_custom_${customDates.startDate}_${customDates.endDate}`;
+      }
       
       // Check cache first
       const cachedData = getFromCache(cacheKey, timeframe, 'roi-analytics', 'roi');
@@ -70,25 +76,35 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period }) => {
       try {
         console.log('[ROI Analytics] Fetching fresh data...');
         
+        // Build URLs with custom dates if needed
+        let channelUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/channel-revenue-timeseries/${propertyId}?period=${timeframe}`;
+        let revenueUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`;
+        let matrixUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=${timeframe}`;
+        
+        // Add custom date parameters for GA4 endpoints (lowercase 'custom')
+        if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
+          const dateParams = `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
+          channelUrl += dateParams;
+          revenueUrl += dateParams;
+          matrixUrl += dateParams;
+        }
+        
         // Fetch channel revenue timeseries
-        const channelRes = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/channel-revenue-timeseries/${propertyId}?period=${timeframe}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const channelRes = await fetch(channelUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const channelData = await channelRes.json();
 
         // Fetch total revenue timeseries
-        const revenueRes = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const revenueRes = await fetch(revenueUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const revenueData = await revenueRes.json();
 
         // Fetch ROAS/ROI metrics
-        const matrixRes = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=30d`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const matrixRes = await fetch(matrixUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const matrixJson = await matrixRes.json();
         const matrixResult = matrixJson[0] || matrixJson;
 
@@ -158,7 +174,7 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period }) => {
     if (propertyId && adsCustomerId && token) {
       fetchData();
     }
-  }, [propertyId, adsCustomerId, token, period, getFromCache, setCache]);
+  }, [propertyId, adsCustomerId, token, period, customDates, getFromCache, setCache]);
 
   const CustomLineTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -361,7 +377,8 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period }) => {
 };
 
 // Main ROI Analytics Component that handles account selection
-export default function ROIAnalytics({ activeProperty, period }) {
+export default function ROIAnalytics({ activeProperty, period, customDates }) {
+
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
@@ -521,7 +538,6 @@ export default function ROIAnalytics({ activeProperty, period }) {
           </div>
         </div>
       )}
-
       {selectedAccount && (
         <div className="bg-white p-6 rounded-lg shadow-lg w-full">
           <ROIAnalyticsInner
@@ -529,6 +545,7 @@ export default function ROIAnalytics({ activeProperty, period }) {
             adsCustomerId={selectedAccount.adsCustomerId}
             onBack={handleBackToSelection}
             period={period || "LAST_7_DAYS"}
+            customDates={customDates}  // Add this line
           />
         </div>
       )}
