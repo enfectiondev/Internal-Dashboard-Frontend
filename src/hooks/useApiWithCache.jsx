@@ -11,7 +11,7 @@ const convertPeriodToAnalytics = (period) => {
     'LAST_30_DAYS': '30d', 
     'LAST_3_MONTHS': '90d',
     'LAST_1_YEAR': '365d',
-    'CUSTOM': 'custom'  // ADD THIS
+    'CUSTOM': 'custom'
   };
   return periodMap[period] || '7d';
 };
@@ -25,7 +25,7 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
   const { 
     isAnalytics = false, 
     convertPeriod = false,
-    customDates = null // NEW: Support custom dates
+    customDates = null
   } = options;
   
   // Use appropriate cache methods based on type
@@ -47,6 +47,9 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
     return () => { isMountedRef.current = false; };
   }, []);
 
+  // Create a stable string representation of customDates for dependency array
+  const customDatesStr = customDates ? `${customDates.startDate}-${customDates.endDate}` : '';
+
   useEffect(() => {
     const fetchData = async () => {
       if (!id || !periodOrCacheKey) {
@@ -65,7 +68,7 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
       }
 
       // Create cache key that includes custom dates if provided
-      // UPDATED: Check for both 'CUSTOM' (Google Ads) and 'custom' (GA4)
+      // Check for both 'CUSTOM' (Google Ads) and 'custom' (GA4)
       let cacheKey = periodOrCacheKey;
       const isCustomPeriod = periodOrCacheKey === 'CUSTOM' || periodOrCacheKey === 'custom';
       
@@ -74,14 +77,16 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
         console.log(`[${endpoint}] Creating custom cache key: ${cacheKey}`);
       }
       
-      // Convert period if needed (for analytics) - only convert if it's a standard period
-      const finalPeriod = convertPeriod && !cacheKey.includes('-') 
-        ? convertPeriodToAnalytics(cacheKey) 
-        : cacheKey;
+      // Convert period for API call if needed (for analytics)
+      // The period passed to API should be the original periodOrCacheKey, not the cache key
+      let apiPeriod = periodOrCacheKey;
+      if (convertPeriod && periodOrCacheKey !== 'CUSTOM' && periodOrCacheKey !== 'custom') {
+        apiPeriod = convertPeriodToAnalytics(periodOrCacheKey);
+      }
       
       const entityType = isAnalytics ? 'propertyId' : 'customerId';
       
-      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${periodOrCacheKey} -> ${finalPeriod}, cacheKey: ${cacheKey}`);
+      console.log(`[${endpoint}] Starting fetch for ${entityType}: ${id}, period: ${periodOrCacheKey} -> ${apiPeriod}, cacheKey: ${cacheKey}`);
       
       // Log current cache stats
       const cacheStats = getCacheStats();
@@ -131,8 +136,8 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
       const apiPromise = (async () => {
         try {
           console.log(`[${endpoint}] Making API call for ${id} - ${cacheKey}`);
-          // Pass both the period and custom dates to the API call function
-          const result = await memoizedApiCall(id, periodOrCacheKey, customDates);
+          // Pass the API period (not cache key) and custom dates to the API call function
+          const result = await memoizedApiCall(id, apiPeriod, customDates);
           
           console.log(`[${endpoint}] API response for ${id}:`, result);
           
@@ -184,7 +189,8 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
     };
 
     fetchData();
-  }, [id, periodOrCacheKey, endpoint, memoizedApiCall, isAnalytics, convertPeriod, customDates, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
+    // Use customDatesStr instead of customDates object to prevent infinite loops
+  }, [id, periodOrCacheKey, endpoint, memoizedApiCall, isAnalytics, convertPeriod, customDatesStr, getFromCacheAds, setCacheAds, getFromCacheAnalytics, setCacheAnalytics, getCacheStats]);
 
   // Log current state for debugging
   useEffect(() => {
