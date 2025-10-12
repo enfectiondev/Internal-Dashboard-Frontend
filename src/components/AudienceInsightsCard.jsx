@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-export default function AudienceInsightsCard({ activeProperty, period }) {
+export default function AudienceInsightsCard({ activeProperty, period, customDates }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSlice, setActiveSlice] = useState(null);
 
@@ -38,22 +38,28 @@ export default function AudienceInsightsCard({ activeProperty, period }) {
     activeProperty?.id,
     period,
     'audience-insights-browser',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=browser&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      // Build URL with custom dates if needed
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=browser&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: true,
+      customDates  // Pass customDates to the hook
     }
   );
 
@@ -62,22 +68,27 @@ export default function AudienceInsightsCard({ activeProperty, period }) {
     activeProperty?.id,
     period,
     'audience-insights-gender',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=userGender&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=userGender&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: true,
+      customDates
     }
   );
 
@@ -86,22 +97,27 @@ export default function AudienceInsightsCard({ activeProperty, period }) {
     activeProperty?.id,
     period,
     'audience-insights-age',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=userAgeBracket&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=userAgeBracket&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: true,
+      customDates
     }
   );
 
