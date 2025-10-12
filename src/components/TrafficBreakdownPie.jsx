@@ -37,8 +37,10 @@ function TrafficBreakdownPie({ activeProperty, period, customDates }) {
       // Build URL with custom date parameters if needed
       let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/traffic-sources/${propertyId}?period=${analyticsPeriod}`;
       
+      // Check for 'custom' (already converted from 'CUSTOM' in Layout)
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+        console.log('[traffic-sources] Custom date URL:', url); // Debug log
       }
       
       const res = await fetch(url, {
@@ -51,8 +53,8 @@ function TrafficBreakdownPie({ activeProperty, period, customDates }) {
     },
     {
       isAnalytics: true,
-      convertPeriod: false,  // Changed to false since period is already converted in Layout
-      customDates  // Add this line
+      convertPeriod: false,
+      customDates
     }
   );
 
