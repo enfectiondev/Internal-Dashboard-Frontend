@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-function TrafficBreakdownPie({ activeProperty, period }) {
+function TrafficBreakdownPie({ activeProperty, period, customDates }) {
   const [activeSlice, setActiveSlice] = useState(null);
 
   // Memoized colors
@@ -27,27 +27,32 @@ function TrafficBreakdownPie({ activeProperty, period }) {
     []
   );
 
-  // Use the universal hook to fetch traffic sources data
   const { data: rawData, loading, error } = useApiWithCache(
     activeProperty?.id,
     period,
     'traffic-sources',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/traffic-sources/${propertyId}?period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      // Build URL with custom date parameters if needed
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/traffic-sources/${propertyId}?period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: false,  // Changed to false since period is already converted in Layout
+      customDates  // Add this line
     }
   );
 

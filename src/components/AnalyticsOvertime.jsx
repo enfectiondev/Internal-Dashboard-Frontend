@@ -29,7 +29,7 @@ const CustomLineTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function AnalyticsOvertime({ activeProperty, period }) {
+function AnalyticsOvertime({ activeProperty, period, customDates }) {
   const [showTotalUsers, setShowTotalUsers] = useState(true);
   const [showSessions, setShowSessions] = useState(true);
   const [showConversions, setShowConversions] = useState(true);
@@ -39,22 +39,27 @@ function AnalyticsOvertime({ activeProperty, period }) {
     activeProperty?.id,
     period,
     'time-series-totalUsers',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalUsers&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalUsers&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: false,
+      customDates
     }
   );
 
@@ -63,22 +68,27 @@ function AnalyticsOvertime({ activeProperty, period }) {
     activeProperty?.id,
     period,
     'time-series-sessions',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=sessions&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=sessions&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: false,
+      customDates
     }
   );
 
@@ -87,22 +97,27 @@ function AnalyticsOvertime({ activeProperty, period }) {
     activeProperty?.id,
     period,
     'time-series-conversions',
-    async (propertyId, analyticsPeriod) => {
+    async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=conversions&period=${analyticsPeriod}`,
-        {
-          headers: token
-            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-            : { "Content-Type": "application/json" },
-        }
-      );
+      
+      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=conversions&period=${analyticsPeriod}`;
+      
+      if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+        url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" },
+      });
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       return await res.json();
     },
     {
       isAnalytics: true,
-      convertPeriod: true
+      convertPeriod: false,
+      customDates
     }
   );
 
