@@ -13,14 +13,22 @@ export const useCache = () => {
 export const CacheProvider = ({ children }) => {
   const [cache, setCacheState] = useState({});
 
-  // Generic cache key generator
-  const getCacheKey = (id, period, endpoint, type = 'ads') => {
+  // Generic cache key generator with custom date support
+  const getCacheKey = (id, period, endpoint, type = 'ads', customDates = null) => {
+    // For CUSTOM period, append start and end dates to create unique cache key
+    const isCustomPeriod = period === 'CUSTOM' || period === 'custom';
+    
+    if (isCustomPeriod && customDates?.startDate && customDates?.endDate) {
+      const dateKey = `${customDates.startDate}_${customDates.endDate}`;
+      return `${type}_${id}_${period}_${dateKey}_${endpoint}`;
+    }
+    
     return `${type}_${id}_${period}_${endpoint}`;
   };
 
-  // Generic get from cache
-  const getFromCache = (id, period, endpoint, type = 'ads') => {
-    const key = getCacheKey(id, period, endpoint, type);
+  // Generic get from cache with custom date support
+  const getFromCache = (id, period, endpoint, type = 'ads', customDates = null) => {
+    const key = getCacheKey(id, period, endpoint, type, customDates);
     const data = cache[key] || null;
     
     console.log(`[CACHE GET] Key: ${key}`);
@@ -36,9 +44,9 @@ export const CacheProvider = ({ children }) => {
     return data;
   };
 
-  // Generic set cache
-  const setCache = (id, period, endpoint, data, type = 'ads') => {
-    const key = getCacheKey(id, period, endpoint, type);
+  // Generic set cache with custom date support
+  const setCache = (id, period, endpoint, data, type = 'ads', customDates = null) => {
+    const key = getCacheKey(id, period, endpoint, type, customDates);
     
     // Only cache if we have meaningful data
     const shouldCache = data && (
@@ -49,6 +57,7 @@ export const CacheProvider = ({ children }) => {
 
     if (shouldCache) {
       console.log(`[CACHE SET] Key: ${key}`);
+      console.log(`[CACHE SET] Data:`, data);
       
       setCacheState(prev => ({
         ...prev,
@@ -60,39 +69,39 @@ export const CacheProvider = ({ children }) => {
   };
 
   // Backward compatibility methods for Ads
-  const getFromCacheAds = (customerId, period, endpoint) => {
-    return getFromCache(customerId, period, endpoint, 'ads');
+  const getFromCacheAds = (customerId, period, endpoint, customDates = null) => {
+    return getFromCache(customerId, period, endpoint, 'ads', customDates);
   };
 
-  const setCacheAds = (customerId, period, endpoint, data) => {
-    return setCache(customerId, period, endpoint, data, 'ads');
+  const setCacheAds = (customerId, period, endpoint, data, customDates = null) => {
+    return setCache(customerId, period, endpoint, data, 'ads', customDates);
   };
 
-  // Methods for Analytics
-  const getFromCacheAnalytics = (propertyId, period, endpoint) => {
-    return getFromCache(propertyId, period, endpoint, 'analytics');
+  // Methods for Analytics with custom date support
+  const getFromCacheAnalytics = (propertyId, period, endpoint, customDates = null) => {
+    return getFromCache(propertyId, period, endpoint, 'analytics', customDates);
   };
 
-  const setCacheAnalytics = (propertyId, period, endpoint, data) => {
-    return setCache(propertyId, period, endpoint, data, 'analytics');
+  const setCacheAnalytics = (propertyId, period, endpoint, data, customDates = null) => {
+    return setCache(propertyId, period, endpoint, data, 'analytics', customDates);
   };
 
   // Methods for Meta Ads
-  const getFromCacheMeta = (accountId, period, endpoint) => {
-    return getFromCache(accountId, period, endpoint, 'meta');
+  const getFromCacheMeta = (accountId, period, endpoint, customDates = null) => {
+    return getFromCache(accountId, period, endpoint, 'meta', customDates);
   };
 
-  const setCacheMeta = (accountId, period, endpoint, data) => {
-    return setCache(accountId, period, endpoint, data, 'meta');
+  const setCacheMeta = (accountId, period, endpoint, data, customDates = null) => {
+    return setCache(accountId, period, endpoint, data, 'meta', customDates);
   };
 
   // Methods for Facebook
-  const getFromCacheFacebook = (pageId, period, endpoint) => {
-    return getFromCache(pageId, period, endpoint, 'facebook');
+  const getFromCacheFacebook = (pageId, period, endpoint, customDates = null) => {
+    return getFromCache(pageId, period, endpoint, 'facebook', customDates);
   };
 
-  const setCacheFacebook = (pageId, period, endpoint, data) => {
-    return setCache(pageId, period, endpoint, data, 'facebook');
+  const setCacheFacebook = (pageId, period, endpoint, data, customDates = null) => {
+    return setCache(pageId, period, endpoint, data, 'facebook', customDates);
   };
 
   // Clear all cache
