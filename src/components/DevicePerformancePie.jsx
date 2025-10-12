@@ -5,7 +5,7 @@ import { useApiWithCache } from "../hooks/useApiWithCache";
 
 const colors = ["#1A4752", "#2B889C", "#A0C6CE", "#58C3DB"];
 
-function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalytics = false }) {
+function DevicePerformancePie({ activeCampaign, activeProperty, period, customDates, isAnalytics = false }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSlice, setActiveSlice] = useState(null);
   const [size, setSize] = useState(200); // dynamic chart size
@@ -28,29 +28,37 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
   // Determine which ID to use and API call function
   const currentId = isAnalytics ? activeProperty?.id : activeCampaign?.id;
   const apiCallFunction = isAnalytics
-    ? async (propertyId, analyticsPeriod) => {
+    ? async (propertyId, analyticsPeriod, customDatesParam) => {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=deviceCategory&period=${analyticsPeriod}`,
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
+        
+        let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=deviceCategory&period=${analyticsPeriod}`;
+        
+        if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
+          url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+        }
+        
+        const res = await fetch(url, {
+          headers: token
+            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+            : { "Content-Type": "application/json" },
+        });
         if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
         return await res.json();
       }
-    : async (customerId, adsPeriod) => {
+    : async (customerId, adsPeriod, customDatesParam) => {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${adsPeriod}`,
-          {
-            headers: token
-              ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-              : { "Content-Type": "application/json" },
-          }
-        );
+        
+        let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${adsPeriod}`;
+        
+        if (adsPeriod === 'CUSTOM' && customDatesParam?.startDate && customDatesParam?.endDate) {
+          url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
+        }
+        
+        const res = await fetch(url, {
+          headers: token
+            ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+            : { "Content-Type": "application/json" },
+        });
         if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
         return await res.json();
       };
@@ -63,7 +71,8 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, isAnalyt
     apiCallFunction,
     {
       isAnalytics,
-      convertPeriod: isAnalytics, // Only convert period for analytics
+      convertPeriod: false,  // Changed to false since period is already converted in Layout
+      customDates  // Add this line
     }
   );
 
