@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import SeedKeywordsInput from "../components/SeedKeywordsInput";
 import KeywordCards from "../components/KeywordCards";
 import SuggestedKeywordsTable from "../components/SuggestedKeywordsTable";
@@ -22,9 +22,13 @@ export default function IntentInsights({
   const [isLoading, setIsLoading] = useState(false);
   const [apiResponse, setApiResponse] = useState(null);
   const [error, setError] = useState(null);
+  const [lastUsedCacheKey, setLastUsedCacheKey] = useState(null);
   
   // Add cache hooks at component level
   const { getRawCacheData, setCacheRaw } = useCache();
+  
+  // Track if component has been initialized
+  const hasInitialized = useRef(false);
 
   // Dummy data for keyword cards (fallback)
   const keywordData = [
@@ -226,33 +230,72 @@ export default function IntentInsights({
       }));
   };
 
-  // Load cached data when component mounts or dependencies change
+  // ✅ NEW: Restore state from sessionStorage on mount
   useEffect(() => {
-    if (!selectedAccount || seedKeywords.length === 0) {
+    if (!selectedAccount || hasInitialized.current) {
       return;
     }
 
     const accountId = selectedAccount.id || selectedAccount.customerId;
-    const { startDate, endDate } = getDateRangeFromPeriod();
     
-    // Create cache key
-    const sortedKeywords = [...seedKeywords].sort().join('_');
-    const cacheKey = `intent_${accountId}_${sortedKeywords}_${selectedCountry}_${startDate}_${endDate}`;
+    // Try to restore session state
+    const sessionKey = `intent_session_${accountId}`;
+    const savedSession = sessionStorage.getItem(sessionKey);
     
-    console.log('[IntentInsights] Checking cache on mount/update:', cacheKey);
-    
-    // Try to load from cache
-    const cachedData = getRawCacheData(cacheKey);
-    
-    if (cachedData) {
-      console.log('[IntentInsights] Restoring cached data:', cachedData);
-      setApiResponse(cachedData);
+    if (savedSession) {
+      try {
+        const sessionData = JSON.parse(savedSession);
+        console.log('[IntentInsights] Restoring session state:', sessionData);
+        
+        // Restore state
+        if (sessionData.seedKeywords) {
+          setSeedKeywords(sessionData.seedKeywords);
+        }
+        if (sessionData.selectedCountry) {
+          setSelectedCountry(sessionData.selectedCountry);
+        }
+        if (sessionData.cacheKey) {
+          setLastUsedCacheKey(sessionData.cacheKey);
+          
+          // Try to restore cached API response
+          const cachedData = getRawCacheData(sessionData.cacheKey);
+          if (cachedData) {
+            console.log('[IntentInsights] Restoring cached API response');
+            setApiResponse(cachedData);
+          }
+        }
+        
+        hasInitialized.current = true;
+      } catch (e) {
+        console.error('[IntentInsights] Failed to restore session:', e);
+      }
     }
-  }, [selectedAccount, seedKeywords, selectedCountry, period, dateRange, getRawCacheData]);
+  }, [selectedAccount, getRawCacheData]);
+
+  // ✅ NEW: Save state to sessionStorage whenever it changes
+  useEffect(() => {
+    if (!selectedAccount || !hasInitialized.current) {
+      return;
+    }
+
+    const accountId = selectedAccount.id || selectedAccount.customerId;
+    const sessionKey = `intent_session_${accountId}`;
+    
+    const sessionData = {
+      seedKeywords,
+      selectedCountry,
+      cacheKey: lastUsedCacheKey,
+      timestamp: new Date().toISOString()
+    };
+    
+    sessionStorage.setItem(sessionKey, JSON.stringify(sessionData));
+    console.log('[IntentInsights] Saved session state:', sessionData);
+  }, [seedKeywords, selectedCountry, lastUsedCacheKey, selectedAccount]);
 
   const handleAddKeyword = (keyword) => {
     if (keyword && !seedKeywords.includes(keyword)) {
       setSeedKeywords([...seedKeywords, keyword]);
+      hasInitialized.current = true; // Mark as initialized when user adds keywords
     }
   };
 
@@ -285,7 +328,9 @@ export default function IntentInsights({
       if (cachedData) {
         console.log('[IntentInsights] Using cached data:', cachedData);
         setApiResponse(cachedData);
+        setLastUsedCacheKey(cacheKey);
         setIsLoading(false);
+        hasInitialized.current = true;
         return;
       }
       
@@ -326,9 +371,11 @@ export default function IntentInsights({
       
       // Cache the response
       setCacheRaw(cacheKey, data);
+      setLastUsedCacheKey(cacheKey);
       console.log('[IntentInsights] Data cached with key:', cacheKey);
       
       setApiResponse(data);
+      hasInitialized.current = true;
       console.log("API Response received:", data);
       
     } catch (error) {
