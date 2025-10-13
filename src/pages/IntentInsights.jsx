@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SeedKeywordsInput from "../components/SeedKeywordsInput";
 import KeywordCards from "../components/KeywordCards";
 import SuggestedKeywordsTable from "../components/SuggestedKeywordsTable";
@@ -6,6 +6,7 @@ import CountrySelector from "../components/CountrySelector";
 import AccountSelector from "../components/AccountSelector";
 import SearchesOverTimeChart from "../components/SearchesOverTimeChart";
 import AIChatComponent from "../components/AIChatComponent";
+import { useCache } from "../context/CacheContext";
 
 export default function IntentInsights({ 
   period, 
@@ -21,6 +22,9 @@ export default function IntentInsights({
   const [isLoading, setIsLoading] = useState(false);
   const [apiResponse, setApiResponse] = useState(null);
   const [error, setError] = useState(null);
+  
+  // Add cache hooks at component level
+  const { getRawCacheData, setCacheRaw } = useCache();
 
   // Dummy data for keyword cards (fallback)
   const keywordData = [
@@ -92,22 +96,11 @@ export default function IntentInsights({
     }
   ];
 
-  const handleAddKeyword = (keyword) => {
-    if (keyword && !seedKeywords.includes(keyword)) {
-      setSeedKeywords([...seedKeywords, keyword]);
-    }
-  };
-
-  const handleRemoveKeyword = (keyword) => {
-    setSeedKeywords(seedKeywords.filter(k => k !== keyword));
-  };
-
-
   // Convert period to date range
   const getDateRangeFromPeriod = () => {
     console.log("getDateRangeFromPeriod called with:", { dateRange, period });
     
-    // ✅ Helper function to format Date object to YYYY-MM-DD
+    // Helper function to format Date object to YYYY-MM-DD
     const formatDateToString = (date) => {
       if (!date) return null;
       
@@ -119,7 +112,7 @@ export default function IntentInsights({
       // Convert to Date object if needed
       const dateObj = date instanceof Date ? date : new Date(date);
       
-      // ✅ Format using local timezone (avoid UTC conversion issues)
+      // Format using local timezone (avoid UTC conversion issues)
       const year = dateObj.getFullYear();
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const day = String(dateObj.getDate()).padStart(2, '0');
@@ -179,62 +172,94 @@ export default function IntentInsights({
     };
   };
 
-    // Format numbers with K/M suffixes
-    const formatNumber = (num) => {
-        if (num >= 1000000) {
-        return `${(num / 1000000).toFixed(1)} M`;
-        } else if (num >= 1000) {
-        return `${(num / 1000).toFixed(1)} K`;
-        }
-        return num.toString();
-    };
+  // Format numbers with K/M suffixes
+  const formatNumber = (num) => {
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)} M`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)} K`;
+    }
+    return num.toString();
+  };
 
-    // Transform API data for KeywordCards
-    const getKeywordCardsData = () => {
-        if (!apiResponse?.historical_metrics_raw?.results) {
-        return []; // Empty until API response
-        }
-        
-        return apiResponse.historical_metrics_raw.results.map(result => ({
-        keyword: result.keyword_text.toUpperCase(),
-        searches: formatNumber(result.keyword_metrics.avg_monthly_searches),
-        competition: result.keyword_metrics.competition || "Unknown",
-        isHighlighted: false
-        }));
-    };
-
-
-    const getSuggestedKeywordsData = () => {
-        if (!apiResponse?.keyword_ideas_raw?.results) {
-            return []; // Empty until API response
-        }
-        
-        // Create a set of seed keywords (case-insensitive) for filtering
-        const seedKeywordsSet = new Set(
-            seedKeywords.map(keyword => keyword.toLowerCase().trim())
-        );
-        
-        return apiResponse.keyword_ideas_raw.results
-            .filter(result => {
-            // Exclude keywords that match any of the seed keywords (case-insensitive)
-            const keywordText = result.keyword_text.toLowerCase().trim();
-            return !seedKeywordsSet.has(keywordText);
-            })
-            .map(result => ({
-            keyword: result.keyword_text,
-            // Store both formatted and raw values
-            avgMonthlySearches: formatNumber(result.metrics.avg_monthly_searches),
-            avgMonthlySearchesRaw: result.metrics.avg_monthly_searches, // Raw value for sorting
-            competition: result.metrics.competition || "Unknown",
-            competitionIndex: result.metrics.competition_index || 0,
-            lowBid: `$ ${result.metrics.low_top_of_page_bid_dollars.toFixed(2)}`,
-            lowBidRaw: result.metrics.low_top_of_page_bid_dollars, // Raw value for sorting
-            highBid: `$ ${result.metrics.high_top_of_page_bid_dollars.toFixed(2)}`,
-            highBidRaw: result.metrics.high_top_of_page_bid_dollars // Raw value for sorting
-            }));
-        };
-
+  // Transform API data for KeywordCards
+  const getKeywordCardsData = () => {
+    if (!apiResponse?.historical_metrics_raw?.results) {
+      return []; // Empty until API response
+    }
     
+    return apiResponse.historical_metrics_raw.results.map(result => ({
+      keyword: result.keyword_text.toUpperCase(),
+      searches: formatNumber(result.keyword_metrics.avg_monthly_searches),
+      competition: result.keyword_metrics.competition || "Unknown",
+      isHighlighted: false
+    }));
+  };
+
+  const getSuggestedKeywordsData = () => {
+    if (!apiResponse?.keyword_ideas_raw?.results) {
+      return []; // Empty until API response
+    }
+    
+    // Create a set of seed keywords (case-insensitive) for filtering
+    const seedKeywordsSet = new Set(
+      seedKeywords.map(keyword => keyword.toLowerCase().trim())
+    );
+    
+    return apiResponse.keyword_ideas_raw.results
+      .filter(result => {
+        // Exclude keywords that match any of the seed keywords (case-insensitive)
+        const keywordText = result.keyword_text.toLowerCase().trim();
+        return !seedKeywordsSet.has(keywordText);
+      })
+      .map(result => ({
+        keyword: result.keyword_text,
+        // Store both formatted and raw values
+        avgMonthlySearches: formatNumber(result.metrics.avg_monthly_searches),
+        avgMonthlySearchesRaw: result.metrics.avg_monthly_searches, // Raw value for sorting
+        competition: result.metrics.competition || "Unknown",
+        competitionIndex: result.metrics.competition_index || 0,
+        lowBid: `$ ${result.metrics.low_top_of_page_bid_dollars.toFixed(2)}`,
+        lowBidRaw: result.metrics.low_top_of_page_bid_dollars, // Raw value for sorting
+        highBid: `$ ${result.metrics.high_top_of_page_bid_dollars.toFixed(2)}`,
+        highBidRaw: result.metrics.high_top_of_page_bid_dollars // Raw value for sorting
+      }));
+  };
+
+  // Load cached data when component mounts or dependencies change
+  useEffect(() => {
+    if (!selectedAccount || seedKeywords.length === 0) {
+      return;
+    }
+
+    const accountId = selectedAccount.id || selectedAccount.customerId;
+    const { startDate, endDate } = getDateRangeFromPeriod();
+    
+    // Create cache key
+    const sortedKeywords = [...seedKeywords].sort().join('_');
+    const cacheKey = `intent_${accountId}_${sortedKeywords}_${selectedCountry}_${startDate}_${endDate}`;
+    
+    console.log('[IntentInsights] Checking cache on mount/update:', cacheKey);
+    
+    // Try to load from cache
+    const cachedData = getRawCacheData(cacheKey);
+    
+    if (cachedData) {
+      console.log('[IntentInsights] Restoring cached data:', cachedData);
+      setApiResponse(cachedData);
+    }
+  }, [selectedAccount, seedKeywords, selectedCountry, period, dateRange, getRawCacheData]);
+
+  const handleAddKeyword = (keyword) => {
+    if (keyword && !seedKeywords.includes(keyword)) {
+      setSeedKeywords([...seedKeywords, keyword]);
+    }
+  };
+
+  const handleRemoveKeyword = (keyword) => {
+    setSeedKeywords(seedKeywords.filter(k => k !== keyword));
+  };
+
   const handleSubmit = async () => {
     if (!selectedAccount || seedKeywords.length === 0) {
       setError("Please select an account and add at least one keyword");
@@ -248,13 +273,28 @@ export default function IntentInsights({
       const accountId = selectedAccount.id || selectedAccount.customerId;
       const { startDate, endDate } = getDateRangeFromPeriod();
       
-      // ✅ startDate and endDate are already formatted as YYYY-MM-DD strings
+      // Create a cache key based on account, keywords, country, and dates
+      const sortedKeywords = [...seedKeywords].sort().join('_');
+      const cacheKey = `intent_${accountId}_${sortedKeywords}_${selectedCountry}_${startDate}_${endDate}`;
+      
+      console.log('[IntentInsights] Cache key:', cacheKey);
+      
+      // Check cache first
+      const cachedData = getRawCacheData(cacheKey);
+      
+      if (cachedData) {
+        console.log('[IntentInsights] Using cached data:', cachedData);
+        setApiResponse(cachedData);
+        setIsLoading(false);
+        return;
+      }
+      
       const requestBody = {
         seed_keywords: seedKeywords,
         country: selectedCountry === "World Wide earth" ? "World Wide" : selectedCountry,
         timeframe: "custom",
-        start_date: startDate,  // ✅ Already formatted, don't convert again
-        end_date: endDate,      // ✅ Already formatted, don't convert again
+        start_date: startDate,
+        end_date: endDate,
         include_zero_volume: true
       };
 
@@ -283,6 +323,11 @@ export default function IntentInsights({
       }
 
       const data = await response.json();
+      
+      // Cache the response
+      setCacheRaw(cacheKey, data);
+      console.log('[IntentInsights] Data cached with key:', cacheKey);
+      
       setApiResponse(data);
       console.log("API Response received:", data);
       
@@ -306,7 +351,7 @@ export default function IntentInsights({
     );
   }
 
-  // Show keyword research tools after account selection - back to original 3-column layout
+  // Show keyword research tools after account selection
   return (
     <div className="space-y-6">
       {/* Account Info Header */}
@@ -337,9 +382,9 @@ export default function IntentInsights({
         </div>
       )}
 
-      {/* Header Controls - Back to original 3-column layout */}
+      {/* Header Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-        {/* Seed Keywords Input - Takes 2 columns on large screens */}
+        {/* Seed Keywords Input */}
         <div className="lg:col-span-2 h-full">
           <div className="h-full">
             <SeedKeywordsInput 
@@ -351,7 +396,7 @@ export default function IntentInsights({
           </div>
         </div>
         
-        {/* Country Selector and Submit - Takes 1 column */}
+        {/* Country Selector and Submit */}
         <div className="flex flex-col h-full">
           <div className="flex-1">
             <CountrySelector 
@@ -428,8 +473,7 @@ export default function IntentInsights({
         </div>
       )}
 
-    
-      {/* AI Intent Insights Section - Full width */}
+      {/* AI Intent Insights Section */}
       <section className="space-y-4">
         <div className="grid grid-cols-1">
           <div className="col-span-1">
