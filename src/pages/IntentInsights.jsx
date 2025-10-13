@@ -102,43 +102,82 @@ export default function IntentInsights({
     setSeedKeywords(seedKeywords.filter(k => k !== keyword));
   };
 
+
   // Convert period to date range
   const getDateRangeFromPeriod = () => {
     console.log("getDateRangeFromPeriod called with:", { dateRange, period });
     
+    // ✅ Helper function to format Date object to YYYY-MM-DD
+    const formatDateToString = (date) => {
+      if (!date) return null;
+      
+      // If it's already a string in correct format, return it
+      if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+      }
+      
+      // Convert to Date object if needed
+      const dateObj = date instanceof Date ? date : new Date(date);
+      
+      // ✅ Format using local timezone (avoid UTC conversion issues)
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    };
+    
     // First check if we have custom dateRange from Layout (this takes priority)
     if (dateRange?.startDate && dateRange?.endDate) {
-        console.log("Using custom dateRange:", dateRange);
-        return {
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-        };
+      console.log("Using custom dateRange:", dateRange);
+      
+      const formattedStart = formatDateToString(dateRange.startDate);
+      const formattedEnd = formatDateToString(dateRange.endDate);
+      
+      console.log("Formatted dates:", { formattedStart, formattedEnd });
+      
+      return {
+        startDate: formattedStart,
+        endDate: formattedEnd
+      };
     }
 
     console.log("Using period-based calculation for:", period);
+    
     // If no custom dateRange, calculate from period
-    const endDate = new Date();
-    let startDate = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(today);
+    let startDate = new Date(today);
 
     switch (period) {
-        case "LAST_7_DAYS":
+      case "LAST_7_DAYS":
         startDate.setDate(endDate.getDate() - 7);
         break;
-        case "LAST_30_DAYS":
+      case "LAST_30_DAYS":
         startDate.setDate(endDate.getDate() - 30);
         break;
-        case "LAST_3_MONTHS":
+      case "LAST_3_MONTHS":
         startDate.setMonth(endDate.getMonth() - 3);
         break;
-        case "LAST_1_YEAR":
+      case "LAST_1_YEAR":
         startDate.setFullYear(endDate.getFullYear() - 1);
         break;
-        default:
+      default:
         startDate.setDate(endDate.getDate() - 30); // Default to 30 days
     }
 
-    return { startDate, endDate };
+    const formattedStart = formatDateToString(startDate);
+    const formattedEnd = formatDateToString(endDate);
+    
+    console.log("Period-based dates:", { formattedStart, formattedEnd });
+
+    return { 
+      startDate: formattedStart, 
+      endDate: formattedEnd 
     };
+  };
 
     // Format numbers with K/M suffixes
     const formatNumber = (num) => {
@@ -195,7 +234,7 @@ export default function IntentInsights({
             }));
         };
 
-  
+    
   const handleSubmit = async () => {
     if (!selectedAccount || seedKeywords.length === 0) {
       setError("Please select an account and add at least one keyword");
@@ -209,12 +248,13 @@ export default function IntentInsights({
       const accountId = selectedAccount.id || selectedAccount.customerId;
       const { startDate, endDate } = getDateRangeFromPeriod();
       
+      // ✅ startDate and endDate are already formatted as YYYY-MM-DD strings
       const requestBody = {
         seed_keywords: seedKeywords,
         country: selectedCountry === "World Wide earth" ? "World Wide" : selectedCountry,
         timeframe: "custom",
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
+        start_date: startDate,  // ✅ Already formatted, don't convert again
+        end_date: endDate,      // ✅ Already formatted, don't convert again
         include_zero_volume: true
       };
 
@@ -238,7 +278,8 @@ export default function IntentInsights({
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();

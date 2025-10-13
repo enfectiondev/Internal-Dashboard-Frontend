@@ -347,8 +347,13 @@ export default function Layout({ user, onLogout }) {
   };
 
   const handleDateRangeChange = (startDate, endDate) => {
-    setDateRange({ startDate, endDate });
-    console.log("Date range changed:", startDate, endDate);
+    console.log('[Layout] Date range changed:', { startDate, endDate });
+    
+    // ✅ Store as Date objects
+    setDateRange({ 
+      startDate: startDate, 
+      endDate: endDate 
+    });
   };
 
   // const handlePeriodSelect = (periodValue) => {

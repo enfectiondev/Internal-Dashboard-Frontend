@@ -6,9 +6,14 @@ export default function DateRangePicker({ startDate, endDate, onDateRangeChange 
   const [tempStartDate, setTempStartDate] = useState(startDate);
   const [tempEndDate, setTempEndDate] = useState(endDate);
   
-  // Calculate date boundaries: today and 2 years back
+  // ✅ Calculate date boundaries: today and 2 years back (in local timezone)
   const today = new Date();
-  const twoYearsBack = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const twoYearsBack = new Date(today);
+  twoYearsBack.setFullYear(today.getFullYear() - 2);
+  twoYearsBack.setHours(0, 0, 0, 0);
+  
   const currentYear = today.getFullYear();
   const [viewYear, setViewYear] = useState(currentYear);
 
@@ -54,8 +59,12 @@ export default function DateRangePicker({ startDate, endDate, onDateRangeChange 
   const handleMonthClick = (year, month) => {
     if (isMonthDisabled(year, month)) return;
     
+    // ✅ Create dates at start of day to avoid timezone issues
     const monthStart = new Date(year, month, 1);
+    monthStart.setHours(0, 0, 0, 0);
+    
     const monthEnd = new Date(year, month + 1, 0);
+    monthEnd.setHours(23, 59, 59, 999);
     
     // Clamp dates to allowed range
     const clampedStart = new Date(Math.max(monthStart.getTime(), twoYearsBack.getTime()));
@@ -68,7 +77,9 @@ export default function DateRangePicker({ startDate, endDate, onDateRangeChange 
     } else if (tempStartDate && !tempEndDate) {
       // Complete selection
       if (clampedStart < tempStartDate) {
-        setTempEndDate(new Date(tempStartDate.getFullYear(), tempStartDate.getMonth() + 1, 0));
+        const endOfStartMonth = new Date(tempStartDate.getFullYear(), tempStartDate.getMonth() + 1, 0);
+        endOfStartMonth.setHours(23, 59, 59, 999);
+        setTempEndDate(endOfStartMonth);
         setTempStartDate(clampedStart);
       } else {
         setTempEndDate(clampedEnd);
@@ -78,9 +89,19 @@ export default function DateRangePicker({ startDate, endDate, onDateRangeChange 
 
   const handleApply = () => {
     if (tempStartDate && tempEndDate) {
-      // Ensure dates are within allowed range
+      // ✅ Ensure dates are within allowed range and reset time
       const clampedStart = new Date(Math.max(tempStartDate.getTime(), twoYearsBack.getTime()));
+      clampedStart.setHours(0, 0, 0, 0);
+      
       const clampedEnd = new Date(Math.min(tempEndDate.getTime(), today.getTime()));
+      clampedEnd.setHours(23, 59, 59, 999);
+      
+      console.log('[DateRangePicker] Applying dates:', {
+        start: clampedStart,
+        end: clampedEnd,
+        startFormatted: clampedStart.toISOString().split('T')[0],
+        endFormatted: clampedEnd.toISOString().split('T')[0]
+      });
       
       onDateRangeChange(clampedStart, clampedEnd);
       setIsOpen(false);
