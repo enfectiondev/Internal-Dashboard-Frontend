@@ -370,14 +370,15 @@ const AIChatComponent = ({
                    chatType === 'metaads' ? 'meta_ads' :
                    chatType === 'facebook' ? 'facebook_analytics' :
                    'google_ads',
-      session_id: currentSessionId, // Use existing session ID if available
+      session_id: currentSessionId,
       customer_id: customerId,
       property_id: propertyId,
-      account_id: accountId,
-      page_id: pageId,
+      account_id: accountId,  // Add this
+      page_id: pageId,  // Add this
       period: period,
       context: context
     };
+
 
     // Status updates
     const statusUpdates = [
