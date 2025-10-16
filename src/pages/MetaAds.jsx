@@ -456,6 +456,20 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
             </div>
           </div>
         )}
+
+        {/* AI Campaign Insights Section - Full width */}
+        <section className="space-y-4">
+          <div className="grid grid-cols-1">
+            <div className="col-span-1">
+              <AIChatComponent 
+                chatType="ads"
+                activeCampaign={activeCampaign}
+                period={period}
+                customDates={customDates}
+              />
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
