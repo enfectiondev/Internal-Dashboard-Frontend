@@ -22,8 +22,6 @@ const FacebookAnalytics = ({ period, customDates }) => {
   const [selectedPage, setSelectedPage] = useState(null);
   const [timeseriesData, setTimeseriesData] = useState(null);
   const [loadingTimeseries, setLoadingTimeseries] = useState(false);
-  const [selectedCampaignsForStats, setSelectedCampaignsForStats] = useState([]);
-  
 
   const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
@@ -38,7 +36,6 @@ const FacebookAnalytics = ({ period, customDates }) => {
   useEffect(() => {
     if (pages.length > 0 && !selectedPage) {
       setSelectedPage(pages[0]);
-      setSelectedCampaignsForStats([]);
     }
   }, [pages, selectedPage]);
 
@@ -113,34 +110,6 @@ const FacebookAnalytics = ({ period, customDates }) => {
       const baseUrl = process.env.REACT_APP_API_URL || 'https://eyqi6vd53z.us-east-2.awsapprunner.com';
       
       let url = `${baseUrl}/api/meta/pages/${selectedPage.id}/insights/timeseries`;
-      
-      // Normalize period format - convert "7 Days" to "7d", "30 Days" to "30d", etc.
-      const normalizePeriod = (periodValue) => {
-        if (!periodValue) return '30d'; // default
-        
-        // If already in correct format (7d, 30d, etc.), return as is
-        if (/^\d+d$/.test(periodValue)) {
-          return periodValue;
-        }
-        
-        // Convert various formats to API format
-        const periodMap = {
-          '7 Days': '7d',
-          '30 Days': '30d',
-          '90 Days': '90d',
-          '1 Year': '365d',
-          '7': '7d',
-          '30': '30d',
-          '90': '90d',
-          '365': '365d',
-          'week': '7d',
-          'month': '30d',
-          'quarter': '90d',
-          'year': '365d'
-        };
-        
-        return periodMap[periodValue] || periodMap[periodValue.toLowerCase()] || '30d';
-      };
       
       // Add period or custom dates
       if (customDates?.startDate && customDates?.endDate) {
@@ -339,13 +308,13 @@ const FacebookAnalytics = ({ period, customDates }) => {
         </>
       )}
 
-      {/* AI Campaign Insights Section - Full width */}
+      {/* AI Facebook Insights Section - Full width */}
       <section className="space-y-4">
         <div className="grid grid-cols-1">
           <div className="col-span-1">
             <AIChatComponent 
-              chatType="ads"
-              selectedCampaigns={selectedCampaignsForStats}
+              chatType="facebook"
+              selectedPage={selectedPage}
               period={period}
               customDates={customDates}
             />

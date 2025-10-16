@@ -2,11 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 const AIChatComponent = ({ 
-  chatType, // 'ads', 'analytics', 'intent'
+  chatType, // 'ads', 'analytics', 'intent', 'metaads', 'facebook'
   activeCampaign, 
   activeProperty, 
   selectedAccount,
-  period 
+  selectedCampaigns, // For Meta Ads
+  selectedPage, // For Facebook Analytics
+  period,
+  customDates
 }) => {
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -62,6 +65,32 @@ const AIChatComponent = ({
         "What search intent patterns should I target?",
         "How can I optimize my keyword strategy?"
       ]
+    },
+    metaads: {
+      title: 'Meta Ads Agent',
+      subtitle: 'Optimize your Facebook and Instagram advertising campaigns',
+      color: '#1877F2',
+      icon: '📱',
+      suggestions: [
+        "What's my overall Meta ads performance across Facebook and Instagram?",
+        "Which ad sets have the best ROAS and should get more budget?",
+        "Show me my top performing audiences and lookalike segments",
+        "Which creative formats are driving the most conversions?",
+        "How can I improve my relevance score and reduce CPM?"
+      ]
+    },
+    facebook: {
+      title: 'Facebook Insights Agent',
+      subtitle: 'Analyze your Facebook page and audience engagement',
+      color: '#4267B2',
+      icon: '👥',
+      suggestions: [
+        "What's my Facebook page growth and engagement rate this month?",
+        "Which posts are generating the most reach and engagement?",
+        "Show me my audience demographics and peak activity times",
+        "What content types perform best with my followers?",
+        "How can I improve my organic reach and engagement?"
+      ]
     }
   };
 
@@ -73,7 +102,14 @@ const AIChatComponent = ({
       const welcomeMessage = {
         id: Date.now(),
         type: 'ai',
-        content: `Hi! I'm your ${currentConfig.title}. I can help you analyze and optimize your ${chatType === 'ads' ? 'advertising campaigns' : chatType === 'analytics' ? 'website analytics' : 'keyword strategy'}. What would you like to know?`,
+        content: `Hi! I'm your ${currentConfig.title}. I can help you analyze and optimize your ${
+          chatType === 'ads' ? 'advertising campaigns' : 
+          chatType === 'analytics' ? 'website analytics' : 
+          chatType === 'intent' ? 'keyword strategy' :
+          chatType === 'metaads' ? 'Meta advertising campaigns' :
+          chatType === 'facebook' ? 'Facebook page performance' :
+          'marketing efforts'
+        }. What would you like to know?`,
         timestamp: new Date()
       };
       setMessages([welcomeMessage]);
@@ -111,7 +147,14 @@ const AIChatComponent = ({
     const welcomeMessage = {
       id: Date.now(),
       type: 'ai',
-      content: `Hi! I'm your ${currentConfig.title}. I can help you analyze and optimize your ${chatType === 'ads' ? 'advertising campaigns' : chatType === 'analytics' ? 'website analytics' : 'keyword strategy'}. What would you like to know?`,
+      content: `Hi! I'm your ${currentConfig.title}. I can help you analyze and optimize your ${
+        chatType === 'ads' ? 'advertising campaigns' : 
+        chatType === 'analytics' ? 'website analytics' : 
+        chatType === 'intent' ? 'keyword strategy' :
+        chatType === 'metaads' ? 'Meta advertising campaigns' :
+        chatType === 'facebook' ? 'Facebook page performance' :
+        'marketing efforts'
+      }. What would you like to know?`,
       timestamp: new Date()
     };
     setMessages([welcomeMessage]);
@@ -137,8 +180,11 @@ const AIChatComponent = ({
         chatType, 
         activeCampaign, 
         activeProperty, 
-        selectedAccount, 
-        period
+        selectedAccount,
+        selectedCampaigns,
+        selectedPage,
+        period,
+        customDates
       );
       
       // Format and clean up the AI response
@@ -184,7 +230,12 @@ const AIChatComponent = ({
   const loadHistoryData = async () => {
     try {
       const token = localStorage.getItem("token");
-      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
+      const moduleType = chatType === 'ads' ? 'google_ads' : 
+                        chatType === 'analytics' ? 'google_analytics' : 
+                        chatType === 'intent' ? 'intent_insights' :
+                        chatType === 'metaads' ? 'meta_ads' :
+                        chatType === 'facebook' ? 'facebook_analytics' :
+                        'google_ads';
       
       const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/sessions/${moduleType}`, {
         method: 'GET',
@@ -245,13 +296,15 @@ const AIChatComponent = ({
   };
 
   // API call functions
-  const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, period) => {
+  const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, selectedCampaigns, selectedPage, period, customDates) => {
     const token = localStorage.getItem("token");
     
     // Prepare context based on chat type
     let context = {};
     let customerId = null;
     let propertyId = null;
+    let accountId = null;
+    let pageId = null;
     
     if (chatType === 'ads' && activeCampaign) {
       customerId = activeCampaign.customerId || activeCampaign.id;
@@ -274,14 +327,54 @@ const AIChatComponent = ({
         account_id: selectedAccount.id || selectedAccount.customerId,
         period: period
       };
+    } else if (chatType === 'metaads' && selectedAccount) {
+      accountId = selectedAccount.id || selectedAccount.account_id;
+      context = {
+        account_name: selectedAccount.name,
+        account_id: accountId,
+        currency: selectedAccount.currency,
+        period: period
+      };
+      
+      // Add selected campaigns if any
+      if (selectedCampaigns && selectedCampaigns.length > 0) {
+        context.selected_campaigns = selectedCampaigns.map(c => ({
+          id: c.id,
+          name: c.name,
+          status: c.status
+        }));
+      }
+    } else if (chatType === 'facebook' && selectedPage) {
+      pageId = selectedPage.id;
+      context = {
+        page_name: selectedPage.name,
+        page_id: selectedPage.id,
+        followers_count: selectedPage.followers_count,
+        period: period
+      };
+    }
+    
+    // Add custom dates to context if present
+    if (customDates?.startDate && customDates?.endDate) {
+      context.custom_dates = {
+        start_date: customDates.startDate,
+        end_date: customDates.endDate
+      };
     }
 
     const payload = {
       message: message,
-      module_type: chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights',
+      module_type: chatType === 'ads' ? 'google_ads' : 
+                   chatType === 'analytics' ? 'google_analytics' : 
+                   chatType === 'intent' ? 'intent_insights' :
+                   chatType === 'metaads' ? 'meta_ads' :
+                   chatType === 'facebook' ? 'facebook_analytics' :
+                   'google_ads',
       session_id: currentSessionId, // Use existing session ID if available
       customer_id: customerId,
       property_id: propertyId,
+      account_id: accountId,
+      page_id: pageId,
       period: period,
       context: context
     };
@@ -415,7 +508,12 @@ const AIChatComponent = ({
   const loadSpecificConversation = async (sessionId) => {
     try {
       const token = localStorage.getItem("token");
-      const moduleType = chatType === 'ads' ? 'google_ads' : chatType === 'analytics' ? 'google_analytics' : 'intent_insights';
+      const moduleType = chatType === 'ads' ? 'google_ads' : 
+                        chatType === 'analytics' ? 'google_analytics' : 
+                        chatType === 'intent' ? 'intent_insights' :
+                        chatType === 'metaads' ? 'meta_ads' :
+                        chatType === 'facebook' ? 'facebook_analytics' :
+                        'google_ads';
       
       console.log('Loading conversation:', sessionId, 'for module:', moduleType);
       
@@ -613,7 +711,7 @@ const AIChatComponent = ({
           </div>
 
           {/* Context Info */}
-          {(activeCampaign || activeProperty || selectedAccount) && (
+          {(activeCampaign || activeProperty || selectedAccount || selectedPage) && (
             <div className="px-4 py-2 border-b" style={{ backgroundColor: '#9AB4BA', borderColor: '#58C3DB' }}>
               <div className="text-xs" style={{ color: '#1A4752' }}>
                 <span className="font-medium">Context: </span>
@@ -625,6 +723,12 @@ const AIChatComponent = ({
                 )}
                 {chatType === 'intent' && selectedAccount && (
                   <span>{selectedAccount.name || selectedAccount.descriptiveName}</span>
+                )}
+                {chatType === 'metaads' && selectedAccount && (
+                  <span>{selectedAccount.name} ({selectedAccount.currency})</span>
+                )}
+                {chatType === 'facebook' && selectedPage && (
+                  <span>{selectedPage.name} ({selectedPage.followers_count?.toLocaleString() || 0} followers)</span>
                 )}
               </div>
             </div>
@@ -639,7 +743,7 @@ const AIChatComponent = ({
                     key={index}
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
-                    style={{ borderColor: '#508995' }}
+                    style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
                   </button>
@@ -652,7 +756,7 @@ const AIChatComponent = ({
                     key={index + 3}
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
-                    style={{ borderColor: '#508995' }}
+                    style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
                   </button>
@@ -754,7 +858,7 @@ const AIChatComponent = ({
               </div>
               <span className="text-sm font-medium">Conversation deleted successfully</span>
             </div>
-            </div>
+          </div>
         )}
       </div>
     </div>           
