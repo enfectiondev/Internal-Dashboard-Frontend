@@ -3,6 +3,7 @@ import FacebookLogin from "../components/FacebookLogin";
 import { useFacebookAuth } from "../hooks/useFacebookAuth";
 import { useFacebookPages, useFacebookInsights, useFacebookPosts } from "../hooks/useFacebookCache";
 import FacebookMetricCards from "../components/FacebookMetricCards";
+import AIChatComponent from "../components/AIChatComponent";
 import FacebookMetricsChart from "../components/FacebookMetricsChart";
 import FacebookPostsTable from "../components/FacebookPostsTable";
 import FacebookEngagementChart from "../components/FacebookEngagementChart";

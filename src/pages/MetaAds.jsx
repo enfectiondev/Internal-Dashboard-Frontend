@@ -9,6 +9,7 @@ import MetaDemographicsChart from "../components/MetaDemographicsChart";
 import MetaPlacementsChart from "../components/MetaPlacementsChart";
 import MetaAdSetsSection from "../components/MetaAdSetsSection";
 import MetaTimeSeriesMetrics from "../components/MetaTimeSeriesMetrics";
+import AIChatComponent from "../components/AIChatComponent";
 
 const MetaAds = ({ period, selectedAccount, customDates }) => {
   const { 
