@@ -22,6 +22,8 @@ const FacebookAnalytics = ({ period, customDates }) => {
   const [selectedPage, setSelectedPage] = useState(null);
   const [timeseriesData, setTimeseriesData] = useState(null);
   const [loadingTimeseries, setLoadingTimeseries] = useState(false);
+  const [selectedCampaignsForStats, setSelectedCampaignsForStats] = useState([]);
+  
 
   const activeToken = facebookToken || localStorage.getItem('facebook_token');
 
@@ -36,6 +38,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
   useEffect(() => {
     if (pages.length > 0 && !selectedPage) {
       setSelectedPage(pages[0]);
+      setSelectedCampaignsForStats([]);
     }
   }, [pages, selectedPage]);
 
@@ -342,7 +345,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
           <div className="col-span-1">
             <AIChatComponent 
               chatType="ads"
-              activeCampaign={activeCampaign}
+              selectedCampaigns={selectedCampaignsForStats}
               period={period}
               customDates={customDates}
             />

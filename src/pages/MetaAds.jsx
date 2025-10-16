@@ -464,7 +464,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
             <div className="col-span-1">
               <AIChatComponent 
                 chatType="ads"
-                activeCampaign={activeCampaign}
+                selectedCampaigns={selectedCampaignsForStats}
                 period={period}
                 customDates={customDates}
               />
