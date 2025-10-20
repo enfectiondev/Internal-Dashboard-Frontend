@@ -10,6 +10,15 @@ import CampaignPerformanceDetails from "../components/CampaignPerformanceDetails
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
 export default function GoogleAds({ activeCampaign, period, customDates }) {
+  console.log('📊 [GoogleAds] Component rendered with:', {
+    activeCampaign: {
+      id: activeCampaign?.id,
+      customerId: activeCampaign?.customerId,
+      name: activeCampaign?.name
+    },
+    period,
+    customDates
+  });
 
   // Convert frontend period → API period
   const convertPeriodForAPI = (period) => {

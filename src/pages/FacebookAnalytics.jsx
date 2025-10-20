@@ -9,7 +9,14 @@ import FacebookPostsTable from "../components/FacebookPostsTable";
 import FacebookEngagementChart from "../components/FacebookEngagementChart";
 import FacebookPostTypesChart from "../components/FacebookPostTypesChart";
 
+
 const FacebookAnalytics = ({ period, customDates }) => {
+  console.log('👥 [FacebookAnalytics] Component rendered with:', {
+    period,
+    customDates,
+    selectedPage: selectedPage?.id
+  });
+
   const { 
     facebookUser, 
     facebookToken, 

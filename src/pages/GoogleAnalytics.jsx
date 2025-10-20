@@ -16,6 +16,15 @@ import { useApiWithCache } from "../hooks/useApiWithCache";
 
 
 export default function GoogleAnalytics({ activeProperty, period, customDates }) {
+  console.log('📈 [GoogleAnalytics] Component rendered with:', {
+    activeProperty: {
+      id: activeProperty?.id,
+      name: activeProperty?.name
+    },
+    period,
+    customDates
+  });
+  
   // Update the useApiWithCache call to pass customDates
   const { data: metrics, loading: metricsLoading, error: metricsError } =
     useApiWithCache(

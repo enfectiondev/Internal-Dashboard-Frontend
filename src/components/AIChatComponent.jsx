@@ -299,6 +299,16 @@ const AIChatComponent = ({
   const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, selectedCampaigns, selectedPage, period, customDates) => {
     const token = localStorage.getItem("token");
     
+    console.log('🚀 [AIChatComponent] sendMessageToAPI called with:', {
+      chatType,
+      activeCampaign: activeCampaign?.name,
+      activeProperty: activeProperty?.name,
+      selectedAccount: selectedAccount?.name,
+      selectedPage: selectedPage?.name,
+      period,
+      customDates
+    });
+    
     // Prepare context based on chat type
     let context = {};
     let customerId = null;
@@ -308,35 +318,42 @@ const AIChatComponent = ({
     
     if (chatType === 'ads' && activeCampaign) {
       customerId = activeCampaign.customerId || activeCampaign.id;
+      console.log('📊 [AIChatComponent] Google Ads - customerId:', customerId);
       context = {
         campaign_name: activeCampaign.name,
         campaign_id: activeCampaign.id,
-        period: period
+        period: period,
+        token: token  // ✅ ADD TOKEN TO CONTEXT
       };
     } else if (chatType === 'analytics' && activeProperty) {
       propertyId = activeProperty.id;
+      console.log('📈 [AIChatComponent] Google Analytics - propertyId:', propertyId);
       context = {
         property_name: activeProperty.name,
         property_id: activeProperty.id,
-        period: period
+        period: period,
+        token: token  // ✅ ADD TOKEN TO CONTEXT
       };
     } else if (chatType === 'intent' && selectedAccount) {
       customerId = selectedAccount.id || selectedAccount.customerId;
+      console.log('🔍 [AIChatComponent] Intent Insights - customerId:', customerId);
       context = {
         account_name: selectedAccount.name || selectedAccount.descriptiveName,
         account_id: selectedAccount.id || selectedAccount.customerId,
-        period: period
+        period: period,
+        token: token  // ✅ ADD TOKEN TO CONTEXT
       };
     } else if (chatType === 'metaads' && selectedAccount) {
       accountId = selectedAccount.id || selectedAccount.account_id;
+      console.log('📱 [AIChatComponent] Meta Ads - accountId:', accountId);
       context = {
         account_name: selectedAccount.name,
         account_id: accountId,
         currency: selectedAccount.currency,
-        period: period
+        period: period,
+        token: token  // ✅ ADD TOKEN TO CONTEXT
       };
       
-      // Add selected campaigns if any
       if (selectedCampaigns && selectedCampaigns.length > 0) {
         context.selected_campaigns = selectedCampaigns.map(c => ({
           id: c.id,
@@ -346,11 +363,13 @@ const AIChatComponent = ({
       }
     } else if (chatType === 'facebook' && selectedPage) {
       pageId = selectedPage.id;
+      console.log('👥 [AIChatComponent] Facebook - pageId:', pageId);
       context = {
         page_name: selectedPage.name,
         page_id: selectedPage.id,
         followers_count: selectedPage.followers_count,
-        period: period
+        period: period,
+        token: token  // ✅ ADD TOKEN TO CONTEXT
       };
     }
     
@@ -360,25 +379,27 @@ const AIChatComponent = ({
         start_date: customDates.startDate,
         end_date: customDates.endDate
       };
+      console.log('📅 [AIChatComponent] Custom dates added:', context.custom_dates);
     }
 
     const payload = {
       message: message,
       module_type: chatType === 'ads' ? 'google_ads' : 
-                   chatType === 'analytics' ? 'google_analytics' : 
-                   chatType === 'intent' ? 'intent_insights' :
-                   chatType === 'metaads' ? 'meta_ads' :
-                   chatType === 'facebook' ? 'facebook_analytics' :
-                   'google_ads',
+                  chatType === 'analytics' ? 'google_analytics' : 
+                  chatType === 'intent' ? 'intent_insights' :
+                  chatType === 'metaads' ? 'meta_ads' :
+                  chatType === 'facebook' ? 'facebook_analytics' :
+                  'google_ads',
       session_id: currentSessionId,
       customer_id: customerId,
       property_id: propertyId,
-      account_id: accountId,  // Add this
-      page_id: pageId,  // Add this
+      account_id: accountId,
+      page_id: pageId,
       period: period,
       context: context
     };
 
+    console.log('📦 [AIChatComponent] Final payload:', JSON.stringify(payload, null, 2));
 
     // Status updates
     const statusUpdates = [
@@ -434,7 +455,7 @@ const AIChatComponent = ({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload)  // ✅ USE THE PAYLOAD WE BUILT ABOVE, NOT A NEW OBJECT
       });
 
       stopStatusUpdates();
