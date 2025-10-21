@@ -11,6 +11,7 @@ import FacebookPostTypesChart from "../components/FacebookPostTypesChart";
 
 
 const FacebookAnalytics = ({ period, customDates }) => {
+  const [selectedPage, setSelectedPage] = useState(null);
   console.log('👥 [FacebookAnalytics] Component rendered with:', {
     period,
     customDates,
@@ -26,7 +27,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
     isAuthenticated 
   } = useFacebookAuth();
   
-  const [selectedPage, setSelectedPage] = useState(null);
+  
   const [timeseriesData, setTimeseriesData] = useState(null);
   const [loadingTimeseries, setLoadingTimeseries] = useState(false);
 
