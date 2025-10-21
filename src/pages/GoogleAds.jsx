@@ -9,44 +9,57 @@ import CampaignProgressChart from "../components/CampaignProgressChart";
 import CampaignPerformanceDetails from "../components/CampaignPerformanceDetails";
 import { useApiWithCache } from "../hooks/useApiWithCache";
 
+const convertPeriodForAPI = (period) => {
+  console.log('🔄 [convertPeriodForAPI] Input period:', period);
+  
+  const periodMap = {
+    LAST_7_DAYS: "LAST_7_DAYS",
+    LAST_30_DAYS: "LAST_30_DAYS",
+    LAST_90_DAYS: "LAST_90_DAYS",  // Fix: was LAST_3_MONTHS
+    LAST_365_DAYS: "LAST_365_DAYS", // Fix: was LAST_1_YEAR
+    LAST_3_MONTHS: "LAST_90_DAYS",   // Add mapping
+    LAST_1_YEAR: "LAST_365_DAYS",    // Add mapping
+    CUSTOM: "CUSTOM",
+  };
+  
+  const result = periodMap[period] || period;
+  console.log('🔄 [convertPeriodForAPI] Output period:', result);
+  return result;
+};
+
 export default function GoogleAds({ activeCampaign, period, customDates }) {
   console.log('📊 [GoogleAds] Component rendered with:', {
-    activeCampaign: {
-      id: activeCampaign?.id,
-      customerId: activeCampaign?.customerId,
-      name: activeCampaign?.name
-    },
-    period,
+    period,  // Add this log
     customDates
   });
 
-  // Convert frontend period → API period
-  const convertPeriodForAPI = (period) => {
-    const periodMap = {
-      LAST_7_DAYS: "LAST_7_DAYS",
-      LAST_30_DAYS: "LAST_30_DAYS",
-      LAST_3_MONTHS: "LAST_90_DAYS",
-      LAST_1_YEAR: "LAST_365_DAYS",
-      CUSTOM: "CUSTOM",
-    };
-    return periodMap[period] || period;
-  };
-
-  // UPDATED: Now properly handles customDates parameter from useApiWithCache
-  const keyStatsApiCall = async (customerId, periodOrCacheKey, customDatesParam) => {
+  // Move keyStatsApiCall inside component to access period correctly
+  const keyStatsApiCall = async (customerId, periodParam, customDatesParam) => {
+    console.log('🎯 [keyStatsApiCall] Called with:', {
+      customerId,
+      periodParam,
+      customDatesParam,
+      originalPeriod: period  // Add this to see original period
+    });
+    
     const token = localStorage.getItem("token");
     
-    // Use the customDatesParam passed from useApiWithCache
-    const convertedPeriod = convertPeriodForAPI(period);
+    // Use periodParam from the hook, not period from props
+    const convertedPeriod = convertPeriodForAPI(periodParam);
+    
+    console.log('🔄 [keyStatsApiCall] After conversion:', {
+      input: periodParam,
+      output: convertedPeriod
+    });
 
-    // Build URL with custom date parameters if needed
+    // Build URL
     let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
     
     if (convertedPeriod === 'CUSTOM' && customDatesParam?.startDate && customDatesParam?.endDate) {
       url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
     }
 
-    console.log('Fetching key stats from:', url); // Debug log
+    console.log('📡 [keyStatsApiCall] Final URL:', url);
 
     const res = await fetch(url, {
       headers: token
@@ -56,12 +69,12 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('API Error:', res.status, errorText);
+      console.error('❌ API Error:', res.status, errorText);
       throw new Error(`Network response was not ok: ${res.status}`);
     }
     
     const json = await res.json();
-    console.log('Key stats response:', json); // Debug log
+    console.log('✅ Key stats response:', json);
 
     return {
       impressions: json.total_impressions?.formatted || "-",
@@ -75,13 +88,12 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     };
   };
 
-  // UPDATED: Pass customDates to useApiWithCache options
   const { data: metrics, loading, error } = useApiWithCache(
-    activeCampaign?.id,
-    period, // Just pass the period, hook will create proper cache key
+    activeCampaign?.customerId || activeCampaign?.id,
+    period,
     "key-stats",
     keyStatsApiCall,
-    { customDates } // CRITICAL: Pass customDates in options
+    { customDates }
   );
 
   if (!activeCampaign) {
