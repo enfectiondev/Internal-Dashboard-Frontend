@@ -124,6 +124,7 @@ export default function Layout({ user, onLogout }) {
     };
   }, []);
 
+  // In the Layout.jsx useEffect for campaigns
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
@@ -139,8 +140,17 @@ export default function Layout({ user, onLogout }) {
         }
 
         const data = await res.json();
-        console.log("API campaigns data:", data);
-        setCampaigns(data);
+        console.log("📊 [Layout] API campaigns data:", data);
+        
+        // ✅ ENSURE customerId IS PROPERLY SET
+        const formattedCampaigns = data.map(campaign => ({
+          ...campaign,
+          customerId: campaign.customerId || campaign.id,  // Fallback to id if customerId missing
+          id: campaign.id || campaign.customerId
+        }));
+        
+        console.log("📊 [Layout] Formatted campaigns:", formattedCampaigns);
+        setCampaigns(formattedCampaigns);
       } catch (err) {
         console.error("Error fetching campaigns:", err);
         setCampaigns([]);
@@ -508,7 +518,10 @@ export default function Layout({ user, onLogout }) {
       return (
         <FacebookAnalytics 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? {
+            startDate: customDates.startDate,
+            endDate: customDates.endDate
+          } : null}
         />
       );
     }
@@ -517,7 +530,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <InstagramAnalytics 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -526,7 +539,10 @@ export default function Layout({ user, onLogout }) {
       return (
         <MetaAds 
           period={period}
-          customDates={customDates}
+          customDates={period === "CUSTOM" ? {
+            startDate: customDates.startDate,
+            endDate: customDates.endDate
+          } : null}
           selectedAccount={metaAdsAccounts[activeMetaAdsIdx]}
         />
       );
@@ -536,7 +552,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <Reporting 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -555,19 +571,27 @@ export default function Layout({ user, onLogout }) {
 
     switch (activeTab) {
       case "Google Ads Campaigns":
+        console.log('[Layout] Rendering GoogleAds with period:', period); // ADD THIS LOG
+        console.log('[Layout] Custom dates:', customDates); // ADD THIS LOG
         return (
           <GoogleAds 
             activeCampaign={campaigns[activeCampaignIdx]} 
-            period={period}
-            customDates={customDates}  // ADD THIS LINE
+            period={period}  // ✅ Pass raw period (LAST_7_DAYS, LAST_30_DAYS, etc.)
+            customDates={period === "CUSTOM" ? {
+              startDate: customDates.startDate,
+              endDate: customDates.endDate
+            } : null}
           />
         );
       case "Google Analytics":
         return (
           <GoogleAnalytics 
             activeProperty={properties[activePropertyIdx]} 
-            period={convertPeriodForAnalytics(period)}  // Convert period format
-            customDates={period === "CUSTOM" ? customDates : null}  // Pass custom dates
+            period={convertPeriodForAnalytics(period)}  // ✅ Convert for GA4
+            customDates={period === "CUSTOM" ? {
+              startDate: customDates.startDate,
+              endDate: customDates.endDate
+            } : null}
           />
         );
       default:

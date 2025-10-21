@@ -49,23 +49,24 @@ export const useApiWithCache = (id, periodOrCacheKey, endpoint, apiCall, options
 
   // Create a stable string representation of customDates for dependency array
   const customDatesStr = customDates ? `${customDates.startDate}-${customDates.endDate}` : '';
-
+  
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id || !periodOrCacheKey) {
-        if (isMountedRef.current) {
-          console.log(`[${endpoint}] No ${isAnalytics ? 'propertyId' : 'customerId'} or period provided`);
-          setLoading(false);
-          setData(null);
+      const fetchData = async () => {
+        if (!id || !periodOrCacheKey) {
+          if (isMountedRef.current) {
+            console.log(`[${endpoint}] No ${isAnalytics ? 'propertyId' : 'customerId'} or period provided`);
+            setLoading(false);
+            setData(null);
+          }
+          return;
         }
-        return;
-      }
 
-      // CRITICAL: Reset state when period changes to show loading
-      if (isMountedRef.current) {
-        setLoading(true);
-        setError(null);
-      }
+        // CRITICAL FIX: Clear old data immediately when period changes
+        if (isMountedRef.current) {
+          setData(null);  // ✅ ADD THIS LINE - Clear stale data
+          setLoading(true);
+          setError(null);
+        }
 
       // Determine if this is a custom period
       const isCustomPeriod = periodOrCacheKey === 'CUSTOM' || periodOrCacheKey === 'custom';
