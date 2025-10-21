@@ -518,7 +518,10 @@ export default function Layout({ user, onLogout }) {
       return (
         <FacebookAnalytics 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? {
+            startDate: customDates.startDate,
+            endDate: customDates.endDate
+          } : null}
         />
       );
     }
@@ -536,7 +539,10 @@ export default function Layout({ user, onLogout }) {
       return (
         <MetaAds 
           period={period}
-          customDates={customDates}
+          customDates={period === "CUSTOM" ? {
+            startDate: customDates.startDate,
+            endDate: customDates.endDate
+          } : null}
           selectedAccount={metaAdsAccounts[activeMetaAdsIdx]}
         />
       );
@@ -569,15 +575,21 @@ export default function Layout({ user, onLogout }) {
           <GoogleAds 
             activeCampaign={campaigns[activeCampaignIdx]} 
             period={period}
-            customDates={customDates}  // ADD THIS LINE
+            customDates={period === "CUSTOM" ? {
+              startDate: customDates.startDate,
+              endDate: customDates.endDate
+            } : null}
           />
         );
       case "Google Analytics":
         return (
           <GoogleAnalytics 
             activeProperty={properties[activePropertyIdx]} 
-            period={convertPeriodForAnalytics(period)}  // Convert period format
-            customDates={period === "CUSTOM" ? customDates : null}  // Pass custom dates
+            period={convertPeriodForAnalytics(period)}
+            customDates={period === "CUSTOM" ? {
+              startDate: customDates.startDate,
+              endDate: customDates.endDate
+            } : null}
           />
         );
       default:

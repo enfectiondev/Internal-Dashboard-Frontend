@@ -161,71 +161,73 @@ const AIChatComponent = ({
   };
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+      if (!inputValue.trim() || isLoading) return;
 
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
-
-    try {
-      const apiResponse = await sendMessageToAPI(
-        userMessage.content, 
-        chatType, 
-        activeCampaign, 
-        activeProperty, 
-        selectedAccount,
-        selectedCampaigns,
-        selectedPage,
-        period,
-        customDates
-      );
-      
-      // Format and clean up the AI response
-      let formattedResponse = apiResponse.response;
-      formattedResponse = formattedResponse
-        .replace(/\\n\\n/g, '\n\n')
-        .replace(/\\n/g, '\n')
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/### /g, '')
-        .trim();
-
-      const aiResponse = {
-        id: Date.now() + 1,
-        type: 'ai',
-        content: formattedResponse,
+      const userMessage = {
+        id: Date.now(),
+        type: 'user',
+        content: inputValue.trim(),
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, aiResponse]);
-      
-      // Update current session ID if provided
-      if (apiResponse.session_id) {
-        setCurrentSessionId(apiResponse.session_id);
+      setMessages(prev => [...prev, userMessage]);
+      setInputValue('');
+      setIsLoading(true);
+
+      try {
+        const apiResponse = await sendMessageToAPI(
+          userMessage.content, 
+          chatType, 
+          activeCampaign, 
+          activeProperty, 
+          selectedAccount,
+          selectedCampaigns,
+          selectedPage,
+          period,
+          customDates
+        );
+        
+        // Format and clean up the AI response
+        let formattedResponse = apiResponse.response;
+        
+        // Clean up formatting
+        formattedResponse = formattedResponse
+          .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove bold
+          .replace(/### /g, '')              // Remove headers
+          .trim();
+
+        const aiResponse = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: formattedResponse,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, aiResponse]);
+        
+        // Update current session ID if provided
+        if (apiResponse.session_id) {
+          setCurrentSessionId(apiResponse.session_id);
+        }
+        
+        // Refresh chat history
+        loadHistoryData();
+        
+      } catch (error) {
+        console.error('Error sending message:', error);
+        
+        // Create user-friendly error message
+        const errorMessage = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: error.message || "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.",
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Refresh chat history
-      loadHistoryData();
-      
-    } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        type: 'ai',
-        content: error.message || "I apologize, but I'm having trouble processing your request right now. Please try again.",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
   const loadHistoryData = async () => {
     try {
@@ -295,204 +297,251 @@ const AIChatComponent = ({
     }
   };
 
+  // Add this state at the top of the component
+  const [isSlowQuery, setIsSlowQuery] = useState(false);
+
+  // Update the status updates section to show warning for slow queries
+  {showStatus && processingStatus && (
+    <div className="flex justify-start">
+      <div className={`border-l-4 rounded-lg px-4 py-3 max-w-[80%] shadow-sm ${
+        isSlowQuery 
+          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-500' 
+          : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-500'
+      }`}>
+        <div className="flex items-center space-x-3">
+          <div className="relative w-5 h-5">
+            <div className={`absolute inset-0 border-4 rounded-full ${
+              isSlowQuery ? 'border-amber-200' : 'border-blue-200'
+            }`}></div>
+            <div className={`absolute inset-0 border-4 rounded-full border-t-transparent animate-spin ${
+              isSlowQuery ? 'border-amber-600' : 'border-blue-600'
+            }`}></div>
+          </div>
+          <div>
+            <p className={`text-sm font-semibold ${
+              isSlowQuery ? 'text-amber-900' : 'text-blue-900'
+            }`}>
+              {isSlowQuery ? 'Processing Large Dataset...' : 'Processing...'}
+            </p>
+            <p className={`text-xs mt-1 ${
+              isSlowQuery ? 'text-amber-700' : 'text-blue-700'
+            }`}>
+              {processingStatus}
+            </p>
+            {isSlowQuery && (
+              <p className="text-xs mt-1 text-amber-600 italic">
+                This may take 30-60 seconds for comprehensive data
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
   // API call functions
   const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, selectedCampaigns, selectedPage, period, customDates) => {
-    const token = localStorage.getItem("token");
-    
-    console.log('🚀 [AIChatComponent] sendMessageToAPI called with:', {
-      chatType,
-      activeCampaign: activeCampaign?.name,
-      activeProperty: activeProperty?.name,
-      selectedAccount: selectedAccount?.name,
-      selectedPage: selectedPage?.name,
-      period,
-      customDates
-    });
-    
-    // Prepare context based on chat type
-    let context = {};
-    let customerId = null;
-    let propertyId = null;
-    let accountId = null;
-    let pageId = null;
-    
-    if (chatType === 'ads' && activeCampaign) {
-      customerId = activeCampaign.customerId || activeCampaign.id;
-      console.log('📊 [AIChatComponent] Google Ads - customerId:', customerId);
-      context = {
-        campaign_name: activeCampaign.name,
-        campaign_id: activeCampaign.id,
-        period: period,
-        token: token  // ✅ ADD TOKEN TO CONTEXT
-      };
-    } else if (chatType === 'analytics' && activeProperty) {
-      propertyId = activeProperty.id;
-      console.log('📈 [AIChatComponent] Google Analytics - propertyId:', propertyId);
-      context = {
-        property_name: activeProperty.name,
-        property_id: activeProperty.id,
-        period: period,
-        token: token  // ✅ ADD TOKEN TO CONTEXT
-      };
-    } else if (chatType === 'intent' && selectedAccount) {
-      customerId = selectedAccount.id || selectedAccount.customerId;
-      console.log('🔍 [AIChatComponent] Intent Insights - customerId:', customerId);
-      context = {
-        account_name: selectedAccount.name || selectedAccount.descriptiveName,
-        account_id: selectedAccount.id || selectedAccount.customerId,
-        period: period,
-        token: token  // ✅ ADD TOKEN TO CONTEXT
-      };
-    } else if (chatType === 'metaads' && selectedAccount) {
-      accountId = selectedAccount.id || selectedAccount.account_id;
-      console.log('📱 [AIChatComponent] Meta Ads - accountId:', accountId);
-      context = {
-        account_name: selectedAccount.name,
-        account_id: accountId,
-        currency: selectedAccount.currency,
-        period: period,
-        token: token  // ✅ ADD TOKEN TO CONTEXT
-      };
+      const token = localStorage.getItem("token");
       
-      if (selectedCampaigns && selectedCampaigns.length > 0) {
-        context.selected_campaigns = selectedCampaigns.map(c => ({
-          id: c.id,
-          name: c.name,
-          status: c.status
-        }));
-      }
-    } else if (chatType === 'facebook' && selectedPage) {
-      pageId = selectedPage.id;
-      console.log('👥 [AIChatComponent] Facebook - pageId:', pageId);
-      context = {
-        page_name: selectedPage.name,
-        page_id: selectedPage.id,
-        followers_count: selectedPage.followers_count,
-        period: period,
-        token: token  // ✅ ADD TOKEN TO CONTEXT
-      };
-    }
-    
-    // Add custom dates to context if present
-    if (customDates?.startDate && customDates?.endDate) {
-      context.custom_dates = {
-        start_date: customDates.startDate,
-        end_date: customDates.endDate
-      };
-      console.log('📅 [AIChatComponent] Custom dates added:', context.custom_dates);
-    }
-
-    const payload = {
-      message: message,
-      module_type: chatType === 'ads' ? 'google_ads' : 
-                  chatType === 'analytics' ? 'google_analytics' : 
-                  chatType === 'intent' ? 'intent_insights' :
-                  chatType === 'metaads' ? 'meta_ads' :
-                  chatType === 'facebook' ? 'facebook_analytics' :
-                  'google_ads',
-      session_id: currentSessionId,
-      customer_id: customerId,
-      property_id: propertyId,
-      account_id: accountId,
-      page_id: pageId,
-      period: period,
-      context: context
-    };
-
-    console.log('📦 [AIChatComponent] Final payload:', JSON.stringify(payload, null, 2));
-
-    // Status updates
-    const statusUpdates = [
-      "Message received, processing your question...",
-      "AI agent is analyzing your request...",
-      "Identifying relevant data sources...",
-      "Searching for existing data in your account...",
-      "Analyzing your marketing performance...",
-      "Preparing insights and recommendations...",
-      "Finalizing response..."
-    ];
-    
-    let statusIndex = 0;
-    let statusInterval;
-    
-    const startStatusUpdates = () => {
-      setShowStatus(true);
-      setProcessingStatus(statusUpdates[0]);
-      statusIndex = 1;
-      
-      statusInterval = setInterval(() => {
-        if (statusIndex < statusUpdates.length) {
-          setProcessingStatus(statusUpdates[statusIndex]);
-          statusIndex++;
-        } else {
-          const finalMessages = [
-            "Almost ready...",
-            "Analyzing final details...",
-            "Preparing comprehensive response..."
-          ];
-          const finalIndex = (statusIndex - statusUpdates.length) % finalMessages.length;
-          setProcessingStatus(finalMessages[finalIndex]);
-          statusIndex++;
-        }
-      }, 1500);
-    };
-    
-    const stopStatusUpdates = () => {
-      if (statusInterval) {
-        clearInterval(statusInterval);
-        statusInterval = null;
-      }
-      setShowStatus(false);
-      setProcessingStatus('');
-    };
-
-    try {
-      startStatusUpdates();
-      
-      const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/message', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)  // ✅ USE THE PAYLOAD WE BUILT ABOVE, NOT A NEW OBJECT
+      console.log('🚀 [AIChatComponent] sendMessageToAPI called with:', {
+        chatType,
+        activeCampaign: activeCampaign?.name,
+        activeProperty: activeProperty?.name,
+        selectedAccount: selectedAccount?.name,
+        selectedPage: selectedPage?.name,
+        period,
+        customDates
       });
-
-      stopStatusUpdates();
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `API Error: ${response.status}`);
+      
+      // Prepare context based on chat type
+      let context = {
+        token: token  // ✅ Always include token
+      };
+      let customerId = null;
+      let propertyId = null;
+      let accountId = null;
+      let pageId = null;
+      
+      if (chatType === 'ads' && activeCampaign) {
+        customerId = activeCampaign.customerId || activeCampaign.id;
+        console.log('📊 [AIChatComponent] Google Ads - customerId:', customerId);
+        context = {
+          ...context,
+          campaign_name: activeCampaign.name,
+          campaign_id: activeCampaign.id,
+          period: period
+        };
+      } else if (chatType === 'analytics' && activeProperty) {
+        propertyId = activeProperty.id;
+        console.log('📈 [AIChatComponent] Google Analytics - propertyId:', propertyId);
+        context = {
+          ...context,
+          property_name: activeProperty.name,
+          property_id: activeProperty.id,
+          period: period
+        };
+      } else if (chatType === 'intent' && selectedAccount) {
+        customerId = selectedAccount.id || selectedAccount.customerId;
+        console.log('🔍 [AIChatComponent] Intent Insights - customerId:', customerId);
+        context = {
+          ...context,
+          account_name: selectedAccount.name || selectedAccount.descriptiveName,
+          account_id: selectedAccount.id || selectedAccount.customerId,
+          period: period
+        };
+      } else if (chatType === 'metaads' && selectedAccount) {
+        accountId = selectedAccount.id || selectedAccount.account_id;
+        console.log('📱 [AIChatComponent] Meta Ads - accountId:', accountId);
+        context = {
+          ...context,
+          account_name: selectedAccount.name,
+          account_id: accountId,
+          currency: selectedAccount.currency,
+          period: period
+        };
+        
+        if (selectedCampaigns && selectedCampaigns.length > 0) {
+          context.selected_campaigns = selectedCampaigns.map(c => ({
+            id: c.id,
+            name: c.name,
+            status: c.status
+          }));
+        }
+      } else if (chatType === 'facebook' && selectedPage) {
+        pageId = selectedPage.id;
+        console.log('👥 [AIChatComponent] Facebook - pageId:', pageId);
+        context = {
+          ...context,
+          page_name: selectedPage.name,
+          page_id: selectedPage.id,
+          followers_count: selectedPage.followers_count,
+          period: period
+        };
+      }
+      
+      // Add custom dates to context if present
+      if (customDates?.startDate && customDates?.endDate) {
+        context.custom_dates = {
+          start_date: customDates.startDate,
+          end_date: customDates.endDate
+        };
+        console.log('📅 [AIChatComponent] Custom dates added:', context.custom_dates);
       }
 
-      const data = await response.json();
+      const payload = {
+        message: message,
+        module_type: chatType === 'ads' ? 'google_ads' : 
+                    chatType === 'analytics' ? 'google_analytics' : 
+                    chatType === 'intent' ? 'intent_insights' :
+                    chatType === 'metaads' ? 'meta_ads' :
+                    chatType === 'facebook' ? 'facebook_analytics' :
+                    'google_ads',
+        session_id: currentSessionId,
+        customer_id: customerId,
+        property_id: propertyId,
+        account_id: accountId,
+        page_id: pageId,
+        period: period,
+        context: context
+      };
+
+      console.log('📦 [AIChatComponent] Final payload:', JSON.stringify(payload, null, 2));
+
+      // Enhanced status updates with more detailed messages
+      const statusUpdates = [
+        "Received your question, analyzing...",
+        "Understanding the context of your query...",
+        "Identifying relevant data sources...",
+        "Checking for existing data in your account...",
+        "Fetching fresh analytics data...",
+        "Processing and analyzing metrics...",
+        "Generating insights and recommendations...",
+        "Preparing your comprehensive answer..."
+      ];
       
-      // Update session ID if provided
-      if (data.session_id) {
-        setCurrentSessionId(data.session_id);
+      let statusIndex = 0;
+      let statusInterval;
+      
+      const startStatusUpdates = () => {
+        setShowStatus(true);
+        setProcessingStatus(statusUpdates[0]);
+        statusIndex = 1;
+        
+        statusInterval = setInterval(() => {
+          if (statusIndex < statusUpdates.length) {
+            setProcessingStatus(statusUpdates[statusIndex]);
+            statusIndex++;
+          } else {
+            // Cycle through final messages
+            const finalMessages = [
+              "Almost there, finalizing results...",
+              "Crunching the numbers...",
+              "Preparing detailed insights..."
+            ];
+            const finalIndex = (statusIndex - statusUpdates.length) % finalMessages.length;
+            setProcessingStatus(finalMessages[finalIndex]);
+            statusIndex++;
+          }
+        }, 2000); // Slower interval for better UX
+      };
+      
+      const stopStatusUpdates = () => {
+        if (statusInterval) {
+          clearInterval(statusInterval);
+          statusInterval = null;
+        }
+        setShowStatus(false);
+        setProcessingStatus('');
+      };
+
+      try {
+        startStatusUpdates();
+        
+        const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/message', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        stopStatusUpdates();
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Update session ID if provided
+        if (data.session_id) {
+          setCurrentSessionId(data.session_id);
+        }
+        
+        return data;
+        
+      } catch (error) {
+        stopStatusUpdates();
+        console.error('Error sending message:', error);
+        
+        let errorMessage = "I'm sorry, I encountered an error while processing your request.";
+        
+        if (error.message.includes('401')) {
+          errorMessage = "Authentication error. Please try logging in again.";
+        } else if (error.message.includes('403')) {
+          errorMessage = "Access denied. Please check your permissions for this module.";
+        } else if (error.message.includes('404')) {
+          errorMessage = "Service not found. Please try again later.";
+        } else if (error.message.includes('500')) {
+          errorMessage = "Server error. Our team has been notified. Please try again in a few moments.";
+        } else if (error.message.includes('timeout')) {
+          errorMessage = "The request is taking longer than expected. For comprehensive data queries, this may take up to 60 seconds. Please wait...";
+        }
+        
+        throw new Error(errorMessage);
       }
-      
-      return data;
-      
-    } catch (error) {
-      stopStatusUpdates();
-      console.error('Error sending message:', error);
-      
-      let errorMessage = "I'm sorry, I encountered an error while processing your request.";
-      
-      if (error.message.includes('401')) {
-        errorMessage = "Authentication error. Please try logging in again.";
-      } else if (error.message.includes('403')) {
-        errorMessage = "Access denied. Please check your permissions for this module.";
-      } else if (error.message.includes('404')) {
-        errorMessage = "Service not found. Please try again later.";
-      } else if (error.message.includes('500')) {
-        errorMessage = "Server error. Our team has been notified. Please try again in a few moments.";
-      }
-      
-      throw new Error(errorMessage);
-    }
-  };
+    };
 
   const handleDeleteConversation = async (sessionId) => {
     try {
@@ -811,15 +860,19 @@ const AIChatComponent = ({
               </div>
             ))}
             
-            {/* Status Updates */}
+            {/* Status Updates - Enhanced Display */}
             {showStatus && processingStatus && (
               <div className="flex justify-start">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 max-w-[80%]">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative w-5 h-5">
+                      <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
                     </div>
-                    <p className="text-blue-700 text-sm font-medium">{processingStatus}</p>
+                    <div>
+                      <p className="text-blue-900 text-sm font-semibold">Processing...</p>
+                      <p className="text-blue-700 text-xs mt-1">{processingStatus}</p>
+                    </div>
                   </div>
                 </div>
               </div>
