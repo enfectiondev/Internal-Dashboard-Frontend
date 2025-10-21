@@ -421,8 +421,8 @@ const AIChatComponent = ({
       // Add custom dates to context if present
       if (customDates?.startDate && customDates?.endDate) {
         context.custom_dates = {
-          start_date: customDates.startDate,
-          end_date: customDates.endDate
+          startDate: customDates.startDate,  // Should be YYYY-MM-DD format
+          endDate: customDates.endDate        // Should be YYYY-MM-DD format
         };
         console.log('📅 [AIChatComponent] Custom dates added:', context.custom_dates);
       }
@@ -440,7 +440,7 @@ const AIChatComponent = ({
         property_id: propertyId,
         account_id: accountId,
         page_id: pageId,
-        period: period,
+        period: period,  // This is the filter period (LAST_7_DAYS, LAST_30_DAYS, etc.)
         context: context
       };
 
