@@ -530,7 +530,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <InstagramAnalytics 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -552,7 +552,7 @@ export default function Layout({ user, onLogout }) {
       return (
         <Reporting 
           period={getCurrentPeriodLabel()}
-          customDates={period === "CUSTOM" ? customDates : null}  // ADD THIS LINE
+          customDates={period === "CUSTOM" ? customDates : null}
         />
       );
     }
@@ -571,10 +571,12 @@ export default function Layout({ user, onLogout }) {
 
     switch (activeTab) {
       case "Google Ads Campaigns":
+        console.log('[Layout] Rendering GoogleAds with period:', period); // ADD THIS LOG
+        console.log('[Layout] Custom dates:', customDates); // ADD THIS LOG
         return (
           <GoogleAds 
             activeCampaign={campaigns[activeCampaignIdx]} 
-            period={period}
+            period={period}  // ✅ Pass raw period (LAST_7_DAYS, LAST_30_DAYS, etc.)
             customDates={period === "CUSTOM" ? {
               startDate: customDates.startDate,
               endDate: customDates.endDate
@@ -585,7 +587,7 @@ export default function Layout({ user, onLogout }) {
         return (
           <GoogleAnalytics 
             activeProperty={properties[activePropertyIdx]} 
-            period={convertPeriodForAnalytics(period)}
+            period={convertPeriodForAnalytics(period)}  // ✅ Convert for GA4
             customDates={period === "CUSTOM" ? {
               startDate: customDates.startDate,
               endDate: customDates.endDate
