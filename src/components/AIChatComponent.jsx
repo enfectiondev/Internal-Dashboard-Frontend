@@ -21,6 +21,7 @@ const AIChatComponent = ({
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [showStatus, setShowStatus] = useState(false);
+  const [isSlowQuery, setIsSlowQuery] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -297,47 +298,6 @@ const AIChatComponent = ({
     }
   };
 
-  // Add this state at the top of the component
-  const [isSlowQuery, setIsSlowQuery] = useState(false);
-
-  // Update the status updates section to show warning for slow queries
-  {showStatus && processingStatus && (
-    <div className="flex justify-start">
-      <div className={`border-l-4 rounded-lg px-4 py-3 max-w-[80%] shadow-sm ${
-        isSlowQuery 
-          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-500' 
-          : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-500'
-      }`}>
-        <div className="flex items-center space-x-3">
-          <div className="relative w-5 h-5">
-            <div className={`absolute inset-0 border-4 rounded-full ${
-              isSlowQuery ? 'border-amber-200' : 'border-blue-200'
-            }`}></div>
-            <div className={`absolute inset-0 border-4 rounded-full border-t-transparent animate-spin ${
-              isSlowQuery ? 'border-amber-600' : 'border-blue-600'
-            }`}></div>
-          </div>
-          <div>
-            <p className={`text-sm font-semibold ${
-              isSlowQuery ? 'text-amber-900' : 'text-blue-900'
-            }`}>
-              {isSlowQuery ? 'Processing Large Dataset...' : 'Processing...'}
-            </p>
-            <p className={`text-xs mt-1 ${
-              isSlowQuery ? 'text-amber-700' : 'text-blue-700'
-            }`}>
-              {processingStatus}
-            </p>
-            {isSlowQuery && (
-              <p className="text-xs mt-1 text-amber-600 italic">
-                This may take 30-60 seconds for comprehensive data
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )}
   // API call functions
   const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, selectedCampaigns, selectedPage, period, customDates) => {
       const token = localStorage.getItem("token");
@@ -349,7 +309,8 @@ const AIChatComponent = ({
         selectedAccount: selectedAccount?.name,
         selectedPage: selectedPage?.name,
         period,
-        customDates
+        customDates,
+        message
       });
       
       // Prepare context based on chat type
@@ -418,13 +379,16 @@ const AIChatComponent = ({
         };
       }
       
-      // Add custom dates to context if present
-      if (customDates?.startDate && customDates?.endDate) {
+      // ✅ CRITICAL FIX: Only add custom dates to context if period is CUSTOM
+      // This allows the backend to extract dates from the user's message
+      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
         context.custom_dates = {
           startDate: customDates.startDate,  // Should be YYYY-MM-DD format
           endDate: customDates.endDate        // Should be YYYY-MM-DD format
         };
-        console.log('📅 [AIChatComponent] Custom dates added:', context.custom_dates);
+        console.log('📅 [AIChatComponent] Adding module filter custom dates to context:', context.custom_dates);
+      } else {
+        console.log('⚙️ [AIChatComponent] Period is not CUSTOM or no custom dates - backend will extract from message');
       }
 
       const payload = {
@@ -491,6 +455,7 @@ const AIChatComponent = ({
         }
         setShowStatus(false);
         setProcessingStatus('');
+        setIsSlowQuery(false);
       };
 
       try {
@@ -863,15 +828,36 @@ const AIChatComponent = ({
             {/* Status Updates - Enhanced Display */}
             {showStatus && processingStatus && (
               <div className="flex justify-start">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
+                <div className={`border-l-4 rounded-lg px-4 py-3 max-w-[80%] shadow-sm ${
+                  isSlowQuery 
+                    ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-500' 
+                    : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-500'
+                }`}>
                   <div className="flex items-center space-x-3">
                     <div className="relative w-5 h-5">
-                      <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                      <div className={`absolute inset-0 border-4 rounded-full ${
+                        isSlowQuery ? 'border-amber-200' : 'border-blue-200'
+                      }`}></div>
+                      <div className={`absolute inset-0 border-4 rounded-full border-t-transparent animate-spin ${
+                        isSlowQuery ? 'border-amber-600' : 'border-blue-600'
+                      }`}></div>
                     </div>
                     <div>
-                      <p className="text-blue-900 text-sm font-semibold">Processing...</p>
-                      <p className="text-blue-700 text-xs mt-1">{processingStatus}</p>
+                      <p className={`text-sm font-semibold ${
+                        isSlowQuery ? 'text-amber-900' : 'text-blue-900'
+                      }`}>
+                        {isSlowQuery ? 'Processing Large Dataset...' : 'Processing...'}
+                      </p>
+                      <p className={`text-xs mt-1 ${
+                        isSlowQuery ? 'text-amber-700' : 'text-blue-700'
+                      }`}>
+                        {processingStatus}
+                      </p>
+                      {isSlowQuery && (
+                        <p className="text-xs mt-1 text-amber-600 italic">
+                          This may take 30-60 seconds for comprehensive data
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
