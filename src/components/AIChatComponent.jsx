@@ -351,17 +351,14 @@ const AIChatComponent = ({
           period: period
         };
       } else if (chatType === 'intent' && selectedAccount) {
-        body = {
-          message: message,
-          module_type: 'intent_insights',
-          session_id: currentSessionId,
-          account_id: selectedAccount, // ✅ Pass the selected account ID
-          period: period || 'LAST_30_DAYS',
-          context: {
-            account_id: selectedAccount,
-            selectedAccount: selectedAccount
-          }
-        };      
+        accountId = selectedAccount; // ✅ Store account ID
+        console.log('🔍 [AIChatComponent] Intent Insights - accountId:', accountId);
+        context = {
+          ...context,
+          account_id: selectedAccount,
+          selectedAccount: selectedAccount,
+          period: period
+        };    
       } else if (chatType === 'metaads' && selectedAccount) {
         accountId = selectedAccount.id || selectedAccount.account_id;
         console.log('📱 [AIChatComponent] Meta Ads - accountId:', accountId);
