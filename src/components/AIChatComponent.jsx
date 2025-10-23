@@ -937,33 +937,6 @@ const AIChatComponent = ({
               </div>
             )}
             
-            {/* Show special progress for slow queries */}
-            {isLoading && isSlowQuery && (
-              <div className="flex items-start space-x-3 mb-4">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" 
-                    style={{ backgroundColor: currentConfig.color }}>
-                  {currentConfig.icon}
-                </div>
-                <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="text-sm font-semibold text-blue-900">
-                      Processing Large Dataset
-                    </span>
-                  </div>
-                  <p className="text-sm text-blue-800">
-                    Fetching comprehensive campaign data. This may take 2-5 minutes for accounts with many campaigns. 
-                    We're processing carefully to respect API rate limits.
-                  </p>
-                  <div className="mt-3 bg-blue-200 rounded-full h-2 overflow-hidden">
-                    <div className="h-full bg-blue-600 animate-pulse" style={{ width: '60%' }}></div>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-2">
-                    ⚠️ Please don't close this window
-                  </p>
-                </div>
-              </div>
-            )}
 
 
             {isLoading && !showStatus && (
