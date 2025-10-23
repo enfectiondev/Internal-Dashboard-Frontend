@@ -180,12 +180,13 @@ const AIChatComponent = ({
       };
 
       setMessages(prev => [...prev, userMessage]);
+      const messageContent = inputValue.trim();  // ✅ Save message before clearing
       setInputValue('');
       setIsLoading(true);
 
       try {
         const apiResponse = await sendMessageToAPI(
-          userMessage.content, 
+          messageContent,  // ✅ Use saved message
           chatType, 
           activeCampaign, 
           activeProperty, 
@@ -235,6 +236,7 @@ const AIChatComponent = ({
         setMessages(prev => [...prev, errorMessage]);
       } finally {
         setIsLoading(false);
+        setIsSlowQuery(false);  // ✅ ADD THIS - Reset slow query flag
       }
     };
 
@@ -419,7 +421,19 @@ const AIChatComponent = ({
       console.log('📦 [AIChatComponent] Final payload:', JSON.stringify(payload, null, 2));
 
       // ✅ Detect if this is likely a slow query
-      const slowKeywords = ['all campaigns', 'every campaign', 'complete list', 'comprehensive', 'all active', 'total campaigns'];
+      const slowKeywords = [
+        'all campaigns', 
+        'every campaign', 
+        'complete list', 
+        'comprehensive', 
+        'all active', 
+        'total campaigns',
+        'active campaigns',  // ✅ ADD THIS
+        'show me campaigns', // ✅ ADD THIS
+        'list campaigns',    // ✅ ADD THIS
+        'campaigns over',    // ✅ ADD THIS - matches "campaigns over last 2 months"
+        'all the campaigns'  // ✅ ADD THIS
+      ];      
       const isLikelySlowQuery = slowKeywords.some(keyword => 
         message.toLowerCase().includes(keyword)
       );
