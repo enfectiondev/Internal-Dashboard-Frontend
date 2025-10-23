@@ -526,7 +526,7 @@ export default function IntentInsights({
           <div className="col-span-1">
             <AIChatComponent 
               chatType="intent"
-              selectedAccount={selectedAccount}
+              selectedAccount={selectedAccount.id || selectedAccount.customerId}
               period={period}
             />
           </div>
