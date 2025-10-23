@@ -97,6 +97,14 @@ const AIChatComponent = ({
 
   const currentConfig = chatConfig[chatType] || chatConfig.ads;
 
+
+  // Helper function to get the correct token based on chat type
+  const getAuthToken = (chatType) => {
+    if (chatType === 'metaads' || chatType === 'facebook' || chatType === 'instagram') {
+      return localStorage.getItem('facebook_token');
+    }
+    return localStorage.getItem('token'); // Google token for ads, analytics, intent
+  };
   // Initialize chat with welcome message when chat is opened
   useEffect(() => {
     if (showChat && messages.length === 0) {
@@ -232,7 +240,7 @@ const AIChatComponent = ({
 
   const loadHistoryData = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken(chatType);
       const moduleType = chatType === 'ads' ? 'google_ads' : 
                         chatType === 'analytics' ? 'google_analytics' : 
                         chatType === 'intent' ? 'intent_insights' :
@@ -300,7 +308,7 @@ const AIChatComponent = ({
 
   // API call functions
   const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, selectedCampaigns, selectedPage, period, customDates) => {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken(chatType);
       
       console.log('🚀 [AIChatComponent] sendMessageToAPI called with:', {
         chatType,
@@ -510,7 +518,7 @@ const AIChatComponent = ({
 
   const handleDeleteConversation = async (sessionId) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken(chatType);
       
       const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/delete', {
         method: 'POST',
@@ -543,7 +551,7 @@ const AIChatComponent = ({
 
   const loadSpecificConversation = async (sessionId) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken(chatType);
       const moduleType = chatType === 'ads' ? 'google_ads' : 
                         chatType === 'analytics' ? 'google_analytics' : 
                         chatType === 'intent' ? 'intent_insights' :
