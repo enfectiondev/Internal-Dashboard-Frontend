@@ -418,6 +418,12 @@ const AIChatComponent = ({
 
       console.log('📦 [AIChatComponent] Final payload:', JSON.stringify(payload, null, 2));
 
+      // ✅ Detect if this is likely a slow query
+      const slowKeywords = ['all campaigns', 'every campaign', 'complete list', 'comprehensive', 'all active', 'total campaigns'];
+      const isLikelySlowQuery = slowKeywords.some(keyword => 
+        message.toLowerCase().includes(keyword)
+      );
+
       // Enhanced status updates with more detailed messages
       const statusUpdates = [
         "Received your question, analyzing...",
@@ -430,30 +436,58 @@ const AIChatComponent = ({
         "Preparing your comprehensive answer..."
       ];
       
+      // Special status updates for slow queries
+      const slowQueryStatusUpdates = [
+        "Analyzing your comprehensive data request...",
+        "Connecting to data sources...",
+        "Fetching campaign list from your account...",
+        "Processing large dataset carefully...",
+        "Respecting API rate limits to ensure data quality...",
+        "Batch processing campaigns (this may take 2-5 minutes)...",
+        "Still fetching data - please don't close this window...",
+        "Almost there, finalizing comprehensive results...",
+        "Preparing detailed insights for all campaigns..."
+      ];
+      
       let statusIndex = 0;
       let statusInterval;
       
       const startStatusUpdates = () => {
         setShowStatus(true);
-        setProcessingStatus(statusUpdates[0]);
+        
+        // ✅ Set slow query flag if detected
+        if (isLikelySlowQuery) {
+          setIsSlowQuery(true);
+          setProcessingStatus(slowQueryStatusUpdates[0]);
+        } else {
+          setProcessingStatus(statusUpdates[0]);
+        }
+        
         statusIndex = 1;
         
         statusInterval = setInterval(() => {
-          if (statusIndex < statusUpdates.length) {
-            setProcessingStatus(statusUpdates[statusIndex]);
+          const updates = isLikelySlowQuery ? slowQueryStatusUpdates : statusUpdates;
+          
+          if (statusIndex < updates.length) {
+            setProcessingStatus(updates[statusIndex]);
             statusIndex++;
           } else {
             // Cycle through final messages
-            const finalMessages = [
+            const finalMessages = isLikelySlowQuery ? [
+              "Processing large dataset - almost there...",
+              "Finalizing comprehensive campaign analysis...",
+              "Preparing detailed insights (this takes time for quality)...",
+              "Nearly complete - thank you for your patience..."
+            ] : [
               "Almost there, finalizing results...",
               "Crunching the numbers...",
               "Preparing detailed insights..."
             ];
-            const finalIndex = (statusIndex - statusUpdates.length) % finalMessages.length;
+            const finalIndex = (statusIndex - updates.length) % finalMessages.length;
             setProcessingStatus(finalMessages[finalIndex]);
             statusIndex++;
           }
-        }, 2000); // Slower interval for better UX
+        }, isLikelySlowQuery ? 3000 : 2000); // Slower interval for slow queries
       };
       
       const stopStatusUpdates = () => {
@@ -466,8 +500,15 @@ const AIChatComponent = ({
         setIsSlowQuery(false);
       };
 
+      // ✅ Create AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutDuration = isLikelySlowQuery ? 300000 : 60000; // 5 minutes for slow queries, 1 minute for normal
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
       try {
         startStatusUpdates();
+        
+        console.log(`⏱️ [AIChatComponent] Request timeout set to: ${timeoutDuration / 1000} seconds`);
         
         const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/message', {
           method: 'POST',
@@ -475,9 +516,11 @@ const AIChatComponent = ({
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal  // ✅ Add abort signal
         });
 
+        clearTimeout(timeoutId); // ✅ Clear timeout on success
         stopStatusUpdates();
 
         if (!response.ok) {
@@ -495,21 +538,29 @@ const AIChatComponent = ({
         return data;
         
       } catch (error) {
+        clearTimeout(timeoutId); // ✅ Clear timeout on error
         stopStatusUpdates();
         console.error('Error sending message:', error);
         
         let errorMessage = "I'm sorry, I encountered an error while processing your request.";
         
-        if (error.message.includes('401')) {
-          errorMessage = "Authentication error. Please try logging in again.";
+        // ✅ Handle AbortError (timeout)
+        if (error.name === 'AbortError') {
+          if (isLikelySlowQuery) {
+            errorMessage = "⏱️ Your request is taking longer than expected. This usually happens when fetching comprehensive data for accounts with many campaigns (200+). The request may still be processing in the background. Please wait a moment and try asking your question again.";
+          } else {
+            errorMessage = "⏱️ The request timed out. This might be due to a large amount of data being processed. Please try again or ask for a more specific subset of data.";
+          }
+        } else if (error.message.includes('401')) {
+          errorMessage = "🔐 Authentication error. Please try logging in again.";
         } else if (error.message.includes('403')) {
-          errorMessage = "Access denied. Please check your permissions for this module.";
+          errorMessage = "🚫 Access denied. Please check your permissions for this module.";
         } else if (error.message.includes('404')) {
-          errorMessage = "Service not found. Please try again later.";
+          errorMessage = "❌ Service not found. Please try again later.";
         } else if (error.message.includes('500')) {
-          errorMessage = "Server error. Our team has been notified. Please try again in a few moments.";
-        } else if (error.message.includes('timeout')) {
-          errorMessage = "The request is taking longer than expected. For comprehensive data queries, this may take up to 60 seconds. Please wait...";
+          errorMessage = "⚠️ Server error. Our team has been notified. Please try again in a few moments.";
+        } else if (error.message.includes('timeout') || error.message.toLowerCase().includes('network')) {
+          errorMessage = "🌐 Network timeout. For comprehensive data queries with 200+ campaigns, this may take up to 5 minutes. Please check your connection and try again.";
         }
         
         throw new Error(errorMessage);
@@ -863,7 +914,7 @@ const AIChatComponent = ({
                       </p>
                       {isSlowQuery && (
                         <p className="text-xs mt-1 text-amber-600 italic">
-                          This may take 30-60 seconds for comprehensive data
+                          This may take 2-5 minutes for comprehensive data
                         </p>
                       )}
                     </div>
@@ -872,6 +923,35 @@ const AIChatComponent = ({
               </div>
             )}
             
+            {/* Show special progress for slow queries */}
+            {isLoading && isSlowQuery && (
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" 
+                    style={{ backgroundColor: currentConfig.color }}>
+                  {currentConfig.icon}
+                </div>
+                <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span className="text-sm font-semibold text-blue-900">
+                      Processing Large Dataset
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-800">
+                    Fetching comprehensive campaign data. This may take 2-5 minutes for accounts with many campaigns. 
+                    We're processing carefully to respect API rate limits.
+                  </p>
+                  <div className="mt-3 bg-blue-200 rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-blue-600 animate-pulse" style={{ width: '60%' }}></div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    ⚠️ Please don't close this window
+                  </p>
+                </div>
+              </div>
+            )}
+
+
             {isLoading && !showStatus && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-lg px-4 py-3">
