@@ -180,7 +180,14 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
 
   return (
     <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm border border-gray-300">
-      <h3 className="font-semibold mb-4 text-[#1A4752]">Device Performance</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-semibold text-[#1A4752]">Device Performance</h3>
+        {chartDataList && chartDataList.length > 0 && (
+          <span className="text-sm text-[#508995] font-medium">
+            {chartDataList[currentIndex]?.name}
+          </span>
+        )}
+      </div>
       <hr className="mb-4 border-[#B5B5B5]" />
 
       {(loading && !chartDataList) ? (
