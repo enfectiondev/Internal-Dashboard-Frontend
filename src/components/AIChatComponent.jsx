@@ -469,7 +469,31 @@ const AIChatComponent = ({
       if (response.ok) {
         const data = await response.json();
         console.log('📚 Loaded history:', data);
-        setRecentChats(data.sessions || []);
+        
+        // Transform sessions data to match UI format
+        const formattedChats = data.sessions?.map(session => {
+          let titleMessage = 'New conversation';
+          
+          if (session.preview || session.user_question) {
+            const content = (session.preview || session.user_question).trim();
+            titleMessage = content.length > 40 ? content.substring(0, 40) + '...' : content;
+          } else if (session.messages && session.messages.length > 0) {
+            const firstUserMessage = session.messages.find(msg => msg.role === 'user');
+            if (firstUserMessage && firstUserMessage.content) {
+              const content = firstUserMessage.content.trim();
+              titleMessage = content.length > 40 ? content.substring(0, 40) + '...' : content;
+            }
+          }
+          
+          return {
+            id: session.session_id,
+            title: titleMessage,
+            timestamp: session.timestamp || session.last_activity || session.created_at,
+            messageCount: session.messages ? session.messages.length : (session.message_count || 0)
+          };
+        }).filter(chat => chat.messageCount > 0) || [];
+        
+        setRecentChats(formattedChats);
       }
     } catch (error) {
       console.error('Error loading history:', error);
@@ -530,7 +554,7 @@ const AIChatComponent = ({
       );
 
       if (response.ok) {
-        setRecentChats(prev => prev.filter(chat => chat.session_id !== sessionId));
+        loadHistoryData(); // Reload to update list
         setShowSuccessToast(true);
         setTimeout(() => setShowSuccessToast(false), 3000);
         
@@ -544,110 +568,129 @@ const AIChatComponent = ({
     }
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+  const handleRecentChatClick = (sessionId) => {
+    console.log('Chat clicked:', sessionId);
+    loadConversation(sessionId);
   };
 
- return (
-  <div className="w-full h-full flex bg-gray-50">
-    {/* No overlay, no fixed positioning */}
-
-      {/* Chat Container */}
-        <div className="relative ml-auto h-full w-full flex bg-gray-50 shadow-2xl overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {/* Sidebar */}
-        <div 
-          className={`${
-            isSidebarCollapsed ? 'w-0' : 'w-56'
-          } bg-white border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden`}
-        >
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-800">Chat History</h2>
+  // If chat is not shown, display the agent button
+  if (!showChat) {
+    return (
+      <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm min-h-[500px] flex items-center justify-center">
+        <div className="flex justify-center items-center h-full">
+          <div
+            className="p-2 rounded-lg border border-black"
+            style={{ backgroundColor: "#75ACB8" }}
+          >
             <button
-              onClick={handleNewChat}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="New Chat"
+              onClick={handleStartChat}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-[#0E4A57] transition-all duration-200 w-full hover:shadow-lg"
+              style={{
+                background: "linear-gradient(180deg, #FAF5F5 0%, #47DBFF 100%)",
+              }}
             >
-              <Plus size={20} className="text-gray-600" />
+              <img
+                src="/images/ai.png"
+                alt="AI"
+                className="w-7 h-7 object-contain"
+              />
+              <span>{currentConfig.title}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Chat interface
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[600px] flex flex-col">
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
+        <div className={`transition-all duration-300 flex flex-col ${
+          isSidebarCollapsed ? 'w-12' : 'w-64'
+        }`} style={{ backgroundColor: '#f4f4f4' }}>
+          {/* Sidebar Header */}
+          <div className="p-4 flex items-center justify-between">
+            {!isSidebarCollapsed && (
+              <div className="flex items-center space-x-2">
+                <h2 className="text-lg font-semibold" style={{ color: '#1A4752' }}>{currentConfig.title}</h2>
+                <div className="flex items-center space-x-1 text-white px-2 py-1 rounded text-xs">
+                  <span className="text-xs">AI</span>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="p-1 hover:bg-gray-200 rounded transition-colors"
+              title={isSidebarCollapsed ? "Expand" : "Collapse"}
+            >
+              {isSidebarCollapsed ? (
+                <ChevronRight size={16} style={{ color: '#508995' }} />
+              ) : (
+                <ChevronLeft size={16} style={{ color: '#508995' }} />
+              )}
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {recentChats.length > 0 ? (
-              recentChats.map((chat) => (
-                <div
-                  key={chat.session_id}
-                  className={`p-3 rounded-lg cursor-pointer group relative ${
-                    currentSessionId === chat.session_id
-                      ? 'bg-teal-50 border border-teal-200'
-                      : 'hover:bg-gray-50 border border-transparent'
-                  }`}
-                  onClick={() => loadConversation(chat.session_id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">
-                        {chat.preview || chat.user_question}
-                      </p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Clock size={12} className="text-gray-400" />
-                        <p className="text-xs text-gray-500">
-                          {formatTimestamp(chat.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                    <button
+          {/* New Chat Button */}
+          {!isSidebarCollapsed && (
+            <div className="p-4">
+              <button
+                onClick={handleNewChat}
+                className="w-full flex items-center space-x-3 p-3 text-white rounded-lg transition-colors"
+                style={{ backgroundColor: '#508995' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#1A4752'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#508995'}
+              >
+                <Plus size={20} />
+                <span>New Chat</span>
+              </button>
+            </div>
+          )}
+
+          {/* Recent Chats */}
+          {!isSidebarCollapsed && (
+            <div className="flex-1 px-4 flex flex-col min-h-0">
+              <h3 className="text-sm font-semibold mb-3 text-gray-800">Recents</h3>
+              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+                {recentChats.length > 0 ? (
+                  recentChats.map((chat) => (
+                    <div
+                      key={chat.id}
+                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
+                        chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteConversation(chat.session_id);
+                        handleRecentChatClick(chat.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
-                      title="Delete"
                     >
-                      <Trash2 size={14} className="text-red-600" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                No chat history yet
+                      <span className="text-sm truncate flex-1" title={chat.title}>{chat.title}</span>
+                      <Trash2 
+                        size={16} 
+                        className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation(chat.id);
+                        }}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 italic">No recent conversations</div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Toggle Sidebar Button */}
-        <button
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute left-64 top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-12 bg-white border border-gray-200 rounded-r-lg flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
-          style={{ left: isSidebarCollapsed ? '0' : '16rem' }}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight size={16} className="text-gray-600" />
-          ) : (
-            <ChevronLeft size={16} className="text-gray-600" />
-          )}
-        </button>
-
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-white">
-          {/* Header */}
-          <div className="p-3 border-b bg-white" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Chat Header */}
+          <div className="p-4 border-b" style={{ borderColor: '#9AB4BA' }}>
             <div className="text-center">
-              <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>
-                {currentConfig.title} Chat
-              </h1>
+              <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>{currentConfig.title} Chat</h1>
               <p className="text-sm flex items-center justify-center space-x-1" style={{ color: '#508995' }}>
                 <span className="text-yellow-500">💡</span>
                 <span>{currentConfig.subtitle}</span>
@@ -673,7 +716,7 @@ const AIChatComponent = ({
                   <span>{selectedAccount.name} ({selectedAccount.currency})</span>
                 )}
                 {chatType === 'facebook' && selectedPage && (
-                  <span>{selectedPage.name}</span>
+                  <span>{selectedPage.name} ({selectedPage.followers_count?.toLocaleString() || 0} followers)</span>
                 )}
                 {chatType === 'instagram' && selectedAccount && (
                   <span>{selectedAccount.name}</span>
@@ -690,7 +733,7 @@ const AIChatComponent = ({
                   <button
                     key={index}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
                     style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
@@ -703,7 +746,7 @@ const AIChatComponent = ({
                   <button
                     key={index + 3}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
                     style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
@@ -721,9 +764,7 @@ const AIChatComponent = ({
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                    message.isError ? 'border-2 border-red-300' : ''
-                  }`}
+                  className={`max-w-[80%] rounded-lg px-4 py-3 ${message.isError ? 'border-2 border-red-300' : ''}`}
                   style={{
                     backgroundColor: message.type === 'user' ? '#508995' : '#9AB4BA',
                     color: message.type === 'user' ? 'white' : '#1A4752'
@@ -804,7 +845,7 @@ const AIChatComponent = ({
               </div>
             )}
 
-            {/* Status Updates */}
+            {/* Status Updates - Enhanced Display */}
             {showStatus && processingStatus && (
               <div className="flex justify-start">
                 <div className={`border-l-4 rounded-lg px-4 py-3 max-w-[80%] shadow-sm ${
@@ -877,7 +918,7 @@ const AIChatComponent = ({
                 className="px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                 style={{ backgroundColor: !inputValue.trim() || isLoading || needsUserInput ? '#9AB4BA' : '#508995' }}
                 onMouseEnter={(e) => {
-                  if (!(! inputValue.trim() || isLoading || needsUserInput)) e.target.style.backgroundColor = '#1A4752';
+                  if (!(!inputValue.trim() || isLoading || needsUserInput)) e.target.style.backgroundColor = '#1A4752';
                 }}
                 onMouseLeave={(e) => {
                   if (!(!inputValue.trim() || isLoading || needsUserInput)) e.target.style.backgroundColor = '#508995';
@@ -901,7 +942,7 @@ const AIChatComponent = ({
           </div>
         )}
       </div>
-    </div>
+    </div>           
   );
 };
 
