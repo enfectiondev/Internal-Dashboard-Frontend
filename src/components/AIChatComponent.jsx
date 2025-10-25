@@ -564,8 +564,8 @@ const AIChatComponent = ({
     {/* No overlay, no fixed positioning */}
 
       {/* Chat Container */}
-      <div className="relative ml-auto h-full w-full md:w-3/4 lg:w-2/3 flex bg-gray-50 shadow-2xl">
-        {/* Sidebar */}
+        <div className="relative ml-auto h-full w-full flex bg-gray-50 shadow-2xl overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* Sidebar */}
         <div 
           className={`${
             isSidebarCollapsed ? 'w-0' : 'w-56'
