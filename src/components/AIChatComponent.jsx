@@ -559,32 +559,16 @@ const AIChatComponent = ({
     return date.toLocaleDateString();
   };
 
-  if (!showChat) {
-    return (
-      <button
-        onClick={handleStartChat}
-        className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-white text-2xl hover:scale-110 transition-transform z-50"
-        style={{ backgroundColor: currentConfig.color }}
-      >
-        {currentConfig.icon}
-      </button>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      {/* Overlay */}
-      <div 
-        className="absolute inset-0 bg-black bg-opacity-30"
-        onClick={() => setShowChat(false)}
-      />
+ return (
+  <div className="w-full h-full flex bg-gray-50">
+    {/* No overlay, no fixed positioning */}
 
       {/* Chat Container */}
       <div className="relative ml-auto h-full w-full md:w-3/4 lg:w-2/3 flex bg-gray-50 shadow-2xl">
         {/* Sidebar */}
         <div 
           className={`${
-            isSidebarCollapsed ? 'w-0' : 'w-64'
+            isSidebarCollapsed ? 'w-0' : 'w-56'
           } bg-white border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden`}
         >
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -659,7 +643,7 @@ const AIChatComponent = ({
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col bg-white">
           {/* Header */}
-          <div className="p-4 border-b" style={{ borderColor: '#9AB4BA' }}>
+          <div className="p-3 border-b bg-white" style={{ borderColor: '#E5E7EB' }}>
             <div className="text-center">
               <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>
                 {currentConfig.title} Chat
