@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Send, ChevronLeft, ChevronRight, Plus, Trash2, Clock, AlertCircle } from 'lucide-react';
 
 const AIChatComponent = ({ 
-  chatType, // 'ads', 'analytics', 'intent', 'metaads', 'facebook'
+  chatType, // 'ads', 'analytics', 'intent', 'metaads', 'facebook', 'instagram'
   activeCampaign, 
   activeProperty, 
   selectedAccount,
@@ -23,16 +23,23 @@ const AIChatComponent = ({
   const [showStatus, setShowStatus] = useState(false);
   const [isSlowQuery, setIsSlowQuery] = useState(false);
   
+  // LangGraph specific states
+  const [needsUserInput, setNeedsUserInput] = useState(false);
+  const [clarificationPrompt, setClarificationPrompt] = useState('');
+  const [selectionOptions, setSelectionOptions] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]);
+  
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   // Chat configuration based on type
   const chatConfig = {
     ads: {
-      title: 'Campaign Agent',
+      title: 'Google Ads Agent',
       subtitle: 'Optimize your ad spend and boost campaign performance',
       color: '#508995',
       icon: '📊',
+      moduleType: 'google_ads',
       suggestions: [
         "What's my overall ad performance this month?",
         "Which campaigns are spending the most money and are they worth it?",
@@ -46,6 +53,7 @@ const AIChatComponent = ({
       subtitle: 'Analyze user behavior and website performance insights',
       color: '#FF6B35',
       icon: '📈',
+      moduleType: 'google_analytics',
       suggestions: [
         "What's my website traffic performance this month?",
         "Which pages have the highest bounce rate?",
@@ -59,6 +67,7 @@ const AIChatComponent = ({
       subtitle: 'Discover keyword opportunities and search intent insights',
       color: '#9B59B6',
       icon: '🔍',
+      moduleType: 'intent_insights',
       suggestions: [
         "What are the trending keywords in my industry?",
         "Show me high-converting keyword opportunities",
@@ -72,10 +81,11 @@ const AIChatComponent = ({
       subtitle: 'Optimize your Facebook and Instagram advertising campaigns',
       color: '#1877F2',
       icon: '📱',
+      moduleType: 'meta_ads',
       suggestions: [
-        "What's my overall Meta ads performance across Facebook and Instagram?",
+        "What's my overall Meta ads performance?",
         "Which ad sets have the best ROAS and should get more budget?",
-        "Show me my top performing audiences and lookalike segments",
+        "Show me my top performing audiences",
         "Which creative formats are driving the most conversions?",
         "How can I improve my relevance score and reduce CPM?"
       ]
@@ -85,27 +95,42 @@ const AIChatComponent = ({
       subtitle: 'Analyze your Facebook page and audience engagement',
       color: '#4267B2',
       icon: '👥',
+      moduleType: 'facebook',
       suggestions: [
-        "What's my Facebook page growth and engagement rate this month?",
-        "Which posts are generating the most reach and engagement?",
-        "Show me my audience demographics and peak activity times",
-        "What content types perform best with my followers?",
-        "How can I improve my organic reach and engagement?"
+        "What's my Facebook page growth and engagement rate?",
+        "Which posts are generating the most reach?",
+        "Show me my audience demographics",
+        "What content types perform best?",
+        "How can I improve my organic reach?"
+      ]
+    },
+    instagram: {
+      title: 'Instagram Insights Agent',
+      subtitle: 'Track your Instagram performance and audience engagement',
+      color: '#E4405F',
+      icon: '📸',
+      moduleType: 'instagram',
+      suggestions: [
+        "What's my Instagram engagement rate this month?",
+        "Which posts got the most likes and comments?",
+        "Show me my audience growth trends",
+        "What are my best performing hashtags?",
+        "How can I increase my reach?"
       ]
     }
   };
 
   const currentConfig = chatConfig[chatType] || chatConfig.ads;
 
-
   // Helper function to get the correct token based on chat type
   const getAuthToken = (chatType) => {
     if (chatType === 'metaads' || chatType === 'facebook' || chatType === 'instagram') {
       return localStorage.getItem('facebook_token');
     }
-    return localStorage.getItem('token'); // Google token for ads, analytics, intent
+    return localStorage.getItem('token'); // Google token
   };
-  // Initialize chat with welcome message when chat is opened
+
+  // Initialize chat with welcome message
   useEffect(() => {
     if (showChat && messages.length === 0) {
       const welcomeMessage = {
@@ -117,6 +142,7 @@ const AIChatComponent = ({
           chatType === 'intent' ? 'keyword strategy' :
           chatType === 'metaads' ? 'Meta advertising campaigns' :
           chatType === 'facebook' ? 'Facebook page performance' :
+          chatType === 'instagram' ? 'Instagram profile' :
           'marketing efforts'
         }. What would you like to know?`,
         timestamp: new Date()
@@ -137,6 +163,7 @@ const AIChatComponent = ({
     }
   }, [showChat]);
 
+  // Load chat history
   useEffect(() => {
     if (showChat) {
       loadHistoryData();
@@ -150,7 +177,11 @@ const AIChatComponent = ({
   const handleNewChat = () => {
     setMessages([]);
     setInputValue('');
-    setCurrentSessionId(null); // Reset session ID to force new session
+    setCurrentSessionId(null);
+    setNeedsUserInput(false);
+    setClarificationPrompt('');
+    setSelectionOptions(null);
+    setSelectedItems([]);
     
     // Re-initialize with welcome message
     const welcomeMessage = {
@@ -162,6 +193,7 @@ const AIChatComponent = ({
         chatType === 'intent' ? 'keyword strategy' :
         chatType === 'metaads' ? 'Meta advertising campaigns' :
         chatType === 'facebook' ? 'Facebook page performance' :
+        chatType === 'instagram' ? 'Instagram profile' :
         'marketing efforts'
       }. What would you like to know?`,
       timestamp: new Date()
@@ -170,135 +202,248 @@ const AIChatComponent = ({
   };
 
   const handleSendMessage = async () => {
-      if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading) return;
 
-      const userMessage = {
-        id: Date.now(),
-        type: 'user',
-        content: inputValue.trim(),
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, userMessage]);
-      const messageContent = inputValue.trim();  // ✅ Save message before clearing
-      setInputValue('');
-      setIsLoading(true);
-
-      try {
-        const apiResponse = await sendMessageToAPI(
-          messageContent,  // ✅ Use saved message
-          chatType, 
-          activeCampaign, 
-          activeProperty, 
-          selectedAccount,
-          selectedCampaigns,
-          selectedPage,
-          period,
-          customDates
-        );
-        
-        // Format and clean up the AI response
-        let formattedResponse = apiResponse.response;
-        
-        // Clean up formatting
-        formattedResponse = formattedResponse
-          .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove bold
-          .replace(/### /g, '')              // Remove headers
-          .trim();
-
-        const aiResponse = {
-          id: Date.now() + 1,
-          type: 'ai',
-          content: formattedResponse,
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, aiResponse]);
-        
-        // Update current session ID if provided
-        if (apiResponse.session_id) {
-          setCurrentSessionId(apiResponse.session_id);
-        }
-        
-        // Refresh chat history
-        loadHistoryData();
-        
-      } catch (error) {
-        console.error('Error sending message:', error);
-        
-        // Create user-friendly error message
-        const errorMessage = {
-          id: Date.now() + 1,
-          type: 'ai',
-          content: error.message || "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.",
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      } finally {
-        setIsLoading(false);
-        setIsSlowQuery(false);  // ✅ ADD THIS - Reset slow query flag
-      }
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: inputValue.trim(),
+      timestamp: new Date()
     };
 
-  const loadHistoryData = async () => {
+    setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputValue.trim();
+    setInputValue('');
+    setIsLoading(true);
+    setShowStatus(true);
+    setProcessingStatus('Analyzing your question...');
+
     try {
-      const token = getAuthToken(chatType);
-      const moduleType = chatType === 'ads' ? 'google_ads' : 
-                        chatType === 'analytics' ? 'google_analytics' : 
-                        chatType === 'intent' ? 'intent_insights' :
-                        chatType === 'metaads' ? 'meta_ads' :
-                        chatType === 'facebook' ? 'facebook_analytics' :
-                        'google_ads';
+      const response = await sendMessageToAPI(messageContent);
       
-      const response = await fetch(`https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/sessions/${moduleType}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Handle response
+      if (response.success) {
+        const aiMessage = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: response.response,
+          timestamp: new Date(),
+          visualizations: response.visualizations,
+          endpoints: response.triggered_endpoints
+        };
+        
+        setMessages(prev => [...prev, aiMessage]);
+        
+        // Check if user input is needed
+        if (response.needs_user_input) {
+          handleNeedsUserInput(response);
         }
+        
+        // Update session ID
+        if (response.session_id) {
+          setCurrentSessionId(response.session_id);
+        }
+        
+        // Reload history to show new conversation
+        loadHistoryData();
+      } else {
+        throw new Error(response.error || 'Failed to get response');
+      }
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: `I apologize, but I encountered an error: ${error.message}. Please try again.`,
+        timestamp: new Date(),
+        isError: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+      setShowStatus(false);
+      setProcessingStatus('');
+      setIsSlowQuery(false);
+    }
+  };
+
+  const sendMessageToAPI = async (messageContent) => {
+    const token = getAuthToken(chatType);
+    
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in again.');
+    }
+
+    // Build request payload based on module type
+    const payload = {
+      message: messageContent,
+      module_type: currentConfig.moduleType,
+      session_id: currentSessionId,
+      context: buildContextData(),
+      period: period,
+      ...(period === 'CUSTOM' && customDates && {
+        start_date: customDates.startDate,
+        end_date: customDates.endDate
+      })
+    };
+
+    // Add module-specific IDs
+    if (chatType === 'ads' && activeCampaign) {
+      payload.customer_id = activeCampaign.customerId || activeCampaign.id;
+    } else if (chatType === 'analytics' && activeProperty) {
+      payload.property_id = activeProperty.id;
+    } else if (chatType === 'intent' && selectedAccount) {
+      payload.customer_id = selectedAccount.customerId || selectedAccount.id;
+    } else if (chatType === 'metaads' && selectedAccount) {
+      payload.context = {
+        ...payload.context,
+        account_id: selectedAccount.account_id,
+        ad_account_id: selectedAccount.account_id
+      };
+    } else if (chatType === 'facebook' && selectedPage) {
+      payload.context = {
+        ...payload.context,
+        page_id: selectedPage.id
+      };
+    } else if (chatType === 'instagram' && selectedAccount) {
+      payload.context = {
+        ...payload.context,
+        account_id: selectedAccount.id,
+        instagram_account_id: selectedAccount.id
+      };
+    }
+
+    console.log('📤 Sending to API:', payload);
+
+    // Set slow query warning after 5 seconds
+    const slowQueryTimer = setTimeout(() => {
+      setIsSlowQuery(true);
+      setProcessingStatus('Processing large dataset - this may take 2-5 minutes...');
+    }, 5000);
+
+    try {
+      const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
       });
 
+      clearTimeout(slowQueryTimer);
+
       if (!response.ok) {
-        console.error(`Failed to load history: ${response.status}`);
-        return;
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error ${response.status}`);
       }
 
-      const sessionsData = await response.json();
-      console.log('Sessions data received:', sessionsData);
-      
-      // Transform the sessions data into recent chats format with proper titles
-      const formattedChats = sessionsData.sessions?.map(session => {
-        let titleMessage = 'New conversation';
-        
-        if (session.messages && session.messages.length > 0) {
-          // Find the first user message for the title
-          const firstUserMessage = session.messages.find(msg => msg.role === 'user');
-          if (firstUserMessage && firstUserMessage.content && firstUserMessage.content.trim()) {
-            const content = firstUserMessage.content.trim();
-            titleMessage = content.length > 40 
-              ? content.substring(0, 40) + '...'
-              : content;
-          }
-        }
-        
-        return {
-          id: session.session_id,
-          title: titleMessage,
-          timestamp: session.last_activity || session.created_at,
-          messageCount: session.messages ? session.messages.length : 0
-        };
-      }).filter(chat => chat.messageCount > 0) || []; // Only show chats with messages
-      
-      console.log('Formatted chats:', formattedChats);
-      setRecentChats(formattedChats);
+      const data = await response.json();
+      console.log('📥 API Response:', data);
+
+      return {
+        success: true,
+        response: data.response,
+        session_id: data.session_id,
+        triggered_endpoints: data.endpoint_data?.triggered_endpoints || [],
+        visualizations: data.endpoint_data?.visualizations,
+        needs_user_input: data.endpoint_data?.requires_selection ? true : false,
+        selection_data: data.endpoint_data?.requires_selection
+      };
+
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      clearTimeout(slowQueryTimer);
+      console.error('❌ API Error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
+  };
+
+  const buildContextData = () => {
+    const context = {};
+    
+    // Add account/property information
+    if (chatType === 'ads' && activeCampaign) {
+      context.customer_id = activeCampaign.customerId || activeCampaign.id;
+      context.customer_name = activeCampaign.name;
+    } else if (chatType === 'analytics' && activeProperty) {
+      context.property_id = activeProperty.id;
+      context.property_name = activeProperty.name;
+    } else if (chatType === 'intent' && selectedAccount) {
+      context.account_id = selectedAccount.customerId || selectedAccount.id;
+      context.account_name = selectedAccount.name || selectedAccount.descriptiveName;
+    } else if (chatType === 'metaads' && selectedAccount) {
+      context.account_id = selectedAccount.account_id;
+      context.account_name = selectedAccount.name;
+      context.currency = selectedAccount.currency;
+    } else if (chatType === 'facebook' && selectedPage) {
+      context.page_id = selectedPage.id;
+      context.page_name = selectedPage.name;
+    } else if (chatType === 'instagram' && selectedAccount) {
+      context.account_id = selectedAccount.id;
+      context.account_name = selectedAccount.name;
+    }
+
+    return context;
+  };
+
+  const handleNeedsUserInput = (response) => {
+    if (!response.selection_data) return;
+
+    const { type, options, prompt } = response.selection_data;
+    
+    setNeedsUserInput(true);
+    setClarificationPrompt(prompt);
+    setSelectionOptions({
+      type: type,
+      options: options
+    });
+    setSelectedItems([]);
+
+    // Add clarification message
+    const clarificationMessage = {
+      id: Date.now() + 2,
+      type: 'ai',
+      content: prompt,
+      timestamp: new Date(),
+      requiresSelection: true
+    };
+    setMessages(prev => [...prev, clarificationMessage]);
+  };
+
+  const handleSelectionSubmit = () => {
+    if (selectedItems.length === 0) return;
+
+    // Send selected items back to continue the conversation
+    const selectionMessage = `I've selected: ${selectedItems.map(id => {
+      const option = selectionOptions.options.find(opt => opt.id === id);
+      return option?.name || id;
+    }).join(', ')}`;
+
+    setInputValue(selectionMessage);
+    setNeedsUserInput(false);
+    setSelectionOptions(null);
+    
+    // Submit the selection
+    handleSendMessage();
+  };
+
+  const toggleItemSelection = (itemId) => {
+    setSelectedItems(prev => {
+      if (prev.includes(itemId)) {
+        return prev.filter(id => id !== itemId);
+      } else {
+        return [...prev, itemId];
+      }
+    });
   };
 
   const handleSuggestionClick = (suggestion) => {
     setInputValue(suggestion);
-    inputRef.current?.focus();
+    setTimeout(() => handleSendMessage(), 100);
   };
 
   const handleKeyPress = (e) => {
@@ -308,510 +453,217 @@ const AIChatComponent = ({
     }
   };
 
-  // API call functions
-  const sendMessageToAPI = async (message, chatType, activeCampaign, activeProperty, selectedAccount, selectedCampaigns, selectedPage, period, customDates) => {
-      const token = getAuthToken(chatType);
-      
-      console.log('🚀 [AIChatComponent] sendMessageToAPI called with:', {
-        chatType,
-        activeCampaign: activeCampaign?.name,
-        activeProperty: activeProperty?.name,
-        selectedAccount: selectedAccount?.name,
-        selectedPage: selectedPage?.name,
-        period,
-        customDates,
-        message
-      });
-      
-      // Prepare context based on chat type
-      let context = {
-        token: token  // ✅ Always include token
-      };
-      let customerId = null;
-      let propertyId = null;
-      let accountId = null;
-      let pageId = null;
-      
-      if (chatType === 'ads' && activeCampaign) {
-        customerId = activeCampaign.customerId || activeCampaign.id;
-        console.log('📊 [AIChatComponent] Google Ads - customerId:', customerId);
-        context = {
-          ...context,
-          campaign_name: activeCampaign.name,
-          campaign_id: activeCampaign.id,
-          period: period
-        };
-      } else if (chatType === 'analytics' && activeProperty) {
-        propertyId = activeProperty.id;
-        console.log('📈 [AIChatComponent] Google Analytics - propertyId:', propertyId);
-        context = {
-          ...context,
-          property_name: activeProperty.name,
-          property_id: activeProperty.id,
-          period: period
-        };
-      } else if (chatType === 'intent' && selectedAccount) {
-        accountId = selectedAccount; // ✅ Store account ID
-        console.log('🔍 [AIChatComponent] Intent Insights - accountId:', accountId);
-        context = {
-          ...context,
-          account_id: selectedAccount,
-          selectedAccount: selectedAccount,
-          period: period
-        };    
-      } else if (chatType === 'metaads' && selectedAccount) {
-        accountId = selectedAccount.id || selectedAccount.account_id;
-        console.log('📱 [AIChatComponent] Meta Ads - accountId:', accountId);
-        context = {
-          ...context,
-          account_name: selectedAccount.name,
-          account_id: accountId,
-          currency: selectedAccount.currency,
-          period: period
-        };
-        
-        if (selectedCampaigns && selectedCampaigns.length > 0) {
-          context.selected_campaigns = selectedCampaigns.map(c => ({
-            id: c.id,
-            name: c.name,
-            status: c.status
-          }));
-        }
-      } else if (chatType === 'facebook' && selectedPage) {
-        pageId = selectedPage.id;
-        console.log('👥 [AIChatComponent] Facebook - pageId:', pageId);
-        context = {
-          ...context,
-          page_name: selectedPage.name,
-          page_id: selectedPage.id,
-          followers_count: selectedPage.followers_count,
-          period: period
-        };
-      }
-      
-      // ✅ CRITICAL FIX: Only add custom dates to context if period is CUSTOM
-      // This allows the backend to extract dates from the user's message
-      if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        context.custom_dates = {
-          startDate: customDates.startDate,  // Should be YYYY-MM-DD format
-          endDate: customDates.endDate        // Should be YYYY-MM-DD format
-        };
-        console.log('📅 [AIChatComponent] Adding module filter custom dates to context:', context.custom_dates);
-      } else {
-        console.log('⚙️ [AIChatComponent] Period is not CUSTOM or no custom dates - backend will extract from message');
-      }
-
-      const payload = {
-        message: message,
-        module_type: chatType === 'ads' ? 'google_ads' : 
-                    chatType === 'analytics' ? 'google_analytics' : 
-                    chatType === 'intent' ? 'intent_insights' :
-                    chatType === 'metaads' ? 'meta_ads' :
-                    chatType === 'facebook' ? 'facebook_analytics' :
-                    'google_ads',
-        session_id: currentSessionId,
-        customer_id: customerId,
-        property_id: propertyId,
-        account_id: accountId,
-        page_id: pageId,
-        period: period,  // This is the filter period (LAST_7_DAYS, LAST_30_DAYS, etc.)
-        context: context
-      };
-
-      console.log('📦 [AIChatComponent] Final payload:', JSON.stringify(payload, null, 2));
-
-      // ✅ Detect if this is likely a slow query
-      const slowKeywords = [
-        'all campaigns', 
-        'every campaign', 
-        'complete list', 
-        'comprehensive', 
-        'all active', 
-        'total campaigns',
-        'active campaigns',  // ✅ ADD THIS
-        'show me campaigns', // ✅ ADD THIS
-        'list campaigns',    // ✅ ADD THIS
-        'campaigns over',    // ✅ ADD THIS - matches "campaigns over last 2 months"
-        'all the campaigns'  // ✅ ADD THIS
-      ];      
-      const isLikelySlowQuery = slowKeywords.some(keyword => 
-        message.toLowerCase().includes(keyword)
-      );
-
-      // Enhanced status updates with more detailed messages
-      const statusUpdates = [
-        "Received your question, analyzing...",
-        "Understanding the context of your query...",
-        "Identifying relevant data sources...",
-        "Checking for existing data in your account...",
-        "Fetching fresh analytics data...",
-        "Processing and analyzing metrics...",
-        "Generating insights and recommendations...",
-        "Preparing your comprehensive answer..."
-      ];
-      
-      // Special status updates for slow queries
-      const slowQueryStatusUpdates = [
-        "Analyzing your comprehensive data request...",
-        "Connecting to data sources...",
-        "Fetching campaign list from your account...",
-        "Processing large dataset carefully...",
-        "Respecting API rate limits to ensure data quality...",
-        "Batch processing campaigns (this may take 2-5 minutes)...",
-        "Still fetching data - please don't close this window...",
-        "Almost there, finalizing comprehensive results...",
-        "Preparing detailed insights for all campaigns..."
-      ];
-      
-      let statusIndex = 0;
-      let statusInterval;
-      
-      const startStatusUpdates = () => {
-        setShowStatus(true);
-        
-        // ✅ Set slow query flag if detected
-        if (isLikelySlowQuery) {
-          setIsSlowQuery(true);
-          setProcessingStatus(slowQueryStatusUpdates[0]);
-        } else {
-          setProcessingStatus(statusUpdates[0]);
-        }
-        
-        statusIndex = 1;
-        
-        statusInterval = setInterval(() => {
-          const updates = isLikelySlowQuery ? slowQueryStatusUpdates : statusUpdates;
-          
-          if (statusIndex < updates.length) {
-            setProcessingStatus(updates[statusIndex]);
-            statusIndex++;
-          } else {
-            // Cycle through final messages
-            const finalMessages = isLikelySlowQuery ? [
-              "Processing large dataset - almost there...",
-              "Finalizing comprehensive campaign analysis...",
-              "Preparing detailed insights (this takes time for quality)...",
-              "Nearly complete - thank you for your patience..."
-            ] : [
-              "Almost there, finalizing results...",
-              "Crunching the numbers...",
-              "Preparing detailed insights..."
-            ];
-            const finalIndex = (statusIndex - updates.length) % finalMessages.length;
-            setProcessingStatus(finalMessages[finalIndex]);
-            statusIndex++;
-          }
-        }, isLikelySlowQuery ? 3000 : 2000); // Slower interval for slow queries
-      };
-      
-      const stopStatusUpdates = () => {
-        if (statusInterval) {
-          clearInterval(statusInterval);
-          statusInterval = null;
-        }
-        setShowStatus(false);
-        setProcessingStatus('');
-        setIsSlowQuery(false);
-      };
-
-      // ✅ Create AbortController for timeout handling
-      const controller = new AbortController();
-      const timeoutDuration = isLikelySlowQuery ? 300000 : 60000; // 5 minutes for slow queries, 1 minute for normal
-      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-
-      try {
-        startStatusUpdates();
-        
-        console.log(`⏱️ [AIChatComponent] Request timeout set to: ${timeoutDuration / 1000} seconds`);
-        
-        const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/message', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal  // ✅ Add abort signal
-        });
-
-        clearTimeout(timeoutId); // ✅ Clear timeout on success
-        stopStatusUpdates();
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || `API Error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        // Update session ID if provided
-        if (data.session_id) {
-          setCurrentSessionId(data.session_id);
-        }
-        
-        return data;
-        
-      } catch (error) {
-        clearTimeout(timeoutId); // ✅ Clear timeout on error
-        stopStatusUpdates();
-        console.error('Error sending message:', error);
-        
-        let errorMessage = "I'm sorry, I encountered an error while processing your request.";
-        
-        // ✅ Handle AbortError (timeout)
-        if (error.name === 'AbortError') {
-          if (isLikelySlowQuery) {
-            errorMessage = "⏱️ Your request is taking longer than expected. This usually happens when fetching comprehensive data for accounts with many campaigns (200+). The request may still be processing in the background. Please wait a moment and try asking your question again.";
-          } else {
-            errorMessage = "⏱️ The request timed out. This might be due to a large amount of data being processed. Please try again or ask for a more specific subset of data.";
-          }
-        } else if (error.message.includes('401')) {
-          errorMessage = "🔐 Authentication error. Please try logging in again.";
-        } else if (error.message.includes('403')) {
-          errorMessage = "🚫 Access denied. Please check your permissions for this module.";
-        } else if (error.message.includes('404')) {
-          errorMessage = "❌ Service not found. Please try again later.";
-        } else if (error.message.includes('500')) {
-          errorMessage = "⚠️ Server error. Our team has been notified. Please try again in a few moments.";
-        } else if (error.message.includes('timeout') || error.message.toLowerCase().includes('network')) {
-          errorMessage = "🌐 Network timeout. For comprehensive data queries with 200+ campaigns, this may take up to 5 minutes. Please check your connection and try again.";
-        }
-        
-        throw new Error(errorMessage);
-      }
-    };
-
-  const handleDeleteConversation = async (sessionId) => {
+  const loadHistoryData = async () => {
     try {
       const token = getAuthToken(chatType);
       
-      const response = await fetch('https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/delete', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          session_ids: [sessionId]
-        })
-      });
+      const response = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/sessions/${currentConfig.moduleType}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📚 Loaded history:', data);
+        setRecentChats(data.sessions || []);
       }
+    } catch (error) {
+      console.error('Error loading history:', error);
+    }
+  };
+
+  const loadConversation = async (sessionId) => {
+    try {
+      const token = getAuthToken(chatType);
       
-      setShowSuccessToast(true);
-      setTimeout(() => setShowSuccessToast(false), 3000);
+      const response = await fetch(
+        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${currentConfig.moduleType}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📖 Loaded conversation:', data);
+        
+        // Convert conversation to messages format
+        const loadedMessages = data.messages.map((msg, index) => ({
+          id: Date.now() + index,
+          type: msg.role === 'user' ? 'user' : 'ai',
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+          visualizations: msg.visualizations,
+          endpoints: msg.triggered_endpoints
+        }));
+        
+        setMessages(loadedMessages);
+        setCurrentSessionId(sessionId);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    }
+  };
+
+  const deleteConversation = async (sessionId) => {
+    try {
+      const token = getAuthToken(chatType);
       
-      loadHistoryData();
-      
-      if (sessionId === currentSessionId) {
-        setCurrentSessionId(null);
-        setMessages([]);
+      const response = await fetch(
+        'https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/delete',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            session_ids: [sessionId]
+          })
+        }
+      );
+
+      if (response.ok) {
+        setRecentChats(prev => prev.filter(chat => chat.session_id !== sessionId));
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
+        
+        // If we're viewing this conversation, start a new chat
+        if (currentSessionId === sessionId) {
+          handleNewChat();
+        }
       }
     } catch (error) {
       console.error('Error deleting conversation:', error);
     }
   };
 
-  const loadSpecificConversation = async (sessionId) => {
-    try {
-      const token = getAuthToken(chatType);
-      const moduleType = chatType === 'ads' ? 'google_ads' : 
-                        chatType === 'analytics' ? 'google_analytics' : 
-                        chatType === 'intent' ? 'intent_insights' :
-                        chatType === 'metaads' ? 'meta_ads' :
-                        chatType === 'facebook' ? 'facebook_analytics' :
-                        'google_ads';
-      
-      console.log('Loading conversation:', sessionId, 'for module:', moduleType);
-      
-      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/chat/conversation/${sessionId}?module_type=${moduleType}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-      if (!response.ok) {
-        console.error('Failed to load conversation:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        
-        // Show user-friendly error
-        setMessages([{
-          id: Date.now(),
-          type: 'ai',
-          content: `Sorry, I couldn't load that conversation. Please try starting a new conversation.`,
-          timestamp: new Date()
-        }]);
-        return;
-      }
-
-      const conversation = await response.json();
-      console.log('Conversation loaded:', conversation);
-      
-      // Check if messages exist
-      if (!conversation.messages || conversation.messages.length === 0) {
-        console.warn('No messages found in conversation');
-        setMessages([{
-          id: Date.now(),
-          type: 'ai',
-          content: 'This conversation appears to be empty.',
-          timestamp: new Date()
-        }]);
-        return;
-      }
-      
-      // Convert conversation messages to display format
-      const formattedMessages = conversation.messages.map((msg, index) => ({
-        id: `${sessionId}-${index}`,
-        type: msg.role === 'user' ? 'user' : 'ai',
-        content: msg.content,
-        timestamp: new Date(msg.timestamp)
-      }));
-      
-      console.log('Setting messages:', formattedMessages);
-      setMessages(formattedMessages);
-      setCurrentSessionId(sessionId);
-      
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-      setMessages([{
-        id: Date.now(),
-        type: 'ai',
-        content: `Sorry, I couldn't load that conversation. Error: ${error.message}`,
-        timestamp: new Date()
-      }]);
-    }
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   };
 
-  const handleRecentChatClick = (sessionId) => {
-    console.log('Chat clicked:', sessionId);
-    loadSpecificConversation(sessionId);
-  };
-
-  // If chat is not shown, display the agent button
   if (!showChat) {
     return (
-      <div className="bg-white text-gray-800 p-4 rounded-lg shadow-sm min-h-[500px] flex items-center justify-center">
-        <div className="flex justify-center items-center h-full">
-          <div
-            className="p-2 rounded-lg border border-black"
-            style={{ backgroundColor: "#75ACB8" }}
-          >
-            <button
-              onClick={handleStartChat}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-[#0E4A57] transition-all duration-200 w-full hover:shadow-lg"
-              style={{
-                background: "linear-gradient(180deg, #FAF5F5 0%, #47DBFF 100%)",
-              }}
-            >
-              <img
-                src="/images/ai.png"
-                alt="AI"
-                className="w-7 h-7 object-contain"
-              />
-              <span>{currentConfig.title}</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <button
+        onClick={handleStartChat}
+        className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-white text-2xl hover:scale-110 transition-transform z-50"
+        style={{ backgroundColor: currentConfig.color }}
+      >
+        {currentConfig.icon}
+      </button>
     );
   }
 
-  // Chat interface
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[600px] flex flex-col">
-      <div className="flex flex-1 min-h-0">
+    <div className="fixed inset-0 z-50 flex">
+      {/* Overlay */}
+      <div 
+        className="absolute inset-0 bg-black bg-opacity-30"
+        onClick={() => setShowChat(false)}
+      />
+
+      {/* Chat Container */}
+      <div className="relative ml-auto h-full w-full md:w-3/4 lg:w-2/3 flex bg-gray-50 shadow-2xl">
         {/* Sidebar */}
-        <div className={`transition-all duration-300 flex flex-col ${
-          isSidebarCollapsed ? 'w-12' : 'w-64'
-        }`} style={{ backgroundColor: '#f4f4f4' }}>
-          {/* Sidebar Header */}
-          <div className="p-4 flex items-center justify-between">
-            {!isSidebarCollapsed && (
-              <div className="flex items-center space-x-2">
-                <h2 className="text-lg font-semibold" style={{ color: '#1A4752' }}>{currentConfig.title}</h2>
-                <div className="flex items-center space-x-1 text-white px-2 py-1 rounded text-xs">
-                  <span className="text-xs">AI</span>
-                </div>
-              </div>
-            )}
+        <div 
+          className={`${
+            isSidebarCollapsed ? 'w-0' : 'w-64'
+          } bg-white border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden`}
+        >
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800">Chat History</h2>
             <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-1 hover:bg-gray-200 rounded transition-colors"
-              title={isSidebarCollapsed ? "Expand" : "Collapse"}
+              onClick={handleNewChat}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="New Chat"
             >
-              {isSidebarCollapsed ? (
-                <ChevronRight size={16} style={{ color: '#508995' }} />
-              ) : (
-                <ChevronLeft size={16} style={{ color: '#508995' }} />
-              )}
+              <Plus size={20} className="text-gray-600" />
             </button>
           </div>
 
-          {/* New Chat Button */}
-          {!isSidebarCollapsed && (
-            <div className="p-4">
-              <button
-                onClick={handleNewChat}
-                className="w-full flex items-center space-x-3 p-3 text-white rounded-lg transition-colors"
-                style={{ backgroundColor: '#508995' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#1A4752'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#508995'}
-              >
-                <Plus size={20} />
-                <span>New Chat</span>
-              </button>
-            </div>
-          )}
-
-          {/* Recent Chats */}
-          {!isSidebarCollapsed && (
-            <div className="flex-1 px-4 flex flex-col min-h-0">
-              <h3 className="text-sm font-semibold mb-3 text-gray-800">Recents</h3>
-              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-                {recentChats.length > 0 ? (
-                  recentChats.map((chat) => (
-                    <div
-                      key={chat.id}
-                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
-                        chat.id === currentSessionId ? 'bg-gray-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-600 hover:text-white'
-                      }`}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {recentChats.length > 0 ? (
+              recentChats.map((chat) => (
+                <div
+                  key={chat.session_id}
+                  className={`p-3 rounded-lg cursor-pointer group relative ${
+                    currentSessionId === chat.session_id
+                      ? 'bg-teal-50 border border-teal-200'
+                      : 'hover:bg-gray-50 border border-transparent'
+                  }`}
+                  onClick={() => loadConversation(chat.session_id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {chat.preview || chat.user_question}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Clock size={12} className="text-gray-400" />
+                        <p className="text-xs text-gray-500">
+                          {formatTimestamp(chat.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleRecentChatClick(chat.id);
+                        deleteConversation(chat.session_id);
                       }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
+                      title="Delete"
                     >
-                      <span className="text-sm truncate flex-1" title={chat.title}>{chat.title}</span>
-                      <Trash2 
-                        size={16} 
-                        className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteConversation(chat.id);
-                        }}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-gray-500 italic">No recent conversations</div>
-                )}
+                      <Trash2 size={14} className="text-red-600" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                No chat history yet
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
+        {/* Toggle Sidebar Button */}
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="absolute left-64 top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-12 bg-white border border-gray-200 rounded-r-lg flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
+          style={{ left: isSidebarCollapsed ? '0' : '16rem' }}
+        >
+          {isSidebarCollapsed ? (
+            <ChevronRight size={16} className="text-gray-600" />
+          ) : (
+            <ChevronLeft size={16} className="text-gray-600" />
+          )}
+        </button>
+
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Chat Header */}
+        <div className="flex-1 flex flex-col bg-white">
+          {/* Header */}
           <div className="p-4 border-b" style={{ borderColor: '#9AB4BA' }}>
             <div className="text-center">
-              <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>{currentConfig.title} Chat</h1>
+              <h1 className="text-xl font-bold mb-1" style={{ color: '#1A4752' }}>
+                {currentConfig.title} Chat
+              </h1>
               <p className="text-sm flex items-center justify-center space-x-1" style={{ color: '#508995' }}>
                 <span className="text-yellow-500">💡</span>
                 <span>{currentConfig.subtitle}</span>
@@ -837,21 +689,24 @@ const AIChatComponent = ({
                   <span>{selectedAccount.name} ({selectedAccount.currency})</span>
                 )}
                 {chatType === 'facebook' && selectedPage && (
-                  <span>{selectedPage.name} ({selectedPage.followers_count?.toLocaleString() || 0} followers)</span>
+                  <span>{selectedPage.name}</span>
+                )}
+                {chatType === 'instagram' && selectedAccount && (
+                  <span>{selectedAccount.name}</span>
                 )}
               </div>
             </div>
           )}
 
           {/* Suggestion Cards - Only show initially */}
-          {messages.length <= 1 && (
+          {messages.length <= 1 && !needsUserInput && (
             <div className="p-4 flex flex-col items-center">
               <div className="grid grid-cols-3 gap-3 mb-4 w-full max-w-4xl">
                 {currentConfig.suggestions.slice(0, 3).map((suggestion, index) => (
                   <button
                     key={index}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
                     style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
@@ -864,7 +719,7 @@ const AIChatComponent = ({
                   <button
                     key={index + 3}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
                     style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
@@ -882,13 +737,30 @@ const AIChatComponent = ({
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className="max-w-[80%] rounded-lg px-4 py-3"
+                  className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                    message.isError ? 'border-2 border-red-300' : ''
+                  }`}
                   style={{
                     backgroundColor: message.type === 'user' ? '#508995' : '#9AB4BA',
                     color: message.type === 'user' ? 'white' : '#1A4752'
                   }}
                 >
                   <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  
+                  {/* Show endpoints if available */}
+                  {message.endpoints && message.endpoints.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-300">
+                      <p className="text-xs opacity-75 mb-1">Data sources used:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {message.endpoints.map((endpoint, idx) => (
+                          <span key={idx} className="text-xs bg-white bg-opacity-30 px-2 py-1 rounded">
+                            {endpoint}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <p className={`text-xs mt-2 ${
                     message.type === 'user' ? 'text-teal-100' : 'text-gray-500'
                   }`}>
@@ -897,8 +769,58 @@ const AIChatComponent = ({
                 </div>
               </div>
             ))}
-            
-            {/* Status Updates - Enhanced Display */}
+
+            {/* Selection UI for Meta Ads hierarchy */}
+            {needsUserInput && selectionOptions && (
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+                <div className="flex items-start space-x-2 mb-3">
+                  <AlertCircle size={20} className="text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-blue-900 mb-1">Selection Required</p>
+                    <p className="text-sm text-blue-700">{clarificationPrompt}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
+                  {selectionOptions.options.map((option) => (
+                    <label
+                      key={option.id}
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedItems.includes(option.id)
+                          ? 'bg-blue-100 border-2 border-blue-400'
+                          : 'bg-white border-2 border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.includes(option.id)}
+                        onChange={() => toggleItemSelection(option.id)}
+                        className="w-4 h-4"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">{option.name}</p>
+                        {option.status && (
+                          <p className="text-xs text-gray-500">Status: {option.status}</p>
+                        )}
+                        {option.objective && (
+                          <p className="text-xs text-gray-500">Objective: {option.objective}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={handleSelectionSubmit}
+                  disabled={selectedItems.length === 0}
+                  className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  Continue with {selectedItems.length} selected
+                </button>
+              </div>
+            )}
+
+            {/* Status Updates */}
             {showStatus && processingStatus && (
               <div className="flex justify-start">
                 <div className={`border-l-4 rounded-lg px-4 py-3 max-w-[80%] shadow-sm ${
@@ -936,8 +858,6 @@ const AIChatComponent = ({
                 </div>
               </div>
             )}
-            
-
 
             {isLoading && !showStatus && (
               <div className="flex justify-start">
@@ -963,20 +883,20 @@ const AIChatComponent = ({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="How can I help you?"
+                placeholder={needsUserInput ? "Please make a selection above..." : "How can I help you?"}
                 className="flex-1 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white"
-                disabled={isLoading}
+                disabled={isLoading || needsUserInput}
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading || needsUserInput}
                 className="px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                style={{ backgroundColor: !inputValue.trim() || isLoading ? '#9AB4BA' : '#508995' }}
+                style={{ backgroundColor: !inputValue.trim() || isLoading || needsUserInput ? '#9AB4BA' : '#508995' }}
                 onMouseEnter={(e) => {
-                  if (!(!inputValue.trim() || isLoading)) e.target.style.backgroundColor = '#1A4752';
+                  if (!(! inputValue.trim() || isLoading || needsUserInput)) e.target.style.backgroundColor = '#1A4752';
                 }}
                 onMouseLeave={(e) => {
-                  if (!(!inputValue.trim() || isLoading)) e.target.style.backgroundColor = '#508995';
+                  if (!(!inputValue.trim() || isLoading || needsUserInput)) e.target.style.backgroundColor = '#508995';
                 }}
               >
                 <Send size={16} />
@@ -997,7 +917,7 @@ const AIChatComponent = ({
           </div>
         )}
       </div>
-    </div>           
+    </div>
   );
 };
 
