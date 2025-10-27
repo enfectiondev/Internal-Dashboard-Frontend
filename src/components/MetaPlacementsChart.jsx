@@ -43,7 +43,7 @@ function MetaPlacementsChart({ selectedCampaigns, period, customDates, facebookT
 
       const campaignIds = selectedCampaigns.map((c) => c.campaign_id);
 
-      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/campaigns/placements`;
+      let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/campaigns/placements`;
       const params = new URLSearchParams();
 
       if (period === "CUSTOM" && customDates?.startDate && customDates?.endDate) {

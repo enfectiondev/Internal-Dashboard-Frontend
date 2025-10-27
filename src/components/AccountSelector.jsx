@@ -15,7 +15,7 @@ export default function AccountSelector({ onAccountSelect, token }) {
       setError(null);
       try {
         const res = await fetch(
-          "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/customers",
+          "${process.env.REACT_APP_API_BASE_URL}/api/ads/customers",
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.ok) {

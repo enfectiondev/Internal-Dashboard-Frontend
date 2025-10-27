@@ -25,7 +25,7 @@ const InstagramAnalytics = ({ period }) => {
     setIsLoadingData(true);
     try {
       const response = await fetch(
-        "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/facebook/accounts",
+        "${process.env.REACT_APP_API_BASE_URL}/api/facebook/accounts",
         { headers: { Authorization: `Bearer ${facebookToken}` } }
       );
       

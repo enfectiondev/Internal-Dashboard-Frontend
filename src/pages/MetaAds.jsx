@@ -73,7 +73,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
 
     try {
       // Try new endpoint first, fallback to old endpoint
-      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/insights/summary`;
+      let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/ad-accounts/${selectedAccount.id}/insights/summary`;
       
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
         url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
@@ -95,7 +95,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
       if (!response.ok) {
         // Fallback: Use old endpoint with insights
         console.warn("Summary endpoint not available, using insights endpoint as fallback");
-        const fallbackUrl = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/insights${url.includes('?') ? url.substring(url.indexOf('?')) : ''}`;
+        const fallbackUrl = `${process.env.REACT_APP_API_BASE_URL}/api/meta/ad-accounts/${selectedAccount.id}/insights${url.includes('?') ? url.substring(url.indexOf('?')) : ''}`;
         const fallbackResponse = await fetch(fallbackUrl, {
           headers: { Authorization: `Bearer ${activeToken}` }
         });
@@ -135,7 +135,7 @@ const MetaAds = ({ period, selectedAccount, customDates }) => {
     setCampaignsError(null);
 
     try {
-      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/ad-accounts/${selectedAccount.id}/campaigns/paginated?limit=${pagination.limit}&offset=${offset}`;
+      let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/ad-accounts/${selectedAccount.id}/campaigns/paginated?limit=${pagination.limit}&offset=${offset}`;
       
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
         url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;

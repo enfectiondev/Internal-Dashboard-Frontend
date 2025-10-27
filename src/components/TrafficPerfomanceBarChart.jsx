@@ -44,7 +44,7 @@ const TrafficPerformanceBarChart = ({ activeProperty, period, customDates }) => 
       const token = localStorage.getItem("token");
       
       // Build URL with custom date parameters if needed
-      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/analytics/channel-performance/${propertyId}?period=${analyticsPeriod}`;
+      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/channel-performance/${propertyId}?period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

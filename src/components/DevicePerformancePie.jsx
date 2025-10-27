@@ -31,7 +31,7 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, customDa
     ? async (propertyId, analyticsPeriod, customDatesParam) => {
         const token = localStorage.getItem("token");
         
-        let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/analytics/audience-insights/${propertyId}?dimension=deviceCategory&period=${analyticsPeriod}`;
+        let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=deviceCategory&period=${analyticsPeriod}`;
         
         if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
           url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
@@ -48,7 +48,7 @@ function DevicePerformancePie({ activeCampaign, activeProperty, period, customDa
     : async (customerId, adsPeriod, customDatesParam) => {
         const token = localStorage.getItem("token");
         
-        let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/device-performance/${customerId}?period=${adsPeriod}`;
+        let url = `${process.env.REACT_APP_API_BASE_URL}/api/ads/device-performance/${customerId}?period=${adsPeriod}`;
         
         if (adsPeriod === 'CUSTOM' && customDatesParam?.startDate && customDatesParam?.endDate) {
           url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

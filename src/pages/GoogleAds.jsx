@@ -53,7 +53,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
     });
 
     // Build URL
-    let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
+    let url = `${process.env.REACT_APP_API_BASE_URL}/api/ads/key-stats/${customerId}?period=${convertedPeriod}`;
     
     if (convertedPeriod === 'CUSTOM' && customDatesParam?.startDate && customDatesParam?.endDate) {
       url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
