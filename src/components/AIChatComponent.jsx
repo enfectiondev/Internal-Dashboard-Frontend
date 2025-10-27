@@ -323,7 +323,7 @@ const AIChatComponent = ({
     }, 5000);
 
     try {
-      const response = await fetch('${process.env.REACT_APP_API_BASE_URL}/api/chat/message', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/chat/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -540,7 +540,7 @@ const AIChatComponent = ({
       const token = getAuthToken(chatType);
       
       const response = await fetch(
-        '${process.env.REACT_APP_API_BASE_URL}/api/chat/delete',
+        `${process.env.REACT_APP_API_BASE_URL}/api/chat/delete`,
         {
           method: 'POST',
           headers: {

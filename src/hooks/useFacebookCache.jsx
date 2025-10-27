@@ -118,7 +118,7 @@ export const useFacebookPages = (token) => {
 
     try {
       const response = await fetch(
-        '${process.env.REACT_APP_API_BASE_URL}/api/meta/pages',
+        `${process.env.REACT_APP_API_BASE_URL}/api/meta/pages`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
