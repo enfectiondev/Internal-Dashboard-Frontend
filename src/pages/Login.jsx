@@ -17,7 +17,7 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       const response = await fetch(
-        `${rocess.env.REACT_APP_API_BASE_URL}/auth/login`
+        `${process.env.REACT_APP_API_BASE_URL}/auth/login`
         // "http://localhost:8000/auth/login"
         
       );
