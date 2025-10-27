@@ -51,7 +51,7 @@ function MetaAdSetsTimeSeriesChart({ selectedAdSets, period, customDates, facebo
       
       const adsetIds = selectedAdSets.map(a => a.id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/adsets/timeseries`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/adsets/timeseries`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

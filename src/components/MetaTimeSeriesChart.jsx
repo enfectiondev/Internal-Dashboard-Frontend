@@ -51,7 +51,7 @@ function MetaTimeSeriesChart({ selectedCampaigns, period, customDates, facebookT
       
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/timeseries`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/campaigns/timeseries`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

@@ -42,7 +42,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
       console.log("Campaign IDs to fetch ad sets for:", campaignIds);
       
-      const url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
+      const url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/campaigns/adsets`;
 
       console.log("Making request to:", url);
 

@@ -25,7 +25,7 @@ const InstagramAnalytics = ({ period }) => {
     setIsLoadingData(true);
     try {
       const response = await fetch(
-        "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/facebook/accounts",
+        "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/facebook/accounts",
         { headers: { Authorization: `Bearer ${facebookToken}` } }
       );
       

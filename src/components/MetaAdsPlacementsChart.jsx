@@ -38,7 +38,7 @@ function MetaAdsPlacementsChart({ selectedAds, period, customDates, facebookToke
       
       const adIds = selectedAds.map(a => a.id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ads/placements`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/ads/placements`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

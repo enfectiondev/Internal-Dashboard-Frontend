@@ -351,7 +351,7 @@ export default function IntentInsights({
       });
 
       const response = await fetch(
-        `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/intent/keyword-insights/${accountId}`,
+        `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/intent/keyword-insights/${accountId}`,
         {
           method: 'POST',
           headers: {

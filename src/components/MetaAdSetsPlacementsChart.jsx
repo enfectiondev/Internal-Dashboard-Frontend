@@ -38,7 +38,7 @@ function MetaAdSetsPlacementsChart({ selectedAdSets, period, customDates, facebo
       
       const adsetIds = selectedAdSets.map(a => a.id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/adsets/placements`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/adsets/placements`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

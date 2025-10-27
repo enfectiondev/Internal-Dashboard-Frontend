@@ -4,7 +4,7 @@
 
 class ChatService {
   constructor() {
-    this.baseUrl = 'https://eyqi6vd53z.us-east-2.awsapprunner.com/api';
+    this.baseUrl = 'https://3ixmj4hf2a.us-east-2.awsapprunner.com/api';
   }
 
   /**

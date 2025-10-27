@@ -50,7 +50,7 @@ function LineChartComp({ activeCampaign, period, customDates }) {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`;
+    let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/time-performance/${customerId}?period=${convertedPeriod}`;
     
     if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
       url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;

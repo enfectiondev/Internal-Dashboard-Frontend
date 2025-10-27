@@ -37,7 +37,7 @@ function MetaAdSetsDemographicsChart({ selectedAdSets, period, customDates, face
       
       const adsetIds = selectedAdSets.map(a => a.id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/adsets/demographics`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/adsets/demographics`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

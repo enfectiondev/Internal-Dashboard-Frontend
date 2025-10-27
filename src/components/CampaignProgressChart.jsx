@@ -46,7 +46,7 @@ function CampaignProgressChart({ activeCampaign, period = "LAST_7_DAYS", customD
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
     
     if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
       url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;

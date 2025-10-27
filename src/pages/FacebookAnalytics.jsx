@@ -115,7 +115,7 @@ const FacebookAnalytics = ({ period, customDates }) => {
   const fetchTimeseriesData = async () => {
     setLoadingTimeseries(true);
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'https://eyqi6vd53z.us-east-2.awsapprunner.com';
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://3ixmj4hf2a.us-east-2.awsapprunner.com';
       
       let url = `${baseUrl}/api/meta/pages/${selectedPage.id}/insights/timeseries`;
       

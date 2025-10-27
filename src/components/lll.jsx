@@ -128,7 +128,7 @@ export default function Layout({ user, onLogout }) {
     const fetchCampaigns = async () => {
       try {
         const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/customers",
+          "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/customers",
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) {
@@ -156,7 +156,7 @@ export default function Layout({ user, onLogout }) {
     const fetchProperties = async () => {
       try {
         const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/properties",
+          "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/analytics/properties",
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) {
@@ -197,7 +197,7 @@ export default function Layout({ user, onLogout }) {
       setLoadingMetaAds(true);
       try {
         const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ad-accounts",
+          "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/ad-accounts",
           { headers: { Authorization: `Bearer ${facebookToken}` } }
         );
         
@@ -250,7 +250,7 @@ export default function Layout({ user, onLogout }) {
       setLoadingFacebook(true);
       try {
         const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/pages",
+          "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/pages",
           { headers: { Authorization: `Bearer ${facebookToken}` } }
         );
         
@@ -371,7 +371,7 @@ export default function Layout({ user, onLogout }) {
   };
 
   const handlePageNavigation = (page) => {
-    const baseUrl = "https://eyqi6vd53z.us-east-2.awsapprunner.com";
+    const baseUrl = "https://3ixmj4hf2a.us-east-2.awsapprunner.com";
     const url = `${baseUrl}/${page}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     setIsProfileDropdownOpen(false);

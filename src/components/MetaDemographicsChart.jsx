@@ -37,7 +37,7 @@ function MetaDemographicsChart({ selectedCampaigns, period, customDates, faceboo
       
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/campaigns/demographics`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/campaigns/demographics`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

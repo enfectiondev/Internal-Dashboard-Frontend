@@ -35,7 +35,7 @@ export default function GoogleAnalytics({ activeProperty, period, customDates })
         const token = localStorage.getItem("token");
         
         // Build URL with custom date parameters if needed
-        let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`;
+        let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`;
         
         if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
           url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

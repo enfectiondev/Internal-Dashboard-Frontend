@@ -15,7 +15,7 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       const response = await fetch(
-        "https://eyqi6vd53z.us-east-2.awsapprunner.com/auth/login"
+        "https://3ixmj4hf2a.us-east-2.awsapprunner.com/auth/login"
         // "http://localhost:8000/auth/login"
         
       );

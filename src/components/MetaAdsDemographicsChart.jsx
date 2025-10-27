@@ -36,7 +36,7 @@ function MetaAdsDemographicsChart({ selectedAds, period, customDates, facebookTo
       
       const adIds = selectedAds.map(a => a.id);
       
-      let url = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/meta/ads/demographics`;
+      let url = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/meta/ads/demographics`;
       
       const params = new URLSearchParams();
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {

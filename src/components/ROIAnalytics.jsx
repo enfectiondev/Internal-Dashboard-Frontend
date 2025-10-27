@@ -102,9 +102,9 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
         console.log('[ROI Analytics] Fetching fresh data...');
         
         // Build URLs with custom dates if needed
-        let channelUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/channel-revenue-timeseries/${propertyId}?period=${timeframe}`;
-        let revenueUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`;
-        let matrixUrl = `https://eyqi6vd53z.us-east-2.awsapprunner.com/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=${timeframe}`;
+        let channelUrl = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/analytics/channel-revenue-timeseries/${propertyId}?period=${timeframe}`;
+        let revenueUrl = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`;
+        let matrixUrl = `https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=${timeframe}`;
         
         // Add custom date parameters for GA4 endpoints (lowercase 'custom')
         if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
@@ -447,7 +447,7 @@ export default function ROIAnalytics({ activeProperty, period, customDates }) {
       setLoadingCampaigns(true);
       try {
         const res = await fetch(
-          "https://eyqi6vd53z.us-east-2.awsapprunner.com/api/ads/customers",
+          "https://3ixmj4hf2a.us-east-2.awsapprunner.com/api/ads/customers",
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.ok) {
