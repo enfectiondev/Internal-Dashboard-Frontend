@@ -42,7 +42,7 @@ export default function AudienceInsightsCard({ activeProperty, period, customDat
       const token = localStorage.getItem("token");
       
       // Build URL with custom dates if needed
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=browser&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=browser&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
@@ -71,7 +71,7 @@ export default function AudienceInsightsCard({ activeProperty, period, customDat
     async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=userGender&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=userGender&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
@@ -100,7 +100,7 @@ export default function AudienceInsightsCard({ activeProperty, period, customDat
     async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=userAgeBracket&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=userAgeBracket&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

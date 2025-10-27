@@ -351,7 +351,7 @@ export default function IntentInsights({
       });
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/intent/keyword-insights/${accountId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/intent/keyword-insights/${accountId}`,
         {
           method: 'POST',
           headers: {

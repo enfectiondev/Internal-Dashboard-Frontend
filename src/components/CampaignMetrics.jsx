@@ -55,7 +55,7 @@ function CampaignMetrics({ activeCampaign, period, customDates }) {
     const convertedPeriod = convertPeriodForAPI(period);
     
     // Build URL with custom date parameters if period is CUSTOM
-    let url = `${process.env.REACT_APP_API_BASE_URL}/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
+    let url = `${import.meta.env.VITE_API_BASE_URL}/api/ads/campaigns/${customerId}?period=${convertedPeriod}`;
     
     if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
       url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;

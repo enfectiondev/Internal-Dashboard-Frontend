@@ -37,7 +37,7 @@ function MetaAdSetsDemographicsChart({ selectedAdSets, period, customDates, face
       
       const adsetIds = selectedAdSets.map(a => a.id);
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/adsets/demographics`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/adsets/demographics`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

@@ -118,7 +118,7 @@ export const useFacebookPages = (token) => {
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/meta/pages`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/meta/pages`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -161,7 +161,7 @@ export const useFacebookInsights = (pageId, period, customDates, token) => {
   const apiFn = useCallback(async () => {
     if (!pageId || !token) return null;
 
-    let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/pages/${pageId}/insights`;
+    let url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/pages/${pageId}/insights`;
     
     if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
       url += `?start_date=${customDates.startDate}&end_date=${customDates.endDate}`;
@@ -197,7 +197,7 @@ export const useFacebookPosts = (pageId, period, customDates, token, limit = 20)
   const apiFn = useCallback(async () => {
     if (!pageId || !token) return null;
 
-    let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/pages/${pageId}/posts?limit=${limit}`;
+    let url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/pages/${pageId}/posts?limit=${limit}`;
     
     if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
       url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;

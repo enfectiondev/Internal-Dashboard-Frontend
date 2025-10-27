@@ -38,7 +38,7 @@ function MetaAdsPlacementsChart({ selectedAds, period, customDates, facebookToke
       
       const adIds = selectedAds.map(a => a.id);
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/ads/placements`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/ads/placements`;
       
       // Build query params for date filters
       const params = new URLSearchParams();

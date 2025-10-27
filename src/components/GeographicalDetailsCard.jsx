@@ -21,7 +21,7 @@ export default function GeographicalDetailsCard({ activeProperty, period, custom
     async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=city&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/audience-insights/${propertyId}?dimension=city&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

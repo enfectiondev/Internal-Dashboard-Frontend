@@ -102,9 +102,9 @@ const ROIAnalyticsInner = ({ propertyId, adsCustomerId, onBack, period, customDa
         console.log('[ROI Analytics] Fetching fresh data...');
         
         // Build URLs with custom dates if needed
-        let channelUrl = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/channel-revenue-timeseries/${propertyId}?period=${timeframe}`;
-        let revenueUrl = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`;
-        let matrixUrl = `${process.env.REACT_APP_API_BASE_URL}/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=${timeframe}`;
+        let channelUrl = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/channel-revenue-timeseries/${propertyId}?period=${timeframe}`;
+        let revenueUrl = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=totalRevenue&period=${timeframe}`;
+        let matrixUrl = `${import.meta.env.VITE_API_BASE_URL}/api/combined/roas-roi-metrics?ga_property_id=${propertyId}&ads_customer_ids=${adsCustomerId}&period=${timeframe}`;
         
         // Add custom date parameters for GA4 endpoints (lowercase 'custom')
         if (timeframe === 'custom' && customDates?.startDate && customDates?.endDate) {
@@ -447,7 +447,7 @@ export default function ROIAnalytics({ activeProperty, period, customDates }) {
       setLoadingCampaigns(true);
       try {
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/ads/customers`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/ads/customers`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.ok) {

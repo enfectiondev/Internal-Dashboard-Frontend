@@ -42,7 +42,7 @@ function MetaAdSetsSection({ selectedCampaigns, period, customDates, facebookTok
       const campaignIds = selectedCampaigns.map(c => c.campaign_id);
       console.log("Campaign IDs to fetch ad sets for:", campaignIds);
       
-      const url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/campaigns/adsets`;
+      const url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/campaigns/adsets`;
 
       console.log("Making request to:", url);
 

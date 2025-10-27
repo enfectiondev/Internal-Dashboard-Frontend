@@ -4,7 +4,7 @@
 
 class ChatService {
   constructor() {
-    this.baseUrl = `${process.env.REACT_APP_API_BASE_URL}/api`;
+    this.baseUrl = `${import.meta.env.VITE_API_BASE_URL}/api`;
   }
 
   /**

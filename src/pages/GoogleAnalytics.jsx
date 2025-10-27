@@ -35,7 +35,7 @@ export default function GoogleAnalytics({ activeProperty, period, customDates })
         const token = localStorage.getItem("token");
         
         // Build URL with custom date parameters if needed
-        let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`;
+        let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/metrics/${propertyId}?period=${analyticsPeriod}`;
         
         if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
           url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

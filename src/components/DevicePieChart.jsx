@@ -37,7 +37,7 @@ function DevicePieChart({ activeCampaign, period, customDates }) {
     const token = localStorage.getItem("token");
     const convertedPeriod = convertPeriodForAPI(period);
 
-    let url = `${process.env.REACT_APP_API_BASE_URL}/api/ads/device-performance/${customerId}?period=${convertedPeriod}`;
+    let url = `${import.meta.env.VITE_API_BASE_URL}/api/ads/device-performance/${customerId}?period=${convertedPeriod}`;
     
     if (convertedPeriod === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
       url += `&start_date=${customDates.startDate}&end_date=${customDates.endDate}`;

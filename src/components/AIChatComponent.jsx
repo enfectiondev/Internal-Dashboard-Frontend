@@ -323,7 +323,7 @@ const AIChatComponent = ({
     }, 5000);
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/chat/message`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chat/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -458,7 +458,7 @@ const AIChatComponent = ({
       const token = getAuthToken(chatType);
       
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/chat/sessions/${currentConfig.moduleType}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/chat/sessions/${currentConfig.moduleType}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -505,7 +505,7 @@ const AIChatComponent = ({
       const token = getAuthToken(chatType);
       
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/chat/conversation/${sessionId}?module_type=${currentConfig.moduleType}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/chat/conversation/${sessionId}?module_type=${currentConfig.moduleType}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -540,7 +540,7 @@ const AIChatComponent = ({
       const token = getAuthToken(chatType);
       
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/chat/delete`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/chat/delete`,
         {
           method: 'POST',
           headers: {

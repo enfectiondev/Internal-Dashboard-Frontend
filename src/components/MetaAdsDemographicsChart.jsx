@@ -36,7 +36,7 @@ function MetaAdsDemographicsChart({ selectedAds, period, customDates, facebookTo
       
       const adIds = selectedAds.map(a => a.id);
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/ads/demographics`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/ads/demographics`;
       
       const params = new URLSearchParams();
       if (period === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {

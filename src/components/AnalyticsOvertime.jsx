@@ -42,7 +42,7 @@ function AnalyticsOvertime({ activeProperty, period, customDates }) {
     async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=totalUsers&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=totalUsers&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
@@ -71,7 +71,7 @@ function AnalyticsOvertime({ activeProperty, period, customDates }) {
     async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=sessions&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=sessions&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;
@@ -100,7 +100,7 @@ function AnalyticsOvertime({ activeProperty, period, customDates }) {
     async (propertyId, analyticsPeriod, customDatesParam) => {
       const token = localStorage.getItem("token");
       
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=conversions&period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/time-series/${propertyId}?metric=conversions&period=${analyticsPeriod}`;
       
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {
         url += `&start_date=${customDatesParam.startDate}&end_date=${customDatesParam.endDate}`;

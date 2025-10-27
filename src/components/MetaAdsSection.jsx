@@ -38,7 +38,7 @@ function MetaAdsSection({ selectedAdSets, period, customDates, facebookToken, cu
       const adsetIds = selectedAdSets.map(a => a.id);
       
       // Fetch all ads without date filtering
-      const url = `${process.env.REACT_APP_API_BASE_URL}/api/meta/adsets/ads`;
+      const url = `${import.meta.env.VITE_API_BASE_URL}/api/meta/adsets/ads`;
 
       const response = await fetch(url, {
         method: 'POST',

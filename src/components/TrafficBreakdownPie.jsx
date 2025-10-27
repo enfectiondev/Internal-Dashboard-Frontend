@@ -35,7 +35,7 @@ function TrafficBreakdownPie({ activeProperty, period, customDates }) {
       const token = localStorage.getItem("token");
       
       // Build URL with custom date parameters if needed
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/analytics/traffic-sources/${propertyId}?period=${analyticsPeriod}`;
+      let url = `${import.meta.env.VITE_API_BASE_URL}/api/analytics/traffic-sources/${propertyId}?period=${analyticsPeriod}`;
       
       // Check for 'custom' (already converted from 'CUSTOM' in Layout)
       if (analyticsPeriod === 'custom' && customDatesParam?.startDate && customDatesParam?.endDate) {

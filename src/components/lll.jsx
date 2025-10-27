@@ -128,7 +128,7 @@ export default function Layout({ user, onLogout }) {
     const fetchCampaigns = async () => {
       try {
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/ads/customers`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/ads/customers`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) {
@@ -156,7 +156,7 @@ export default function Layout({ user, onLogout }) {
     const fetchProperties = async () => {
       try {
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/analytics/properties`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/analytics/properties`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) {
@@ -197,7 +197,7 @@ export default function Layout({ user, onLogout }) {
       setLoadingMetaAds(true);
       try {
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/meta/ad-accounts`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/meta/ad-accounts`,
           { headers: { Authorization: `Bearer ${facebookToken}` } }
         );
         
@@ -250,7 +250,7 @@ export default function Layout({ user, onLogout }) {
       setLoadingFacebook(true);
       try {
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/meta/pages`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/meta/pages`,
           { headers: { Authorization: `Bearer ${facebookToken}` } }
         );
         
@@ -371,7 +371,7 @@ export default function Layout({ user, onLogout }) {
   };
 
   const handlePageNavigation = (page) => {
-    const baseUrl = `${process.env.REACT_APP_API_BASE_URL}`;
+    const baseUrl = `${import.meta.env.VITE_API_BASE_URL}`;
     const url = `${baseUrl}/${page}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     setIsProfileDropdownOpen(false);

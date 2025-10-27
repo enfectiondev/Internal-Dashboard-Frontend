@@ -8,6 +8,7 @@ export default function AccountSelector({ onAccountSelect, token }) {
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [error, setError] = useState(null);
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   // Fetch accounts when component mounts
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -15,7 +16,7 @@ export default function AccountSelector({ onAccountSelect, token }) {
       setError(null);
       try {
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/ads/customers`,
+          `${API_BASE_URL}/api/ads/customers`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.ok) {
