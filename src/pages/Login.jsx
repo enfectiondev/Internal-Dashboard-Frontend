@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 export default function Login() {
   const [showTokenInput, setShowTokenInput] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
@@ -15,7 +17,7 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       const response = await fetch(
-        "https://3ixmj4hf2a.us-east-2.awsapprunner.com/auth/login"
+        "${API_BASE_URL}/auth/login"
         // "http://localhost:8000/auth/login"
         
       );
