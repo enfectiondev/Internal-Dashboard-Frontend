@@ -95,7 +95,7 @@ const AIChatComponent = ({
       subtitle: 'Analyze your Facebook page and audience engagement',
       color: '#4267B2',
       icon: '👥',
-      moduleType: 'facebook',
+      moduleType: 'facebook_analytics',
       suggestions: [
         "What's my Facebook page growth and engagement rate?",
         "Which posts are generating the most reach?",
@@ -109,7 +109,7 @@ const AIChatComponent = ({
       subtitle: 'Track your Instagram performance and audience engagement',
       color: '#E4405F',
       icon: '📸',
-      moduleType: 'instagram',
+      moduleType: 'instagram_analytics',
       suggestions: [
         "What's my Instagram engagement rate this month?",
         "Which posts got the most likes and comments?",
@@ -128,6 +128,11 @@ const AIChatComponent = ({
       return localStorage.getItem('facebook_token');
     }
     return localStorage.getItem('token'); // Google token
+  };
+
+  // Helper function to get API base URL
+  const getApiBaseUrl = () => {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   };
 
   // Initialize chat with welcome message
@@ -234,9 +239,15 @@ const AIChatComponent = ({
         
         setMessages(prev => [...prev, aiMessage]);
         
-        // Check if user input is needed
+        // Check if user input is needed (Meta Ads hierarchy selection)
         if (response.needs_user_input) {
           handleNeedsUserInput(response);
+        } else {
+          // Clear any pending selection state
+          setNeedsUserInput(false);
+          setClarificationPrompt('');
+          setSelectionOptions(null);
+          setSelectedItems([]);
         }
         
         // Update session ID
@@ -281,37 +292,36 @@ const AIChatComponent = ({
       module_type: currentConfig.moduleType,
       session_id: currentSessionId,
       context: buildContextData(),
-      period: period,
-      ...(period === 'CUSTOM' && customDates && {
-        start_date: customDates.startDate,
-        end_date: customDates.endDate
-      })
+      period: period
     };
 
-    // Add module-specific IDs
+    // Add custom dates if period is CUSTOM
+    if (period === 'CUSTOM' && customDates) {
+      payload.start_date = customDates.startDate;
+      payload.end_date = customDates.endDate;
+    }
+
+    // Add module-specific IDs to context
     if (chatType === 'ads' && activeCampaign) {
       payload.customer_id = activeCampaign.customerId || activeCampaign.id;
+      payload.context.customer_id = activeCampaign.customerId || activeCampaign.id;
     } else if (chatType === 'analytics' && activeProperty) {
       payload.property_id = activeProperty.id;
+      payload.context.property_id = activeProperty.id;
     } else if (chatType === 'intent' && selectedAccount) {
       payload.customer_id = selectedAccount.customerId || selectedAccount.id;
+      payload.context.account_id = selectedAccount.customerId || selectedAccount.id;
     } else if (chatType === 'metaads' && selectedAccount) {
-      payload.context = {
-        ...payload.context,
-        account_id: selectedAccount.account_id,
-        ad_account_id: selectedAccount.account_id
-      };
+      payload.account_id = selectedAccount.account_id;
+      payload.context.account_id = selectedAccount.account_id;
+      payload.context.ad_account_id = selectedAccount.account_id;
     } else if (chatType === 'facebook' && selectedPage) {
-      payload.context = {
-        ...payload.context,
-        page_id: selectedPage.id
-      };
+      payload.context.page_id = selectedPage.id;
+      payload.page_id = selectedPage.id;
     } else if (chatType === 'instagram' && selectedAccount) {
-      payload.context = {
-        ...payload.context,
-        account_id: selectedAccount.id,
-        instagram_account_id: selectedAccount.id
-      };
+      payload.context.account_id = selectedAccount.id;
+      payload.context.instagram_account_id = selectedAccount.id;
+      payload.account_id = selectedAccount.id;
     }
 
     console.log('📤 Sending to API:', payload);
@@ -323,7 +333,7 @@ const AIChatComponent = ({
     }, 5000);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chat/message`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/chat/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -375,6 +385,9 @@ const AIChatComponent = ({
     } else if (chatType === 'intent' && selectedAccount) {
       context.account_id = selectedAccount.customerId || selectedAccount.id;
       context.account_name = selectedAccount.name || selectedAccount.descriptiveName;
+      // Add seed keywords if available from the intent module
+      context.seed_keywords = selectedAccount.seed_keywords || [];
+      context.country = selectedAccount.country || 'US';
     } else if (chatType === 'metaads' && selectedAccount) {
       context.account_id = selectedAccount.account_id;
       context.account_name = selectedAccount.name;
@@ -382,9 +395,20 @@ const AIChatComponent = ({
     } else if (chatType === 'facebook' && selectedPage) {
       context.page_id = selectedPage.id;
       context.page_name = selectedPage.name;
+      context.followers_count = selectedPage.followers_count;
     } else if (chatType === 'instagram' && selectedAccount) {
       context.account_id = selectedAccount.id;
       context.account_name = selectedAccount.name;
+      context.username = selectedAccount.username;
+    }
+
+    // Add time period information
+    if (period) {
+      context.period = period;
+    }
+    if (customDates && period === 'CUSTOM') {
+      context.start_date = customDates.startDate;
+      context.end_date = customDates.endDate;
     }
 
     return context;
@@ -396,39 +420,103 @@ const AIChatComponent = ({
     const { type, options, prompt } = response.selection_data;
     
     setNeedsUserInput(true);
-    setClarificationPrompt(prompt);
+    setClarificationPrompt(prompt || 'Please make a selection to continue');
     setSelectionOptions({
-      type: type,
+      type: type, // 'campaigns', 'adsets', or 'ads'
       options: options
     });
     setSelectedItems([]);
 
-    // Add clarification message
-    const clarificationMessage = {
-      id: Date.now() + 2,
-      type: 'ai',
-      content: prompt,
-      timestamp: new Date(),
-      requiresSelection: true
-    };
-    setMessages(prev => [...prev, clarificationMessage]);
+    console.log('🔽 Selection required:', { type, optionsCount: options.length });
   };
 
-  const handleSelectionSubmit = () => {
+  const handleSelectionSubmit = async () => {
     if (selectedItems.length === 0) return;
 
-    // Send selected items back to continue the conversation
-    const selectionMessage = `I've selected: ${selectedItems.map(id => {
+    console.log('✅ Submitting selection:', selectedItems);
+
+    // Create a user message showing what was selected
+    const selectedNames = selectedItems.map(id => {
       const option = selectionOptions.options.find(opt => opt.id === id);
       return option?.name || id;
-    }).join(', ')}`;
+    }).join(', ');
 
-    setInputValue(selectionMessage);
+    const userSelectionMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: `Selected: ${selectedNames}`,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userSelectionMessage]);
+
+    // Clear selection UI
     setNeedsUserInput(false);
+    setClarificationPrompt('');
     setSelectionOptions(null);
     
-    // Submit the selection
-    handleSendMessage();
+    setIsLoading(true);
+    setShowStatus(true);
+    setProcessingStatus('Processing your selection...');
+
+    try {
+      const token = getAuthToken(chatType);
+      
+      // Continue the conversation with selected IDs
+      const response = await fetch(`${getApiBaseUrl()}/api/chat/continue/${currentSessionId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: new URLSearchParams({
+          user_response: JSON.stringify(selectedItems),
+          module_type: currentConfig.moduleType
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📥 Continue response:', data);
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: data.response,
+        timestamp: new Date(),
+        visualizations: data.endpoint_data?.visualizations,
+        endpoints: data.endpoint_data?.triggered_endpoints || []
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Check if more user input is needed (for Meta Ads drill-down)
+      if (data.endpoint_data?.requires_selection) {
+        handleNeedsUserInput({
+          success: true,
+          needs_user_input: true,
+          selection_data: data.endpoint_data.requires_selection
+        });
+      }
+
+    } catch (error) {
+      console.error('Error submitting selection:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: `I apologize, but I encountered an error processing your selection: ${error.message}. Please try again.`,
+        timestamp: new Date(),
+        isError: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setSelectedItems([]);
+      setIsLoading(false);
+      setShowStatus(false);
+      setProcessingStatus('');
+    }
   };
 
   const toggleItemSelection = (itemId) => {
@@ -447,7 +535,7 @@ const AIChatComponent = ({
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !needsUserInput) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -455,83 +543,105 @@ const AIChatComponent = ({
 
   const loadHistoryData = async () => {
     try {
-      const token = getAuthToken(chatType);
+      const authToken = getAuthToken(chatType);
       
+      if (!authToken) {
+        console.warn('No auth token available');
+        return;
+      }
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/chat/sessions/${currentConfig.moduleType}`,
+        `${getApiBaseUrl()}/api/chat/sessions/${currentConfig.moduleType}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
           }
         }
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📚 Loaded history:', data);
-        
-        // Transform sessions data to match UI format
-        const formattedChats = data.sessions?.map(session => {
-          let titleMessage = 'New conversation';
-          
-          if (session.preview || session.user_question) {
-            const content = (session.preview || session.user_question).trim();
-            titleMessage = content.length > 40 ? content.substring(0, 40) + '...' : content;
-          } else if (session.messages && session.messages.length > 0) {
-            const firstUserMessage = session.messages.find(msg => msg.role === 'user');
-            if (firstUserMessage && firstUserMessage.content) {
-              const content = firstUserMessage.content.trim();
-              titleMessage = content.length > 40 ? content.substring(0, 40) + '...' : content;
-            }
-          }
-          
-          return {
-            id: session.session_id,
-            title: titleMessage,
-            timestamp: session.timestamp || session.last_activity || session.created_at,
-            messageCount: session.messages ? session.messages.length : (session.message_count || 0)
-          };
-        }).filter(chat => chat.messageCount > 0) || [];
-        
-        setRecentChats(formattedChats);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('📚 Chat history loaded:', data);
+      
+      // Transform sessions into recent chats format
+      const formattedChats = (data.sessions || []).map(session => {
+        const firstUserMessage = session.messages?.find(m => m.role === 'user');
+        const lastMessage = session.messages?.[session.messages.length - 1];
+        
+        return {
+          id: session.session_id,
+          title: firstUserMessage?.content?.substring(0, 50) + '...' || 'Untitled Chat',
+          timestamp: new Date(session.last_activity || session.created_at),
+          preview: lastMessage?.content?.substring(0, 100) || '',
+          messageCount: session.messages?.length || 0
+        };
+      });
+      
+      setRecentChats(formattedChats);
+      
     } catch (error) {
-      console.error('Error loading history:', error);
+      console.error('Error loading chat history:', error);
+      setRecentChats([]);
     }
   };
 
   const loadConversation = async (sessionId) => {
     try {
+      setIsLoading(true);
       const token = getAuthToken(chatType);
       
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/chat/conversation/${sessionId}?module_type=${currentConfig.moduleType}`,
+        `${getApiBaseUrl()}/api/chat/conversation/${sessionId}?module_type=${currentConfig.moduleType}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📖 Loaded conversation:', data);
-        
-        // Convert conversation to messages format
-        const loadedMessages = data.messages.map((msg, index) => ({
-          id: Date.now() + index,
-          type: msg.role === 'user' ? 'user' : 'ai',
-          content: msg.content,
-          timestamp: new Date(msg.timestamp),
-          visualizations: msg.visualizations,
-          endpoints: msg.triggered_endpoints
-        }));
-        
-        setMessages(loadedMessages);
-        setCurrentSessionId(sessionId);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('📖 Loaded conversation:', data);
+      
+      // Convert conversation to messages format
+      const loadedMessages = (data.messages || []).map((msg, index) => ({
+        id: Date.now() + index,
+        type: msg.role === 'user' ? 'user' : 'ai',
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+        visualizations: msg.visualizations,
+        endpoints: msg.triggered_endpoints
+      }));
+      
+      setMessages(loadedMessages);
+      setCurrentSessionId(sessionId);
+      
+      // Clear any pending selections
+      setNeedsUserInput(false);
+      setClarificationPrompt('');
+      setSelectionOptions(null);
+      setSelectedItems([]);
+      
     } catch (error) {
       console.error('Error loading conversation:', error);
+      const errorMessage = {
+        id: Date.now(),
+        type: 'ai',
+        content: `Failed to load conversation: ${error.message}`,
+        timestamp: new Date(),
+        isError: true
+      };
+      setMessages([errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -540,36 +650,39 @@ const AIChatComponent = ({
       const token = getAuthToken(chatType);
       
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/chat/delete`,
+        `${getApiBaseUrl()}/api/chat/delete`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            session_ids: [sessionId]
-          })
+          body: JSON.stringify([sessionId])
         }
       );
 
-      if (response.ok) {
-        loadHistoryData(); // Reload to update list
-        setShowSuccessToast(true);
-        setTimeout(() => setShowSuccessToast(false), 3000);
-        
-        // If we're viewing this conversation, start a new chat
-        if (currentSessionId === sessionId) {
-          handleNewChat();
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      // Reload history to update list
+      await loadHistoryData();
+      
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+      
+      // If we're viewing this conversation, start a new chat
+      if (currentSessionId === sessionId) {
+        handleNewChat();
+      }
+      
     } catch (error) {
       console.error('Error deleting conversation:', error);
     }
   };
 
   const handleRecentChatClick = (sessionId) => {
-    console.log('Chat clicked:', sessionId);
+    console.log('📂 Chat clicked:', sessionId);
     loadConversation(sessionId);
   };
 
@@ -666,10 +779,17 @@ const AIChatComponent = ({
                         handleRecentChatClick(chat.id);
                       }}
                     >
-                      <span className="text-sm truncate flex-1" title={chat.title}>{chat.title}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm truncate block" title={chat.title}>
+                          {chat.title}
+                        </span>
+                        <span className="text-xs opacity-75 block">
+                          {chat.timestamp.toLocaleDateString()}
+                        </span>
+                      </div>
                       <Trash2 
                         size={16} 
-                        className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer"
+                        className="transition-opacity ml-2 opacity-0 group-hover:opacity-100 cursor-pointer flex-shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteConversation(chat.id);
@@ -733,7 +853,7 @@ const AIChatComponent = ({
                   <button
                     key={index}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
                     style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
@@ -746,7 +866,7 @@ const AIChatComponent = ({
                   <button
                     key={index + 3}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer"
+                    className="p-3 bg-white rounded-lg text-center border-l-4 border text-gray-800 min-h-[80px] flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
                     style={{ borderColor: currentConfig.color || '#508995' }}
                   >
                     <p className="text-xs leading-relaxed break-words">{suggestion}</p>
@@ -797,35 +917,44 @@ const AIChatComponent = ({
 
             {/* Selection UI for Meta Ads hierarchy */}
             {needsUserInput && selectionOptions && (
-              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 animate-fadeIn">
                 <div className="flex items-start space-x-2 mb-3">
-                  <AlertCircle size={20} className="text-blue-600 mt-0.5" />
+                  <AlertCircle size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-blue-900 mb-1">Selection Required</p>
+                    <p className="font-semibold text-blue-900 mb-1">
+                      {selectionOptions.type === 'campaigns' && 'Select Campaign(s)'}
+                      {selectionOptions.type === 'adsets' && 'Select Ad Set(s)'}
+                      {selectionOptions.type === 'ads' && 'Select Ad(s)'}
+                    </p>
                     <p className="text-sm text-blue-700">{clarificationPrompt}</p>
                   </div>
                 </div>
                 
-                <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
+                <div className="space-y-2 max-h-64 overflow-y-auto mb-3 pr-2">
                   {selectionOptions.options.map((option) => (
                     <label
                       key={option.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
                         selectedItems.includes(option.id)
-                          ? 'bg-blue-100 border-2 border-blue-400'
-                          : 'bg-white border-2 border-gray-200 hover:border-blue-300'
+                          ? 'bg-blue-100 border-2 border-blue-400 shadow-sm'
+                          : 'bg-white border-2 border-gray-200 hover:border-blue-300 hover:shadow-sm'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={selectedItems.includes(option.id)}
                         onChange={() => toggleItemSelection(option.id)}
-                        className="w-4 h-4"
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                       />
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-800">{option.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-800 truncate">{option.name}</p>
                         {option.status && (
-                          <p className="text-xs text-gray-500">Status: {option.status}</p>
+                          <p className="text-xs text-gray-500">
+                            <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                              option.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'
+                            }`}></span>
+                            {option.status}
+                          </p>
                         )}
                         {option.objective && (
                           <p className="text-xs text-gray-500">Objective: {option.objective}</p>
@@ -835,13 +964,18 @@ const AIChatComponent = ({
                   ))}
                 </div>
                 
-                <button
-                  onClick={handleSelectionSubmit}
-                  disabled={selectedItems.length === 0}
-                  className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  Continue with {selectedItems.length} selected
-                </button>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    {selectedItems.length} of {selectionOptions.options.length} selected
+                  </p>
+                  <button
+                    onClick={handleSelectionSubmit}
+                    disabled={selectedItems.length === 0 || isLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isLoading ? 'Processing...' : `Continue with ${selectedItems.length} selected`}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -932,7 +1066,7 @@ const AIChatComponent = ({
 
         {/* Success Toast */}
         {showSuccessToast && (
-          <div className="fixed top-4 right-4 z-50">
+          <div className="fixed top-4 right-4 z-50 animate-slideIn">
             <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2">
               <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
