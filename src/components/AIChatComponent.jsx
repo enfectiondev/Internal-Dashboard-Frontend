@@ -546,9 +546,11 @@ const AIChatComponent = ({
       const authToken = getAuthToken(chatType);
       
       if (!authToken) {
-        console.warn('No auth token available');
+        console.warn('⚠️ No auth token available');
         return;
       }
+
+      console.log(`📚 Loading chat history for module: ${currentConfig.moduleType}`);
 
       const response = await fetch(
         `${getApiBaseUrl()}/api/chat/sessions/${currentConfig.moduleType}`,
@@ -561,11 +563,13 @@ const AIChatComponent = ({
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to load history:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('📚 Chat history loaded:', data);
+      console.log('✅ Chat history loaded:', data);
       
       // Transform sessions into recent chats format
       const formattedChats = (data.sessions || []).map(session => {
@@ -581,10 +585,11 @@ const AIChatComponent = ({
         };
       });
       
+      console.log(`✅ Formatted ${formattedChats.length} chats`);
       setRecentChats(formattedChats);
       
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      console.error('❌ Error loading chat history:', error);
       setRecentChats([]);
     }
   };
@@ -593,6 +598,8 @@ const AIChatComponent = ({
     try {
       setIsLoading(true);
       const token = getAuthToken(chatType);
+      
+      console.log(`📖 Loading conversation: ${sessionId}`);
       
       const response = await fetch(
         `${getApiBaseUrl()}/api/chat/conversation/${sessionId}?module_type=${currentConfig.moduleType}`,
@@ -605,11 +612,13 @@ const AIChatComponent = ({
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to load conversation:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('📖 Loaded conversation:', data);
+      console.log('✅ Loaded conversation:', data);
       
       // Convert conversation to messages format
       const loadedMessages = (data.messages || []).map((msg, index) => ({
@@ -621,6 +630,7 @@ const AIChatComponent = ({
         endpoints: msg.triggered_endpoints
       }));
       
+      console.log(`✅ Loaded ${loadedMessages.length} messages`);
       setMessages(loadedMessages);
       setCurrentSessionId(sessionId);
       
@@ -631,7 +641,7 @@ const AIChatComponent = ({
       setSelectedItems([]);
       
     } catch (error) {
-      console.error('Error loading conversation:', error);
+      console.error('❌ Error loading conversation:', error);
       const errorMessage = {
         id: Date.now(),
         type: 'ai',
