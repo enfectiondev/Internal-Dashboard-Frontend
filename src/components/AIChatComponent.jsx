@@ -252,11 +252,15 @@ const AIChatComponent = ({
         
         // Update session ID
         if (response.session_id) {
+          console.log('💾 Setting current session ID:', response.session_id);
           setCurrentSessionId(response.session_id);
         }
-        
-        // Reload history to show new conversation
-        loadHistoryData();
+
+        // Reload history to show new conversation (with small delay to ensure backend has saved)
+        setTimeout(() => {
+          console.log('🔄 Reloading history after message sent');
+          loadHistoryData();
+        }, 500);
       } else {
         throw new Error(response.error || 'Failed to get response');
       }
@@ -544,13 +548,13 @@ const AIChatComponent = ({
   const loadHistoryData = async () => {
     try {
       const authToken = getAuthToken(chatType);
-      
+
       if (!authToken) {
         console.warn('⚠️ No auth token available');
         return;
       }
 
-      console.log(`📚 Loading chat history for module: ${currentConfig.moduleType}`);
+      console.log(`📚 [loadHistoryData] Loading chat history for module: ${currentConfig.moduleType}`);
 
       const response = await fetch(
         `${getApiBaseUrl()}/api/chat/sessions/${currentConfig.moduleType}`,
@@ -569,13 +573,22 @@ const AIChatComponent = ({
       }
 
       const data = await response.json();
-      console.log('✅ Chat history loaded:', data);
-      
+      console.log('✅ [loadHistoryData] Chat history loaded:', data);
+      console.log(`✅ [loadHistoryData] Sessions count: ${data.sessions?.length || 0}`);
+
+      if (data.sessions && data.sessions.length > 0) {
+        console.log('📝 [loadHistoryData] First session sample:', {
+          session_id: data.sessions[0].session_id,
+          created_at: data.sessions[0].created_at,
+          messages_count: data.sessions[0].messages?.length
+        });
+      }
+
       // Transform sessions into recent chats format
       const formattedChats = (data.sessions || []).map(session => {
         const firstUserMessage = session.messages?.find(m => m.role === 'user');
         const lastMessage = session.messages?.[session.messages.length - 1];
-        
+
         return {
           id: session.session_id,
           title: firstUserMessage?.content?.substring(0, 50) + '...' || 'Untitled Chat',
@@ -584,8 +597,8 @@ const AIChatComponent = ({
           messageCount: session.messages?.length || 0
         };
       });
-      
-      console.log(`✅ Formatted ${formattedChats.length} chats`);
+
+      console.log(`✅ [loadHistoryData] Formatted ${formattedChats.length} chats`);
       setRecentChats(formattedChats);
       
     } catch (error) {
