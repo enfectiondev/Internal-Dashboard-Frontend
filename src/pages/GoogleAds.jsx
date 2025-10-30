@@ -307,7 +307,7 @@ export default function GoogleAds({ activeCampaign, period, customDates }) {
             <AIChatComponent 
               chatType="ads"
               activeCampaign={activeCampaign}
-              period={period}
+              period={customDates?.startDate && customDates?.endDate ? "CUSTOM" : period}
               customDates={customDates}
             />
           </div>
