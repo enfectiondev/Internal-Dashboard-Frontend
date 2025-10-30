@@ -464,18 +464,18 @@ const AIChatComponent = ({
 
     try {
       const token = getAuthToken(chatType);
-      
-      // Continue the conversation with selected IDs
-      const response = await fetch(`${getApiBaseUrl()}/api/chat/continue/${currentSessionId}`, {
+
+      // Continue the conversation with selected IDs - build URL with query parameters
+      const url = new URL(`${getApiBaseUrl()}/api/chat/continue/${currentSessionId}`);
+      url.searchParams.append('user_response', JSON.stringify(selectedItems));
+      url.searchParams.append('module_type', currentConfig.moduleType);
+
+      const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        params: new URLSearchParams({
-          user_response: JSON.stringify(selectedItems),
-          module_type: currentConfig.moduleType
-        })
+        }
       });
 
       if (!response.ok) {
